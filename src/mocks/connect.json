@@ -1,0 +1,25 @@
+{
+  "people": [
+    {
+      "id": "person-001",
+      "name": "Avery Chen",
+      "handle": "avery",
+      "bio": "Street food explorer and weekend hiker.",
+      "commonTags": ["Food", "Hike"]
+    },
+    {
+      "id": "person-002",
+      "name": "Riley Patel",
+      "handle": "riley",
+      "bio": "Coffee, bookstores, and city walks.",
+      "commonTags": ["Coffee", "Books"]
+    },
+    {
+      "id": "person-003",
+      "name": "Casey Brooks",
+      "handle": "casey",
+      "bio": "Photographer collecting viewpoints.",
+      "commonTags": ["Views", "Photo"]
+    }
+  ]
+}

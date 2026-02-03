@@ -1,0 +1,31 @@
+{
+  "places": [
+    {
+      "id": "place-001",
+      "name": "Harbor Loop",
+      "category": "Trail",
+      "summary": "Easy waterfront walk with skyline views.",
+      "rating": 4.6,
+      "tags": ["Scenic", "Easy"],
+      "address": "Waterfront District"
+    },
+    {
+      "id": "place-002",
+      "name": "Old Town Market",
+      "category": "Food",
+      "summary": "Crowded market with local bites.",
+      "rating": 4.2,
+      "tags": ["Food", "Local"],
+      "address": "Old Town"
+    },
+    {
+      "id": "place-003",
+      "name": "Pine Ridge Lookout",
+      "category": "Viewpoint",
+      "summary": "Short hike with panoramic views.",
+      "rating": 4.8,
+      "tags": ["Hike", "Views"],
+      "address": "Pine Ridge"
+    }
+  ]
+}

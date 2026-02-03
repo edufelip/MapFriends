@@ -1,0 +1,22 @@
+{
+  "notifications": [
+    {
+      "id": "note-001",
+      "title": "Avery saved your trail",
+      "body": "Harbor Loop added to their weekend list.",
+      "time": "2h ago"
+    },
+    {
+      "id": "note-002",
+      "title": "Riley connected with you",
+      "body": "Say hi and swap coffee spots.",
+      "time": "Yesterday"
+    },
+    {
+      "id": "note-003",
+      "title": "Casey left a review",
+      "body": "Pine Ridge Lookout is a must at sunset.",
+      "time": "2 days ago"
+    }
+  ]
+}
