@@ -5,6 +5,7 @@ import { useAuth } from '../services/auth';
 import { Routes } from './routes';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
+import AcceptTermsScreen from '../screens/Auth/AcceptTermsScreen';
 import FindPeopleScreen from '../screens/Connect/FindPeopleScreen';
 import MapHomeScreen from '../screens/Map/MapHomeScreen';
 import PlaceDetailScreen from '../screens/Map/PlaceDetailScreen';
@@ -16,6 +17,7 @@ import SettingsScreen from '../screens/Settings/SettingsScreen';
 type RootStackParamList = {
   [Routes.AuthLogin]: undefined;
   [Routes.AuthSignup]: undefined;
+  [Routes.AcceptTerms]: undefined;
   [Routes.Onboarding]: undefined;
   [Routes.MapHome]: undefined;
   [Routes.PlaceDetail]: { placeId: string };
@@ -52,6 +54,18 @@ function OnboardingStack() {
   );
 }
 
+function TermsStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name={Routes.AcceptTerms}
+        component={AcceptTermsScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainStack() {
   return (
     <Stack.Navigator>
@@ -66,12 +80,14 @@ function MainStack() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, hasCompletedOnboarding } = useAuth();
+  const { isAuthenticated, hasAcceptedTerms, hasCompletedOnboarding } = useAuth();
 
   return (
     <NavigationContainer>
       {!isAuthenticated ? (
         <AuthStack />
+      ) : !hasAcceptedTerms ? (
+        <TermsStack />
       ) : !hasCompletedOnboarding ? (
         <OnboardingStack />
       ) : (

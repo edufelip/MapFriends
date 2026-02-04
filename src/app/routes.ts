@@ -1,6 +1,7 @@
 export const Routes = {
   AuthLogin: 'AuthLogin',
   AuthSignup: 'AuthSignup',
+  AcceptTerms: 'AcceptTerms',
   Onboarding: 'Onboarding',
   MapHome: 'MapHome',
   PlaceDetail: 'PlaceDetail',

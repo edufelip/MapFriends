@@ -5,6 +5,7 @@ import { User } from './types';
 type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
+  hasAcceptedTerms: boolean;
   hasCompletedOnboarding: boolean;
 };
 
@@ -12,6 +13,7 @@ type AuthContextValue = AuthState & {
   signIn: () => void;
   signUp: () => void;
   signOut: () => void;
+  acceptTerms: () => void;
   completeOnboarding: () => void;
 };
 
@@ -21,6 +23,7 @@ const seedUser = authSeed.user as User;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
+  const [hasAcceptedTerms, setHasAcceptedTerms] = React.useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = React.useState(false);
 
   const signIn = () => {
@@ -33,7 +36,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = () => {
     setUser(null);
+    setHasAcceptedTerms(false);
     setHasCompletedOnboarding(false);
+  };
+
+  const acceptTerms = () => {
+    setHasAcceptedTerms(true);
   };
 
   const completeOnboarding = () => {
@@ -43,10 +51,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     user,
     isAuthenticated: Boolean(user),
+    hasAcceptedTerms,
     hasCompletedOnboarding,
     signIn,
     signUp,
     signOut,
+    acceptTerms,
     completeOnboarding,
   };
 
