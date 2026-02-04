@@ -18,7 +18,10 @@ export default function ProfileScreen() {
       <View style={styles.card}>
         <Text style={styles.name}>{user.name}</Text>
         <Text style={styles.handle}>@{user.handle}</Text>
-        <Text style={styles.bio}>Local explorer sharing weekend picks.</Text>
+        <Text style={styles.bio}>{user.bio || 'Local explorer sharing weekend picks.'}</Text>
+        <Text style={styles.visibility}>
+          {user.visibility === 'locked' ? 'Locked profile' : 'Open profile'}
+        </Text>
       </View>
 
       <View style={styles.statsRow}>
@@ -64,6 +67,12 @@ const styles = StyleSheet.create({
   bio: {
     marginTop: 12,
     color: '#46555a',
+  },
+  visibility: {
+    marginTop: 6,
+    color: '#6c7a7f',
+    fontSize: 12,
+    fontWeight: '600',
   },
   statsRow: {
     flexDirection: 'row',

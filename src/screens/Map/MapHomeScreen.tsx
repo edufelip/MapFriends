@@ -1,46 +1,115 @@
 import React from 'react';
-import { FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, View, useColorScheme } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getPlaces } from '../../services/map';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../services/auth';
+import { getFeedPosts } from '../../services/feed';
+import { getStrings } from '../../localization/strings';
+import { palette } from '../../theme/palette';
+import FeedTab from './components/FeedTab';
+import MapTab from './components/MapTab';
+import BottomNav from './components/BottomNav';
 import { Routes } from '../../app/routes';
-import MapHeaderActions from './MapHeaderActions';
 
 export default function MapHomeScreen({ navigation }: NativeStackScreenProps<any>) {
-  const places = getPlaces();
+  const colorScheme = useColorScheme();
+  const theme = colorScheme === 'dark' ? palette.dark : palette.light;
+  const strings = getStrings();
+  const { user } = useAuth();
+  const posts = getFeedPosts();
+  const [activeTab, setActiveTab] = React.useState<'feed' | 'map'>('map');
+  const insets = useSafeAreaInsets();
+
+  const hasToken = Boolean(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
+  const isDark = colorScheme === 'dark';
 
   return (
-    <View style={styles.container}>
-      <View style={styles.hero}>
-        <Text style={styles.heroTitle}>Today in your city</Text>
-        <Text style={styles.heroSubtitle}>Local favorites recommended by your people.</Text>
-        <MapHeaderActions navigation={navigation} />
-        <View style={styles.mapPlaceholder}>
-          <Text style={styles.mapText}>Map preview (local placeholder)</Text>
-        </View>
+    <View style={[styles.container, { backgroundColor: theme.background }]}> 
+      <View style={[styles.mapLayer, { opacity: activeTab === 'map' ? 1 : 0 }]}> 
+        <MapTab
+          theme={{
+            background: theme.background,
+            textPrimary: theme.textPrimary,
+            textMuted: theme.textMuted,
+            primary: theme.primary,
+            accentGold: theme.accentGold,
+            border: theme.border,
+            glass: theme.glass || 'rgba(16,22,34,0.8)',
+          }}
+          activeTab={activeTab}
+          onChangeTab={setActiveTab}
+          strings={{
+            tabFeed: strings.home.tabFeed,
+            tabMap: strings.home.tabMap,
+            filterPeopleAll: strings.home.filterPeopleAll,
+            filterContentPremium: strings.home.filterContentPremium,
+            youLabel: strings.home.youLabel,
+            sampleQuote: strings.home.sampleQuote,
+            mapTokenMissing: strings.home.mapTokenMissing,
+          }}
+          hasToken={hasToken}
+          isDark={isDark}
+          topInset={insets.top}
+          onPlacePress={() => navigation.navigate(Routes.PlaceDetail, { placeId: 'place-001' })}
+        />
       </View>
 
-      <View style={styles.sectionHeader}>
-        <Text style={styles.sectionTitle}>Places to explore</Text>
-        <TouchableOpacity onPress={() => navigation.navigate(Routes.ShareReview)}>
-          <Text style={styles.sectionLink}>Share a place</Text>
-        </TouchableOpacity>
+      <View
+        style={[
+          styles.feedLayer,
+          {
+            opacity: activeTab === 'feed' ? 1 : 0,
+            pointerEvents: activeTab === 'feed' ? 'auto' : 'none',
+          },
+        ]}
+      >
+        <FeedTab
+          posts={posts}
+          value={activeTab}
+          onChange={setActiveTab}
+          onCreate={() => navigation.navigate(Routes.ShareReview)}
+          theme={{
+            background: theme.background,
+            surface: theme.surface,
+            textPrimary: theme.textPrimary,
+            textMuted: theme.textMuted,
+            primary: theme.primary,
+            accentGold: theme.accentGold,
+            border: theme.border,
+          }}
+          strings={{
+            title: strings.home.feedTitle,
+            tabFeed: strings.home.tabFeed,
+            tabMap: strings.home.tabMap,
+            more: strings.home.feedMore,
+            premiumLabel: strings.home.feedPremiumLabel,
+            premiumTitle: strings.home.feedPremiumTitle,
+            premiumDesc: strings.home.feedPremiumDesc,
+            premiumCta: strings.home.feedPremiumCta,
+          }}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+        />
       </View>
 
-      <FlatList
-        data={places}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            onPress={() => navigation.navigate(Routes.PlaceDetail, { placeId: item.id })}
-          >
-            <Text style={styles.cardTitle}>{item.name}</Text>
-            <Text style={styles.cardMeta}>{item.category} · {item.rating.toFixed(1)}</Text>
-            <Text style={styles.cardSummary}>{item.summary}</Text>
-            <Text style={styles.cardTags}>{item.tags.join(' · ')}</Text>
-          </TouchableOpacity>
-        )}
+      <BottomNav
+        navigation={navigation}
+        theme={{
+          glass: theme.glass || 'rgba(16,22,34,0.8)',
+          border: theme.border,
+          primary: theme.primary,
+          textMuted: theme.textMuted,
+          surface: theme.surface,
+          textPrimary: theme.textPrimary,
+        }}
+        labels={{
+          home: strings.home.navHome,
+          explore: strings.home.navExplore,
+          activity: strings.home.navActivity,
+          profile: strings.home.navProfile,
+        }}
+        user={user}
+        bottomInset={insets.bottom}
       />
     </View>
   );
@@ -49,80 +118,11 @@ export default function MapHomeScreen({ navigation }: NativeStackScreenProps<any
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f2ea',
   },
-  hero: {
-    padding: 20,
-    backgroundColor: '#f0e8dd',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2ddd2',
+  mapLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
-  heroTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1f2a2e',
-  },
-  heroSubtitle: {
-    marginTop: 6,
-    color: '#46555a',
-  },
-  mapPlaceholder: {
-    marginTop: 16,
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    padding: 24,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#d7d2c6',
-  },
-  mapText: {
-    color: '#7a8a8f',
-  },
-  sectionHeader: {
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2a2e',
-  },
-  sectionLink: {
-    color: '#2b5c5a',
-    fontWeight: '600',
-  },
-  list: {
-    paddingHorizontal: 20,
-    paddingBottom: 24,
-  },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#e2ddd2',
-  },
-  cardTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1f2a2e',
-  },
-  cardMeta: {
-    marginTop: 4,
-    color: '#6c7a7f',
-  },
-  cardSummary: {
-    marginTop: 8,
-    color: '#46555a',
-  },
-  cardTags: {
-    marginTop: 8,
-    color: '#2b5c5a',
-    fontWeight: '600',
+  feedLayer: {
+    ...StyleSheet.absoluteFillObject,
   },
 });

@@ -14,8 +14,8 @@ Add a profile completion step after Terms acceptance. Users must enter display n
 - Handle availability checks against a server.
 
 ## User Flows
-- Login/Signup → Terms → Profile Setup (if incomplete) → Onboarding.
-- Tap **Continue** with valid inputs → Profile marked complete → Onboarding.
+- Login/Signup → Terms → Profile Setup (if incomplete) → Home.
+- Tap **Continue** with valid inputs → Profile marked complete → Home (onboarding skipped).
 - Tap **Skip** → Handle + visibility are auto-populated → Onboarding.
 - Logout resets profile completion status.
 
@@ -41,7 +41,7 @@ Add a profile completion step after Terms acceptance. Users must enter display n
   - Continue disabled until name, handle, bio are valid.
   - Invalid handle shows error and does not enable Continue.
   - Skip allows navigation to onboarding and sets handle + visibility.
-  - Completing profile updates `user` and passes gate.
+  - Completing profile updates `user`, marks onboarding complete, and passes gate.
   - Sign out resets profile completion and skip flags.
 - Automated (future):
   - Reducer/auth state transitions for `completeProfile` and `skipProfileSetup`.

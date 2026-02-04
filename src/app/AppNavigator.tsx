@@ -6,8 +6,10 @@ import { Routes } from './routes';
 import LoginScreen from '../screens/Auth/LoginScreen';
 import SignupScreen from '../screens/Auth/SignupScreen';
 import AcceptTermsScreen from '../screens/Auth/AcceptTermsScreen';
+import ProfileSetupScreen from '../screens/Auth/ProfileSetupScreen';
 import FindPeopleScreen from '../screens/Connect/FindPeopleScreen';
 import MapHomeScreen from '../screens/Map/MapHomeScreen';
+import ExploreScreen from '../screens/Explore/ExploreScreen';
 import PlaceDetailScreen from '../screens/Map/PlaceDetailScreen';
 import ReviewComposerScreen from '../screens/Share/ReviewComposerScreen';
 import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
@@ -18,8 +20,10 @@ type RootStackParamList = {
   [Routes.AuthLogin]: undefined;
   [Routes.AuthSignup]: undefined;
   [Routes.AcceptTerms]: undefined;
+  [Routes.ProfileSetup]: undefined;
   [Routes.Onboarding]: undefined;
   [Routes.MapHome]: undefined;
+  [Routes.Explore]: undefined;
   [Routes.PlaceDetail]: { placeId: string };
   [Routes.ShareReview]: { placeId?: string } | undefined;
   [Routes.Notifications]: undefined;
@@ -66,10 +70,27 @@ function TermsStack() {
   );
 }
 
+function ProfileSetupStack() {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name={Routes.ProfileSetup}
+        component={ProfileSetupScreen}
+        options={{ headerShown: false }}
+      />
+    </Stack.Navigator>
+  );
+}
+
 function MainStack() {
   return (
     <Stack.Navigator>
-      <Stack.Screen name={Routes.MapHome} component={MapHomeScreen} options={{ title: 'Map' }} />
+      <Stack.Screen
+        name={Routes.MapHome}
+        component={MapHomeScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen name={Routes.Explore} component={ExploreScreen} options={{ title: 'Explore' }} />
       <Stack.Screen name={Routes.PlaceDetail} component={PlaceDetailScreen} options={{ title: 'Place' }} />
       <Stack.Screen name={Routes.ShareReview} component={ReviewComposerScreen} options={{ title: 'Share review' }} />
       <Stack.Screen name={Routes.Notifications} component={NotificationsScreen} options={{ title: 'Notifications' }} />
@@ -80,7 +101,13 @@ function MainStack() {
 }
 
 export default function AppNavigator() {
-  const { isAuthenticated, hasAcceptedTerms, hasCompletedOnboarding } = useAuth();
+  const {
+    isAuthenticated,
+    hasAcceptedTerms,
+    hasCompletedProfile,
+    hasSkippedProfileSetup,
+    hasCompletedOnboarding,
+  } = useAuth();
 
   return (
     <NavigationContainer>
@@ -88,6 +115,8 @@ export default function AppNavigator() {
         <AuthStack />
       ) : !hasAcceptedTerms ? (
         <TermsStack />
+      ) : !hasCompletedProfile && !hasSkippedProfileSetup ? (
+        <ProfileSetupStack />
       ) : !hasCompletedOnboarding ? (
         <OnboardingStack />
       ) : (

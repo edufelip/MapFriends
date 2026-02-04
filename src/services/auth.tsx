@@ -101,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     );
     setHasCompletedProfile(true);
     setHasSkippedProfileSetup(false);
+    setHasCompletedOnboarding(true);
   };
 
   const skipProfileSetup = () => {

@@ -1,22 +1,56 @@
 {
-  "notifications": [
+  "newRequests": [
     {
-      "id": "note-001",
-      "title": "Avery saved your trail",
-      "body": "Harbor Loop added to their weekend list.",
-      "time": "2h ago"
+      "id": "req-1",
+      "name": "Julian Vasseur",
+      "time": "2m",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuCdManZJtf_V0R4QrjTsc0UEdanX3n9hf-KUAX3Gk6zomYkRIK18sO7YFwyV5bayTx1R89dPK6sTx_onbpTz54GNsBi2_6lbWqKvxkOJGte205UyIz6OnCbrZ4NbHSZ-4OJAHZsOQI1wPUVCwHR2Z0GOP9GmWlLDxuwe_7CZkFTFt_5ryd5iyu-W3IDHvmmSAMTDtpl2qMWlXsFSOyg3gf5XrlzUaTCXO83E4TLrSgRu6qjLpMHidR8l1to7ZiF0rEONPaneDgai4w",
+      "message": "wants to follow your recommendations.",
+      "badge": { "icon": "person-add-alt", "color": "#135bec" },
+      "actions": ["accept", "decline"]
+    }
+  ],
+  "earlier": [
+    {
+      "id": "earlier-1",
+      "name": "Sarah Jenkins",
+      "time": "1h",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuDc2aMA7VwCX21goefbiphNQpOtlVNkzEVcvZXETIou81gpiiGVZ_nEe0zqXJ7SUxyb4zBMUvWG3fbpBoqX4fQczaxI3WXbcwZnrm8hvRTouEz1x0qC8QCIegKQ0BfJoa36drxV53MMpmqKELJE8qyQ1jesQtJvEZ5jJr9fAIUIjsr3CDnbAoP6a54IaEXxFrKUOzxXjOMICYwB8FxmVJNiHd7xSNx1itn6qOcAnTh3PC-oj_nPjScEL4SNNSYt0hDCjDkOqdM8ieY",
+      "message": "posted a new review:",
+      "quote": "\"The atmosphere here is unmatched...\"",
+      "badge": { "icon": "star", "color": "#22c55e" },
+      "preview": {
+        "title": "Blue Bottle Coffee Roastery",
+        "subtitle": "Brooklyn, NY",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDrVMO7d4zWYioxLJ9L0cWyQhxeNj5-D9btQbICL89NmwQuDwFN6cE7_HE3M2Huyvfiidn2MXr0wY9-y2uJylHxhA4kKJdDaCJjaRuq0LjOimemFkU50mqr4iaFK3M5nxkYbVUKTix4HXtjlG-1f3h2RWXBGkMA4ZX7qu8YqaDLR2E-XtQSc2M4sebcWkOwBQ5Fe811lnbH3upZWr0AbcPEsapSo0kvyoJAYaJsLJ9yEDOWitwRcfugTq95n_N3QwUNV8O7V7K2D4o"
+      }
     },
     {
-      "id": "note-002",
-      "title": "Riley connected with you",
-      "body": "Say hi and swap coffee spots.",
-      "time": "Yesterday"
+      "id": "earlier-2",
+      "name": "Marcus Chen",
+      "time": "4h",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuB4htsicrdLDFA_jH_WkZAihEJUVnNrI-9bgC66JAGMes18oh5Nfg0qx6lfHZJrB6s1WVGnbhYroIGLpWssHS6OoUq4MEcMrQCDHWJgX9eiE0h-g0nimo3pv2Dcy1oHCybmLhuGxljSOFM9w8FMh7_0sB2DpUa7Mg-TWW0R9WgPdkWogq6itnLKgqNqIczNYZtsbznPjWwbAD2QhTIexnvvREcHcHPsDK4g_jrn17Nc9eH-iJajLEymmjqPa036TS4kPL-4Z6Cevuw",
+      "message": "approved your request. You can now see their private map recommendations.",
+      "badge": { "icon": "check", "color": "#60a5fa" }
     },
     {
-      "id": "note-003",
-      "title": "Casey left a review",
-      "body": "Pine Ridge Lookout is a must at sunset.",
-      "time": "2 days ago"
+      "id": "earlier-3",
+      "name": "Elena Rossi",
+      "time": "6h",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuAcaZ_7SCaV2M4-7POj64F61gtorCqBUrJhWbLzVGRq8B6m7-Zg4vo-uxXwm66OkjBy__yb7W8N3l8eNlEEHCrMtlIOztKoainQHvVZayah6noGBet_YJtX_T7fSOWoVYH-XU7Kjvrys9G2-we8P_Ru2YNVJr4rvhVE_Rp4bZSeXHFDqWOafyQ13p1OwuXgg6QjsYDMU6xM9TXuGUM4KlRzbW38TuUzHy_j4_A6xjBgsspdK_qshF3MDnR9GYFV1bcM0wRbgs5LFTs",
+      "message": "shared a Premium Review for a hidden gem in Rome.",
+      "badge": { "icon": "emoji-events", "color": "#f59e0b" },
+      "premiumCard": true
+    }
+  ],
+  "week": [
+    {
+      "id": "week-1",
+      "name": "Thomas Wright",
+      "time": "2d",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuCJ0KxT87rhNEc--EhS_ZkHMcSv6vDwnCYB3-NPP3Uqj86Q4YQjrPAuwsA9zba-yo4URuqF3KxKsswrZNKQgKv8fwHWZHfNdVrHpfZBnSSSwwrcvMAdekxhB4jFUFgKLmK7H-SY69-e_4Qst8KAuV75ek7Ih9ybwRMzX8A3WrJX6B0DlpUs5MKwNerh4OgW__oE7Xrnbjx5S9KSA74Szsa8XYDEaXLUPtzaW15zSF-FBFQDAMSM2Dqxuv2oAD-y-6293s1q0iSpv0M",
+      "message": "started following you.",
+      "action": "follow"
     }
   ]
 }

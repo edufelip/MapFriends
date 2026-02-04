@@ -2,8 +2,14 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { useColorScheme } from 'react-native';
+import Mapbox from '@rnmapbox/maps';
 import { AuthProvider } from './src/services/auth';
 import AppNavigator from './src/app/AppNavigator';
+
+const mapboxToken = process.env.EXPO_PUBLIC_MAPBOX_TOKEN;
+if (mapboxToken) {
+  Mapbox.setAccessToken(mapboxToken);
+}
 
 export default function App() {
   const colorScheme = useColorScheme();

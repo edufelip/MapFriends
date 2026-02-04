@@ -1,0 +1,40 @@
+{
+  "posts": [
+    {
+      "id": "feed-1",
+      "author": "Sarah J.",
+      "time": "2h ago",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuCyce5iNs54aPcVWL6IwovROAZizITVhbasawFGEGmLnyFfxYUNUjG9BPxSE_SYKxKC-o5Dj8hKrGJgNNvgqSmlXOIpedAZi3cz07KLSDYw3y4KSHm3HRlh1z9rAhmqVFJUB1LWLPUNwS5JfQp7q39BTBjhmExzvKQeL8s1avF-Zf0dIJfDqr7hbfPByggfYoROYoHEL_Ug5djjL8mrLOAX4opcLe-sLFmF5FvlbX1LowS9b1xb-8nHE83XziVmp7B6WQrl4ASWyOQ",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuA3IdKJxoSLZhNNVS53O7I33YJ1OwqpBXZl4BZj4bCrLWVjiUQgXLJ_leijvKXVqJPt9PILuNxCjhUrx3vM7yX4pRbj6finlNII5H3WLMbfhw3Mw1nsk4PcBbDJXEMp1tQF04p9h7VX6x84B7xwZO3I57mTwd8gFphd836rgqEhESXFzWIHuShhPGLrXuYLPffjcIH8ttlrMnq613967onZuC0Nsro7nteHIVqvKR4HfsZp_eh2xkKx03eKTbWhNK4lrIj8jhTzKyY",
+      "rating": "9.2",
+      "title": "Blue Bottle Coffee",
+      "body": "The best oat milk latte in the city, hands down. It's smooth, creamy, and the foam is perfect. The ambiance is great for working...",
+      "likes": "124",
+      "comments": "45",
+      "premium": false
+    },
+    {
+      "id": "feed-2",
+      "author": "Mike T.",
+      "time": "5h ago",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuAMcxg4CcLXLOEoIY6HHhr2l46Aw1dp9EM0CQGNoW5XpHS_4WyuB6WVY0twe2v8q7ssihCuHixK5D00OvDKtWgrGrzF2xbHzPkq63VJlQ5kXX7srEZzNNIiUrwrOoUQSDaPMRgVHoE4KDrHEXlaMqNx_Fmg6WeF8rc3H00sMMWPCPvNVAHi7SQ_b4K1FjOwoCWqCVw4s2CtGEKluo_67g89iq0WTMARVCKDDGMY7NjYdkMDws3EPiRhgMnEqYMNKN_mXV6NrlGNBGk",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuCWbSHhwOPh_ER3bjtwYh6yidsPdz_PZt3Zk7ydRh3GujhGpBtlFq0ECGzto0-iP46POGENIOAmtOfsAddVL2wQ8e1vsLdQzFFX3G6RdJeEIMt6mipcm4uv9jenNOhBctWZGqbftLOoGgZQb8ZqYrlLIsxh8b0-Vt_QBc8BinKM2IY-rItUyHb1HJwil9NrSjkByvKp6iVSSdyV8Lw9XRvXdMl63C1NrbN9vCQmZdM3-5p22791J6y4DFwTZ6y5RtGQ2Ivqooyl-Mo",
+      "title": "Joe's Authentic Pizza",
+      "body": "This hidden gem has the absolute best crust I have ever tasted. The sauce is tangy and sweet...",
+      "premium": true
+    },
+    {
+      "id": "feed-3",
+      "author": "Jessica L.",
+      "time": "1d ago",
+      "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuD2daQB6CWdgoqfIgz42iabMIWZj78N7C5OnpcXtWHEsAWORdFWT-9NerwIZM6Hah8ejDoGQ3Rdw3XRvUSEAy3WVlWSvq8v9W9uHY4hoOPtrsFAjCU9mod8n_7BBXP1Ps7c4WSApdQ_06tIeItksFTqZEfywCJECGfDb6joIhiefqLSjFLVI6tjo4A55YFs76QBOguKg8-5RKYMwFluYSapmQUbAvlfOwBfks_gpXIkWJWADW7LfDA4yaR6p3nhhdk9PP5sFiryq-8",
+      "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuBiHZql1FJihO-yZVmDa2uGJFQhUCujZqt9pBJ2NQYILrjw48I9_04a9gp7EqNskjGgygZv2guEMk2FokbnscNZDtprrGMNTwdopIbz1Y-Q4hUi8dMbfaAjAXJDATh_mKzlUBqf6qOkXrunRCHk3AMf0DLTG0JXq8RFq8v2S-vXvYUKmR4Azzg3NruWS7IekfKVLaLhvOKAwk-SEfWARuNIsXFt6ljSYpzm3kBQQD76HZgZBXgbaQZPq6gl4MB4BSQNYm037PBOVgI",
+      "rating": "8.8",
+      "title": "Sushi Nakazawa",
+      "body": "Absolutely incredible omakase experience. Every piece was prepared with such care. Highly recommend the...",
+      "likes": "892",
+      "comments": "104",
+      "premium": false
+    }
+  ]
+}

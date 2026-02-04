@@ -3,6 +3,8 @@ export type User = {
   name: string;
   handle: string;
   avatar: string | null;
+  bio: string;
+  visibility: 'open' | 'locked';
 };
 
 export type Place = {
