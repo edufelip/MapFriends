@@ -94,6 +94,7 @@ export default function MapHomeScreen({ navigation }: NativeStackScreenProps<any
 
       <BottomNav
         navigation={navigation}
+        active="home"
         theme={{
           glass: theme.glass || 'rgba(16,22,34,0.8)',
           border: theme.border,

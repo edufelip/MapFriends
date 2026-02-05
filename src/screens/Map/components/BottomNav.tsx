@@ -5,6 +5,7 @@ import { Routes } from '../../../app/routes';
 
 type Props = {
   navigation: any;
+  active: 'home' | 'explore' | 'activity' | 'profile';
   theme: {
     glass: string;
     border: string;
@@ -23,7 +24,8 @@ type Props = {
   bottomInset: number;
 };
 
-function BottomNav({ navigation, theme, labels, user, bottomInset }: Props) {
+function BottomNav({ navigation, active, theme, labels, user, bottomInset }: Props) {
+  const colorFor = (key: Props['active']) => (active === key ? theme.primary : theme.textMuted);
   return (
     <View
       style={[
@@ -32,12 +34,12 @@ function BottomNav({ navigation, theme, labels, user, bottomInset }: Props) {
       ]}
     >
       <Pressable style={styles.navItem} onPress={() => navigation.navigate(Routes.MapHome)}>
-        <MaterialIcons name="map" size={22} color={theme.primary} />
-        <Text style={[styles.navLabel, { color: theme.primary }]}>{labels.home}</Text>
+        <MaterialIcons name="map" size={22} color={colorFor('home')} />
+        <Text style={[styles.navLabel, { color: colorFor('home') }]}>{labels.home}</Text>
       </Pressable>
       <Pressable style={styles.navItem} onPress={() => navigation.navigate(Routes.Explore)}>
-        <MaterialIcons name="search" size={22} color={theme.textMuted} />
-        <Text style={[styles.navLabel, { color: theme.textMuted }]}>{labels.explore}</Text>
+        <MaterialIcons name="search" size={22} color={colorFor('explore')} />
+        <Text style={[styles.navLabel, { color: colorFor('explore') }]}>{labels.explore}</Text>
       </Pressable>
       <Pressable
         style={[styles.navPrimary, { backgroundColor: theme.primary }]}
@@ -46,12 +48,18 @@ function BottomNav({ navigation, theme, labels, user, bottomInset }: Props) {
         <MaterialIcons name="add-location-alt" size={24} color="#ffffff" />
       </Pressable>
       <Pressable style={styles.navItem} onPress={() => navigation.navigate(Routes.Notifications)}>
-        <MaterialIcons name="notifications" size={22} color={theme.textMuted} />
-        <Text style={[styles.navLabel, { color: theme.textMuted }]}>{labels.activity}</Text>
+        <MaterialIcons name="notifications" size={22} color={colorFor('activity')} />
+        <Text style={[styles.navLabel, { color: colorFor('activity') }]}>{labels.activity}</Text>
       </Pressable>
       <Pressable style={styles.navItem} onPress={() => navigation.navigate(Routes.Profile)}>
         {user?.avatar ? (
-          <Image source={{ uri: user.avatar }} style={styles.navAvatar} />
+          <Image
+            source={{ uri: user.avatar }}
+            style={[
+              styles.navAvatar,
+              active === 'profile' && { borderColor: theme.primary, borderWidth: 1 },
+            ]}
+          />
         ) : (
           <View style={[styles.navAvatar, { backgroundColor: theme.surface }]}> 
             <Text style={[styles.navAvatarText, { color: theme.textPrimary }]}> 
@@ -59,7 +67,7 @@ function BottomNav({ navigation, theme, labels, user, bottomInset }: Props) {
             </Text>
           </View>
         )}
-        <Text style={[styles.navLabel, { color: theme.textMuted }]}>{labels.profile}</Text>
+        <Text style={[styles.navLabel, { color: colorFor('profile') }]}>{labels.profile}</Text>
       </Pressable>
     </View>
   );

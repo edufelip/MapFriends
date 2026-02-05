@@ -1,0 +1,79 @@
+{
+  "people": {
+    "recent": [
+      {
+        "id": "person-1",
+        "name": "Elena Rodriguez",
+        "handle": "@elena_travels",
+        "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuB3VSc-zHqfO_UwSkJHDeNFv49CjNxe3VKLLrYoPvTZE1Jd50ckYiTZeNbQKTuDZle-U4k9flVtTpIMljiQO_ftriPvRJwSc_9Y86JQKxKXIR0IXbZhR1W7JD-twu7qtLh4QUDsvZkBLP5nTpb38GRDDKG9e-mRWzA7FghMq1ynrYzdr_J7VrCFFR3AxTriCiNo3atTNDaEW7zLH6TSqmg70Uan6fmagP2cKjIhTA5yZZBUOLbXAF2evZxpSYmPMsyR4pdj31H2F4w"
+      },
+      {
+        "id": "person-2",
+        "name": "Marco Chen",
+        "handle": "@marco_maps",
+        "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuAZ4xWjJnBR4Cp80Dn117noNWuSVOLzVtdZzyEofHdLuirUVJ0-9EPMSb_TwqwtaxQxvBCkX7CLpl3jxKb-TytWM6v1xtcz8dNXEfEdfl21p6_Luw_wUBL0iN4ZFDRr6mVNqsacH8E8mC-wyBpYP9IzI64Mz7UYtwdBz3nhNfmhjjp9Rp1NY7b3MTkAm6ppPQaFTWJUj3ct8htST3TON4dm2M9V47EPvcwRrxrnN8sYJVU4qGH8OOY4se_gSIm0K2mE2uH8vbWY-Ts"
+      }
+    ],
+    "trending": [
+      {
+        "id": "creator-1",
+        "name": "Sarah Jenkins",
+        "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuCIt145MoELZ6qTHfbkxkEp1A32hBSQRiVdb7GdhGi76VvTLG1Baucu6qyRIChiPuH_3PkEXy4P8Bre8WX3nDaA05Wyq7Al1G_i56fuQU1DKIpEs18pgXeeRgCUYkDN1axp-AoeGEs0KrK69IVVI0kiD4UiADcDmuaP2JsVXaX5oLswajjz0XEOzLYJAWl6fdZno9dpMt7-Oh5guucBX1D9fN4Wwzkm1g6uPZka7OeKzRzfBRPWrhdDRUBuy9TmQJo5Vr9gD4GwDCg",
+        "isPro": true
+      },
+      {
+        "id": "creator-2",
+        "name": "David Thorne",
+        "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuAsS0j4SmUqCNYFpxxrnFIy9hBMVimbzeyzMg9pcCwbG_MyMZLS9zpSMdJD1B9Xut6ZzggDdtbbdpAQ3Za3hQ-1pRI-EwSYsCX9ItdKZLzx9I7YgFkpWif-lnvBaKj6EbEwZw3_KutImEU4iu04KzIY_d_d8eZQwLMtiQlcdLgoHctLGq7xuuQx5f0u0IYPXY0fPDKnXP8uJvtQnZxWW6_YzmtutyNF8B0qZ88cSM3ITuq8vcP6ppTeLWTQ0qutAoS76U_rhmo0HO4"
+      },
+      {
+        "id": "creator-3",
+        "name": "Mila Kunis",
+        "avatar": "https://lh3.googleusercontent.com/aida-public/AB6AXuCQyOifS8ohBTrSm-u-Ljd4oZvtdcAoz5s6NESit2CKqs6enuq-PqR0q5JR-pzdf5cf6GFHWGoOzIwH8DKtX4-J716iiPLkpawZUgnKDnRxt0Jj-g3w6TwpP7CZ4jYFFMME5XgarlB1Cgyxje1pMsaKMo7SKiBYL06nFvGgHThISPRBh6W4kqHiJdus6z9Rw5vXt6k4W05R3jFimjD6o0b2UjIsjJLLTya_tjz1vFgGNOjpm7uyhTasmpNDrJfgZ8iqofeTCgJNwxY",
+        "isPro": true
+      }
+    ]
+  },
+  "places": {
+    "recent": [
+      {
+        "id": "place-1",
+        "name": "Blue Bottle Coffee",
+        "category": "Cafe",
+        "location": "Brooklyn, NY",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuA3IdKJxoSLZhNNVS53O7I33YJ1OwqpBXZl4BZj4bCrLWVjiUQgXLJ_leijvKXVqJPt9PILuNxCjhUrx3vM7yX4pRbj6finlNII5H3WLMbfhw3Mw1nsk4PcBbDJXEMp1tQF04p9h7VX6x84B7xwZO3I57mTwd8gFphd836rgqEhESXFzWIHuShhPGLrXuYLPffjcIH8ttlrMnq613967onZuC0Nsro7nteHIVqvKR4HfsZp_eh2xkKx03eKTbWhNK4lrIj8jhTzKyY"
+      },
+      {
+        "id": "place-2",
+        "name": "Sushi Nakazawa",
+        "category": "Japanese",
+        "location": "Manhattan, NY",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuBiHZql1FJihO-yZVmDa2uGJFQhUCujZqt9pBJ2NQYILrjw48I9_04a9gp7EqNskjGgygZv2guEMk2FokbnscNZDtprrGMNTwdopIbz1Y-Q4hUi8dMbfaAjAXJDATh_mKzlUBqf6qOkXrunRCHk3AMf0DLTG0JXq8RFq8v2S-vXvYUKmR4Azzg3NruWS7IekfKVLaLhvOKAwk-SEfWARuNIsXFt6ljSYpzm3kBQQD76HZgZBXgbaQZPq6gl4MB4BSQNYm037PBOVgI"
+      }
+    ],
+    "trending": [
+      {
+        "id": "place-3",
+        "name": "Midnight Ramen",
+        "category": "Ramen",
+        "location": "San Francisco, CA",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuClIOuO0Xw-BuRlGPjCSC45lSDJK_A0ja9yGPwSlZqJP513mgwzecM7G0zBXTOWyCNH-jF7R3QtzRYAj70JYmMqYhwkqvatV3TUt7dYQ2o-52Bkda-Vya1jRfncNVJdj4ejnt45RY_CXy33gLopS2dpslmwyV37d02B3sJFspDm7omt5tok_d5Qg4wv3A72ItUEdQBWEbkh9zW7m9WKxxwIkajkM4kv17gwC7b30MdRQBdGp8sMhw6hlQ0im2rRF9vOjflnrkSjg0k",
+        "isPremium": true
+      },
+      {
+        "id": "place-4",
+        "name": "Hidden Gem Pizza",
+        "category": "Pizza",
+        "location": "Brooklyn, NY",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuCWbSHhwOPh_ER3bjtwYh6yidsPdz_PZt3Zk7ydRh3GujhGpBtlFq0ECGzto0-iP46POGENIOAmtOfsAddVL2wQ8e1vsLdQzFFX3G6RdJeEIMt6mipcm4uv9jenNOhBctWZGqbftLOoGgZQb8ZqYrlLIsxh8b0-Vt_QBc8BinKM2IY-rItUyHb1HJwil9NrSjkByvKp6iVSSdyV8Lw9XRvXdMl63C1NrbN9vCQmZdM3-5p22791J6y4DFwTZ6y5RtGQ2Ivqooyl-Mo"
+      },
+      {
+        "id": "place-5",
+        "name": "Golden Gate Rooftop",
+        "category": "Rooftop Bar",
+        "location": "San Francisco, CA",
+        "image": "https://lh3.googleusercontent.com/aida-public/AB6AXuDrVMO7d4zWYioxLJ9L0cWyQhxeNj5-D9btQbICL89NmwQuDwFN6cE7_HE3M2Huyvfiidn2MXr0wY9-y2uJylHxhA4kKJdDaCJjaRuq0LjOimemFkU50mqr4iaFK3M5nxkYbVUKTix4HXtjlG-1f3h2RWXBGkMA4ZX7qu8YqaDLR2E-XtQSc2M4sebcWkOwBQ5Fe811lnbH3upZWr0AbcPEsapSo0kvyoJAYaJsLJ9yEDOWitwRcfugTq95n_N3QwUNV8O7V7K2D4o"
+      }
+    ]
+  }
+}
