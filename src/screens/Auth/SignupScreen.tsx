@@ -12,7 +12,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
@@ -60,32 +60,53 @@ export default function SignupScreen({ navigation }: Props) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
+  const insets = useSafeAreaInsets();
 
   const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
+  const [confirmPassword, setConfirmPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [nameFocused, setNameFocused] = React.useState(false);
   const [emailFocused, setEmailFocused] = React.useState(false);
   const [passwordFocused, setPasswordFocused] = React.useState(false);
+  const [confirmFocused, setConfirmFocused] = React.useState(false);
 
   const gradientColors =
     colorScheme === 'dark'
       ? ['rgba(16,22,34,0)', palette.dark.background]
       : ['rgba(246,246,248,0)', palette.light.background];
 
+  const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
+  const canSubmit = Boolean(name.trim() && email.trim() && password.trim() && passwordsMatch);
+
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['left', 'right']}
+    >
       <KeyboardAvoidingView
         style={styles.safeArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingBottom: 24 + insets.bottom },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroWrapper}>
+            <Pressable
+              onPress={() => navigation.goBack()}
+              style={[
+                styles.backButton,
+                { top: 12 + insets.top, backgroundColor: theme.surface },
+              ]}
+            >
+              <MaterialIcons name="arrow-back-ios-new" size={18} color={theme.textPrimary} />
+            </Pressable>
             <ImageBackground
               source={heroImage}
               style={styles.heroImage}
@@ -196,12 +217,56 @@ export default function SignupScreen({ navigation }: Props) {
               </View>
             </View>
 
+            <View style={styles.fieldGroup}>
+              <Text style={[styles.label, { color: theme.label }]}>
+                {strings.auth.confirmPasswordLabel}
+              </Text>
+              <View style={styles.passwordRow}>
+                <TextInput
+                  style={[
+                    styles.input,
+                    styles.passwordInput,
+                    {
+                      backgroundColor: theme.surface,
+                      color: theme.textPrimary,
+                      borderColor: confirmFocused ? theme.primary : theme.border,
+                    },
+                  ]}
+                  placeholder={strings.auth.confirmPasswordPlaceholder}
+                  placeholderTextColor={theme.placeholder}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showPassword}
+                  onFocus={() => setConfirmFocused(true)}
+                  onBlur={() => setConfirmFocused(false)}
+                />
+                <Pressable
+                  style={styles.passwordToggle}
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  accessibilityLabel={strings.auth.togglePasswordVisibility}
+                >
+                  <MaterialIcons
+                    name={showPassword ? 'visibility' : 'visibility-off'}
+                    size={20}
+                    color={theme.iconMuted}
+                  />
+                </Pressable>
+              </View>
+              {!passwordsMatch && confirmPassword.length > 0 ? (
+                <Text style={[styles.helperText, { color: theme.primary }]}>
+                  {strings.auth.confirmPasswordMismatch}
+                </Text>
+              ) : null}
+            </View>
+
             <Pressable
               onPress={signUp}
+              disabled={!canSubmit}
               style={({ pressed }) => [
                 styles.primaryButton,
                 {
                   backgroundColor: theme.primary,
+                  opacity: canSubmit ? 1 : 0.6,
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
@@ -294,10 +359,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroContent: {
-    paddingTop: 64,
+    paddingTop: 84,
     paddingBottom: 24,
     paddingHorizontal: 24,
     alignItems: 'center',
+  },
+  backButton: {
+    position: 'absolute',
+    left: 16,
+    zIndex: 10,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoBadge: {
     width: 64,
@@ -326,7 +401,7 @@ const styles = StyleSheet.create({
   },
   formSection: {
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: -52,
     paddingBottom: 24,
     gap: 18,
   },
@@ -335,6 +410,11 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 13,
+    fontFamily: 'NotoSans-Medium',
+  },
+  helperText: {
+    marginTop: 6,
+    fontSize: 12,
     fontFamily: 'NotoSans-Medium',
   },
   input: {

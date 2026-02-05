@@ -73,7 +73,10 @@ export default function LoginScreen({ navigation }: Props) {
       : ['rgba(246,246,248,0)', palette.light.background];
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['left', 'right', 'bottom']}
+    >
       <KeyboardAvoidingView
         style={styles.safeArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -278,7 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroContent: {
-    paddingTop: 64,
+    paddingTop: 84,
     paddingBottom: 24,
     paddingHorizontal: 24,
     alignItems: 'center',
