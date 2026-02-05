@@ -68,4 +68,22 @@ describe('AuthProvider', () => {
     expect(latest?.user?.visibility).toBe('open');
     expect(latest?.hasSkippedProfileSetup).toBe(true);
   });
+
+  it('updates profile visibility', () => {
+    render(
+      <AuthProvider>
+        <TestConsumer />
+      </AuthProvider>
+    );
+
+    act(() => {
+      latest?.signIn();
+    });
+
+    act(() => {
+      latest?.updateVisibility('locked');
+    });
+
+    expect(latest?.user?.visibility).toBe('locked');
+  });
 });

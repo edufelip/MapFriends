@@ -24,6 +24,7 @@ type AuthContextValue = AuthState & {
   }) => void;
   skipProfileSetup: () => void;
   completeOnboarding: () => void;
+  updateVisibility: (visibility: 'open' | 'locked') => void;
 };
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -126,6 +127,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setHasCompletedOnboarding(true);
   };
 
+  const updateVisibility = (visibility: 'open' | 'locked') => {
+    setUser((prev) => (prev ? { ...prev, visibility } : prev));
+  };
+
   const value: AuthContextValue = {
     user,
     isAuthenticated: Boolean(user),
@@ -140,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     completeProfile,
     skipProfileSetup,
     completeOnboarding,
+    updateVisibility,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
