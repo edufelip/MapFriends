@@ -3388,6 +3388,11 @@ expo-auth-session@^7.0.10:
     expo-web-browser "~15.0.10"
     invariant "^2.2.4"
 
+expo-blur@~15.0.8:
+  version "15.0.8"
+  resolved "https://registry.yarnpkg.com/expo-blur/-/expo-blur-15.0.8.tgz#846cea275a6644639c5c338987b4cca54cf93eca"
+  integrity sha512-rWyE1NBRZEu9WD+X+5l7gyPRszw7n12cW3IRNAb5i6KFzaBp8cxqT5oeaphJapqURvcqhkOZn2k5EtBSbsuU7w==
+
 expo-constants@~18.0.11, expo-constants@~18.0.12, expo-constants@~18.0.13:
   version "18.0.13"
   resolved "https://registry.npmjs.org/expo-constants/-/expo-constants-18.0.13.tgz"
@@ -3414,6 +3419,18 @@ expo-font@^14.0.11, expo-font@~14.0.11:
   integrity sha512-ga0q61ny4s/kr4k8JX9hVH69exVSIfcIc19+qZ7gt71Mqtm7xy2c6kwsPTCyhBW2Ro5yXTT8EaZOpuRi35rHbg==
   dependencies:
     fontfaceobserver "^2.1.0"
+
+expo-image-loader@~6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/expo-image-loader/-/expo-image-loader-6.0.0.tgz#15230442cbb90e101c080a4c81e37d974e43e072"
+  integrity sha512-nKs/xnOGw6ACb4g26xceBD57FKLFkSwEUTDXEDF3Gtcu3MqF3ZIYd3YM+sSb1/z9AKV1dYT7rMSGVNgsveXLIQ==
+
+expo-image-picker@~17.0.10:
+  version "17.0.10"
+  resolved "https://registry.yarnpkg.com/expo-image-picker/-/expo-image-picker-17.0.10.tgz#b4a714971378b2813e53d97d8ca81ab2c32cdf30"
+  integrity sha512-a2xrowp2trmvXyUWgX3O6Q2rZaa2C59AqivKI7+bm+wLvMfTEbZgldLX4rEJJhM8xtmEDTNU+lzjtObwzBRGaw==
+  dependencies:
+    expo-image-loader "~6.0.0"
 
 expo-keep-awake@~15.0.8:
   version "15.0.8"
@@ -3462,6 +3479,13 @@ expo-server@^1.0.5:
   version "1.0.5"
   resolved "https://registry.npmjs.org/expo-server/-/expo-server-1.0.5.tgz"
   integrity sha512-IGR++flYH70rhLyeXF0Phle56/k4cee87WeQ4mamS+MkVAVP+dDlOHf2nN06Z9Y2KhU0Gp1k+y61KkghF7HdhA==
+
+expo-splash-screen@~31.0.13:
+  version "31.0.13"
+  resolved "https://registry.yarnpkg.com/expo-splash-screen/-/expo-splash-screen-31.0.13.tgz#f41f1a4c8bb1ae7fcc52b760e7dd485d7ddec642"
+  integrity sha512-1epJLC1cDlwwj089R2h8cxaU5uk4ONVAC+vzGiTZH4YARQhL4Stlz1MbR6yAS173GMosvkE6CAeihR7oIbCkDA==
+  dependencies:
+    "@expo/prebuild-config" "^54.0.8"
 
 expo-status-bar@~3.0.9:
   version "3.0.9"

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mapfriends",
+    "name": "MapFriends",
     "slug": "mapfriends",
     "version": "1.0.0",
     "scheme": "com.eduardo880.mapfriends",
@@ -15,7 +15,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.edufelip.mapfriends"
+      "bundleIdentifier": "com.edufelip.mapfriends",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "MapFriends uses your photo library so you can choose a profile avatar.",
+        "NSPhotoLibraryAddUsageDescription": "MapFriends may save edited profile photos to your photo library."
+      }
     },
     "android": {
       "adaptiveIcon": {
