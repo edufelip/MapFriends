@@ -3,6 +3,7 @@
     "name": "mapfriends",
     "slug": "mapfriends",
     "version": "1.0.0",
+    "scheme": "com.eduardo880.mapfriends",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -27,6 +28,7 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": ["expo-apple-authentication"]
   }
 }
