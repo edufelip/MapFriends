@@ -1,56 +1,62 @@
 # Profile Setup Gate
 
 ## Summary
-Add a profile completion step after Terms acceptance. Users must enter display name, handle, bio, and visibility before continuing, or they may skip. This screen uses the same visual language as auth screens and stores profile data in auth state for the current session.
+Profile Setup is shown after terms acceptance for users without a complete profile. Users can add avatar, display name, handle, bio, and visibility before continuing, or skip and proceed with safe defaults.
 
 ## Goals
 - Ensure incomplete accounts are prompted to finish profile details.
-- Provide a clean, mobile-friendly setup flow with validation.
+- Provide a mobile-friendly setup flow with clear validation and accessibility support.
 - Allow users to skip and proceed to onboarding if they choose.
+- Persist profile data locally for subsequent sessions.
 
 ## Non-Goals
-- Persisting data to a backend or local storage.
-- Real avatar upload (placeholder only).
-- Handle availability checks against a server.
+- Backend/cloud media upload pipeline.
+- Server-side handle availability checks.
+- Camera capture flow (gallery picker only for now).
 
 ## User Flows
-- Login/Signup → Terms → Profile Setup (if incomplete) → Home.
-- Tap **Continue** with valid inputs → Profile marked complete → Home (onboarding skipped).
-- Tap **Skip** → Handle + visibility are auto-populated → Onboarding.
-- Logout resets profile completion status.
+- Login/Signup → Terms → Profile Setup (if incomplete) → Onboarding/Main flow.
+- Tap **Continue** with valid inputs → profile is completed and persisted.
+- Tap **Skip** → handle + visibility are auto-populated as needed and user proceeds.
+- Pick avatar from gallery → preview updates immediately → saved on Continue.
 
 ## Data Model / State
-- Auth state adds `hasCompletedProfile` and `hasSkippedProfileSetup`.
-- Profile data stored in `user`: `name`, `handle`, `bio`, `visibility`.
+- Auth state tracks: `hasCompletedProfile`, `hasSkippedProfileSetup`.
+- User profile fields in auth state/storage: `name`, `handle`, `bio`, `visibility`, `avatar`.
 
 ## UI/UX Notes
-- Sticky header with back arrow (no-op) and **Skip** action.
-- Avatar placeholder with edit badge (visual only).
+- Sticky header with title and **Skip** action.
+- Avatar picker is functional (opens media library).
+- Avatar picking is delegated to `src/services/media/avatarPicker.ts` to isolate native module interactions from screen UI.
 - Handle validation: lowercase letters, numbers, underscore, 3–20 chars.
-- Continue button disabled until required fields are valid.
+- Unsupported handle characters are sanitized with helper feedback.
+- Continue button remains disabled until required fields are valid.
+- Keyboard behavior supports form completion on mobile (`keyboardShouldPersistTaps` + keyboard avoiding).
+- Accessibility labels/states are defined for skip, avatar, visibility options, and continue action.
 
 ## Edge Cases
-- User hits Skip with empty fields → handle + visibility are auto-populated → proceeds.
-- Skip generates a handle from name or a fallback based on user id.
-- Handle with invalid characters → sanitized and error shown.
-- Bio exceeds max length → constrained to 150 characters.
+- Skip with empty fields → handle + visibility are auto-populated.
+- Handle invalid chars → sanitized input + helper feedback.
+- Media permission denied → no avatar update, inline feedback message is shown, user can still continue without avatar.
+- Media picker unexpected error → inline feedback message is shown, user can retry or continue without avatar.
+- Bio capped to configured maximum length.
 
 ## Test Cases
 - Manual:
-  - Login → Terms → Profile Setup is shown.
-  - Continue disabled until name, handle, bio are valid.
-  - Invalid handle shows error and does not enable Continue.
-  - Skip allows navigation to onboarding and sets handle + visibility.
-  - Completing profile updates `user`, marks onboarding complete, and passes gate.
-  - Sign out resets profile completion and skip flags.
-- Automated (future):
-  - Reducer/auth state transitions for `completeProfile` and `skipProfileSetup`.
+  - Continue disabled until name, handle, and bio are valid.
+  - Avatar press opens gallery and selected image is previewed.
+  - Continue persists avatar and profile data.
+  - Visibility cards show selected state clearly.
+  - VoiceOver/TalkBack can identify interactive controls and states.
+- Automated:
+  - Auth state transitions for `completeProfile` and `skipProfileSetup`.
+  - Profile setup screen submits selected avatar in payload.
+  - Handle sanitization helper appears when unsupported characters are removed.
+  - Avatar permission denied shows localized feedback.
+  - Avatar picker error shows localized feedback.
+  - Avatar picker cancel leaves feedback hidden.
 
 ## Use Cases
 - New user completes profile before onboarding.
 - Returning user with incomplete profile is prompted again.
 - User chooses to skip and complete later.
-
-## Open Questions
-- Should profile data persist between sessions?
-- Should Skip trigger a future reminder?
