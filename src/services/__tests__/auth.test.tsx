@@ -85,6 +85,18 @@ function TestConsumer() {
   return null;
 }
 
+const renderProvider = async () => {
+  render(
+    <AuthProvider>
+      <TestConsumer />
+    </AuthProvider>
+  );
+
+  await act(async () => {
+    await Promise.resolve();
+  });
+};
+
 const firebaseUser = {
   uid: 'user-001',
   displayName: 'Alex',
@@ -95,6 +107,14 @@ const setFirebaseUser = async (user: typeof firebaseUser | null) => {
   await act(async () => {
     authStateListener?.(user);
   });
+};
+
+const createDeferred = () => {
+  let resolve: () => void = () => {};
+  const promise = new Promise<void>((nextResolve) => {
+    resolve = nextResolve;
+  });
+  return { promise, resolve };
 };
 
 describe('AuthProvider', () => {
@@ -110,11 +130,7 @@ describe('AuthProvider', () => {
   });
 
   it('marks onboarding complete after profile completion', async () => {
-    render(
-      <AuthProvider>
-        <TestConsumer />
-      </AuthProvider>
-    );
+    await renderProvider();
 
     await setFirebaseUser(firebaseUser);
 
@@ -124,19 +140,17 @@ describe('AuthProvider', () => {
         handle: 'alex',
         bio: 'Explorer',
         visibility: 'open',
+        avatar: 'file://avatar-1.jpg',
       });
     });
 
     expect(latest?.hasCompletedProfile).toBe(true);
     expect(latest?.hasCompletedOnboarding).toBe(true);
+    expect(latest?.user?.avatar).toBe('file://avatar-1.jpg');
   });
 
   it('fills handle and visibility when skipping profile setup', async () => {
-    render(
-      <AuthProvider>
-        <TestConsumer />
-      </AuthProvider>
-    );
+    await renderProvider();
 
     await setFirebaseUser({
       ...firebaseUser,
@@ -155,16 +169,42 @@ describe('AuthProvider', () => {
   it('calls Firebase email sign in', async () => {
     mockSignInWithEmailAndPassword.mockResolvedValue({});
 
-    render(
-      <AuthProvider>
-        <TestConsumer />
-      </AuthProvider>
-    );
+    await renderProvider();
 
     await act(async () => {
       await latest?.signInWithEmail('alex@test.com', 'secret123');
     });
 
     expect(mockSignInWithEmailAndPassword).toHaveBeenCalled();
+  });
+
+  it('turns off bootstrap loading after auth listener resolves', async () => {
+    await renderProvider();
+
+    expect(latest?.isBootstrappingAuth).toBe(false);
+  });
+
+  it('toggles action loading without changing bootstrap loading state', async () => {
+    const deferred = createDeferred();
+    mockSignInWithEmailAndPassword.mockImplementation(() => deferred.promise);
+
+    await renderProvider();
+
+    const bootstrapBefore = latest?.isBootstrappingAuth;
+
+    act(() => {
+      void latest?.signInWithEmail('alex@test.com', 'secret123');
+    });
+
+    expect(latest?.isAuthActionLoading).toBe(true);
+    expect(latest?.isBootstrappingAuth).toBe(bootstrapBefore);
+
+    await act(async () => {
+      deferred.resolve();
+      await deferred.promise;
+    });
+
+    expect(latest?.isAuthActionLoading).toBe(false);
+    expect(latest?.isBootstrappingAuth).toBe(bootstrapBefore);
   });
 });
