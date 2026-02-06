@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { ActivityIndicator, View } from 'react-native';
 import { useAuth } from '../services/auth';
 import { Routes } from './routes';
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -103,11 +104,20 @@ function MainStack() {
 export default function AppNavigator() {
   const {
     isAuthenticated,
+    isLoadingAuth,
     hasAcceptedTerms,
     hasCompletedProfile,
     hasSkippedProfileSetup,
     hasCompletedOnboarding,
   } = useAuth();
+
+  if (isLoadingAuth) {
+    return (
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="small" color="#135bec" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>

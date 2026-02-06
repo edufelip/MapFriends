@@ -56,7 +56,15 @@ const palette = {
 };
 
 export default function LoginScreen({ navigation }: Props) {
-  const { signIn } = useAuth();
+  const {
+    signInWithEmail,
+    signInWithGoogle,
+    signInWithApple,
+    sendPasswordReset,
+    isLoadingAuth,
+    authError,
+    clearAuthError,
+  } = useAuth();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
@@ -66,11 +74,54 @@ export default function LoginScreen({ navigation }: Props) {
   const [showPassword, setShowPassword] = React.useState(false);
   const [emailFocused, setEmailFocused] = React.useState(false);
   const [passwordFocused, setPasswordFocused] = React.useState(false);
+  const [passwordResetNotice, setPasswordResetNotice] = React.useState<string | null>(null);
 
   const gradientColors =
     colorScheme === 'dark'
       ? ['rgba(16,22,34,0)', palette.dark.background]
       : ['rgba(246,246,248,0)', palette.light.background];
+
+  React.useEffect(() => {
+    clearAuthError();
+    setPasswordResetNotice(null);
+  }, [email, password, clearAuthError]);
+
+  const handleEmailSignIn = async () => {
+    setPasswordResetNotice(null);
+    try {
+      await signInWithEmail(email, password);
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setPasswordResetNotice(null);
+    try {
+      await signInWithGoogle();
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
+
+  const handleAppleSignIn = async () => {
+    setPasswordResetNotice(null);
+    try {
+      await signInWithApple();
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
+
+  const handlePasswordReset = async () => {
+    setPasswordResetNotice(null);
+    try {
+      await sendPasswordReset(email);
+      setPasswordResetNotice(strings.auth.resetPasswordSent);
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
 
   return (
     <SafeAreaView
@@ -176,19 +227,33 @@ export default function LoginScreen({ navigation }: Props) {
                 </Pressable>
               </View>
 
-              <TouchableOpacity style={styles.forgotLink} onPress={() => {}} activeOpacity={0.7}>
+              <TouchableOpacity
+                style={styles.forgotLink}
+                onPress={handlePasswordReset}
+                activeOpacity={0.7}
+                disabled={isLoadingAuth}
+              >
                 <Text style={[styles.linkText, { color: theme.primary }]}>
                   {strings.auth.forgotPassword}
                 </Text>
               </TouchableOpacity>
             </View>
 
+            {authError ? (
+              <Text style={[styles.feedbackText, { color: '#ef4444' }]}>{authError}</Text>
+            ) : null}
+            {passwordResetNotice ? (
+              <Text style={[styles.feedbackText, { color: '#22c55e' }]}>{passwordResetNotice}</Text>
+            ) : null}
+
             <Pressable
-              onPress={signIn}
+              onPress={handleEmailSignIn}
+              disabled={isLoadingAuth}
               style={({ pressed }) => [
                 styles.primaryButton,
                 {
                   backgroundColor: theme.primary,
+                  opacity: isLoadingAuth ? 0.7 : 1,
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
@@ -208,13 +273,14 @@ export default function LoginScreen({ navigation }: Props) {
 
             <View style={styles.socialRow}>
               <Pressable
-                onPress={() => {}}
+                onPress={handleGoogleSignIn}
+                disabled={isLoadingAuth}
                 style={({ pressed }) => [
                   styles.socialButton,
                   {
                     backgroundColor: theme.socialSurface,
                     borderColor: theme.border,
-                    opacity: pressed ? 0.85 : 1,
+                    opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}
               >
@@ -223,22 +289,30 @@ export default function LoginScreen({ navigation }: Props) {
                   {strings.auth.socialGoogle}
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => {}}
-                style={({ pressed }) => [
-                  styles.socialButton,
-                  {
-                    backgroundColor: theme.socialSurface,
-                    borderColor: theme.border,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <FontAwesome name="apple" size={18} color={theme.textPrimary} style={styles.socialIcon} />
-                <Text style={[styles.socialLabel, { color: theme.textPrimary }]}>
-                  {strings.auth.socialApple}
-                </Text>
-              </Pressable>
+              {Platform.OS === 'ios' ? (
+                <Pressable
+                  onPress={handleAppleSignIn}
+                  disabled={isLoadingAuth}
+                  style={({ pressed }) => [
+                    styles.socialButton,
+                    {
+                      backgroundColor: theme.socialSurface,
+                      borderColor: theme.border,
+                      opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <FontAwesome
+                    name="apple"
+                    size={18}
+                    color={theme.textPrimary}
+                    style={styles.socialIcon}
+                  />
+                  <Text style={[styles.socialLabel, { color: theme.textPrimary }]}>
+                    {strings.auth.socialApple}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </View>
 
@@ -352,6 +426,11 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 13,
+    fontFamily: 'NotoSans-Medium',
+  },
+  feedbackText: {
+    marginTop: -4,
+    fontSize: 12,
     fontFamily: 'NotoSans-Medium',
   },
   primaryButton: {

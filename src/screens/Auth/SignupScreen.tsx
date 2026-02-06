@@ -56,7 +56,14 @@ const palette = {
 };
 
 export default function SignupScreen({ navigation }: Props) {
-  const { signUp } = useAuth();
+  const {
+    signUpWithEmail,
+    signInWithGoogle,
+    signInWithApple,
+    isLoadingAuth,
+    authError,
+    clearAuthError,
+  } = useAuth();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
@@ -79,6 +86,34 @@ export default function SignupScreen({ navigation }: Props) {
 
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const canSubmit = Boolean(name.trim() && email.trim() && password.trim() && passwordsMatch);
+
+  React.useEffect(() => {
+    clearAuthError();
+  }, [name, email, password, confirmPassword, clearAuthError]);
+
+  const handleEmailSignUp = async () => {
+    try {
+      await signUpWithEmail(name, email, password);
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
+
+  const handleGoogleSignUp = async () => {
+    try {
+      await signInWithGoogle();
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
+
+  const handleAppleSignUp = async () => {
+    try {
+      await signInWithApple();
+    } catch {
+      // AuthProvider exposes translated error via authError.
+    }
+  };
 
   return (
     <SafeAreaView
@@ -260,13 +295,13 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <Pressable
-              onPress={signUp}
-              disabled={!canSubmit}
+              onPress={handleEmailSignUp}
+              disabled={!canSubmit || isLoadingAuth}
               style={({ pressed }) => [
                 styles.primaryButton,
                 {
                   backgroundColor: theme.primary,
-                  opacity: canSubmit ? 1 : 0.6,
+                  opacity: canSubmit && !isLoadingAuth ? 1 : 0.6,
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
@@ -286,13 +321,14 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.socialRow}>
               <Pressable
-                onPress={() => {}}
+                onPress={handleGoogleSignUp}
+                disabled={isLoadingAuth}
                 style={({ pressed }) => [
                   styles.socialButton,
                   {
                     backgroundColor: theme.socialSurface,
                     borderColor: theme.border,
-                    opacity: pressed ? 0.85 : 1,
+                    opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}
               >
@@ -301,23 +337,34 @@ export default function SignupScreen({ navigation }: Props) {
                   {strings.auth.socialGoogle}
                 </Text>
               </Pressable>
-              <Pressable
-                onPress={() => {}}
-                style={({ pressed }) => [
-                  styles.socialButton,
-                  {
-                    backgroundColor: theme.socialSurface,
-                    borderColor: theme.border,
-                    opacity: pressed ? 0.85 : 1,
-                  },
-                ]}
-              >
-                <FontAwesome name="apple" size={18} color={theme.textPrimary} style={styles.socialIcon} />
-                <Text style={[styles.socialLabel, { color: theme.textPrimary }]}>
-                  {strings.auth.socialApple}
-                </Text>
-              </Pressable>
+              {Platform.OS === 'ios' ? (
+                <Pressable
+                  onPress={handleAppleSignUp}
+                  disabled={isLoadingAuth}
+                  style={({ pressed }) => [
+                    styles.socialButton,
+                    {
+                      backgroundColor: theme.socialSurface,
+                      borderColor: theme.border,
+                      opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
+                    },
+                  ]}
+                >
+                  <FontAwesome
+                    name="apple"
+                    size={18}
+                    color={theme.textPrimary}
+                    style={styles.socialIcon}
+                  />
+                  <Text style={[styles.socialLabel, { color: theme.textPrimary }]}>
+                    {strings.auth.socialApple}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
+            {authError ? (
+              <Text style={[styles.helperText, { color: '#ef4444' }]}>{authError}</Text>
+            ) : null}
           </View>
 
           <View style={styles.footer}>
