@@ -15,6 +15,7 @@ Use npm scripts from `package.json`:
 - `npm run start` запускает Expo dev server.
 - `npm run android` / `npm run ios` запускают app on emulator/device.
 - `npm run web` запускает web build with Expo.
+- We do **not** rely on EAS Build or `expo prebuild` workflows for day-to-day development in this repository.
 
 There are no test scripts configured yet.
 
@@ -30,6 +31,11 @@ No automated test framework is configured. If you add tests, document:
 - The framework (e.g., Jest).
 - Naming convention (e.g., `*.test.tsx`).
 - How to run them.
+- Development must follow TDD: write or update failing tests first, implement, then make tests pass.
+
+## Documentation Policy
+- Always update `docs/` when modifying existing behavior or adding new functionality.
+- Keep specs and implementation details in `docs/` aligned with the current codebase state.
 
 ## Commit & Pull Request Guidelines
 Commits use a typed prefix format:
