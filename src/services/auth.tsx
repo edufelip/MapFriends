@@ -1,8 +1,5 @@
 import React from 'react';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import Constants from 'expo-constants';
-import * as Application from 'expo-application';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Crypto from 'expo-crypto';
 import * as WebBrowser from 'expo-web-browser';
@@ -19,9 +16,26 @@ import {
   updateProfile,
 } from 'firebase/auth';
 import { getStrings } from '../localization/strings';
-import { resolveGoogleClientIds } from './authConfig';
 import { getFirebaseAuth, isFirebaseConfigured } from './firebase';
 import { User } from './types';
+import { mapFirebaseAuthError } from './authErrors';
+import {
+  AUTH_SCHEME,
+  GOOGLE_WEB_CLIENT_ID,
+  RESOLVED_GOOGLE_ANDROID_CLIENT_ID,
+  RESOLVED_GOOGLE_IOS_CLIENT_ID,
+} from './authProviderConfig';
+import {
+  StoredOnboarding,
+  StoredProfile,
+  defaultOnboardingState,
+  readStorage,
+  toOnboardingKey,
+  toProfileKey,
+  toStoredProfile,
+  writeStorage,
+} from './authStorage';
+import { fallbackHandle, isProfileComplete, toAppUser, toHandle } from './authUser';
 
 type AuthState = {
   user: User | null;
@@ -33,7 +47,8 @@ type AuthState = {
 };
 
 type AuthContextValue = AuthState & {
-  isLoadingAuth: boolean;
+  isBootstrappingAuth: boolean;
+  isAuthActionLoading: boolean;
   authError: string | null;
   clearAuthError: () => void;
   signInWithEmail: (email: string, password: string) => Promise<void>;
@@ -48,6 +63,7 @@ type AuthContextValue = AuthState & {
     handle: string;
     bio: string;
     visibility: 'open' | 'locked';
+    avatar?: string | null;
   }) => void;
   skipProfileSetup: () => void;
   completeOnboarding: () => void;
@@ -57,149 +73,6 @@ type AuthContextValue = AuthState & {
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
 
 WebBrowser.maybeCompleteAuthSession();
-
-const AUTH_SCHEME = process.env.EXPO_PUBLIC_AUTH_SCHEME || 'com.eduardo880.mapfriends';
-const STORAGE_PREFIX = 'auth';
-const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_WEB_CLIENT_ID || '';
-const GOOGLE_IOS_CLIENT_ID_DEV = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_IOS_CLIENT_ID_DEV || '';
-const GOOGLE_IOS_CLIENT_ID_PROD = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_IOS_CLIENT_ID_PROD || '';
-const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_IOS_CLIENT_ID || '';
-const GOOGLE_ANDROID_CLIENT_ID_DEV =
-  process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_ANDROID_CLIENT_ID_DEV || '';
-const GOOGLE_ANDROID_CLIENT_ID_PROD =
-  process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_ANDROID_CLIENT_ID_PROD || '';
-const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_FIREBASE_GOOGLE_ANDROID_CLIENT_ID || '';
-
-const runtimeApplicationId =
-  Application.applicationId ||
-  Constants.expoConfig?.ios?.bundleIdentifier ||
-  Constants.expoConfig?.android?.package ||
-  '';
-
-const {
-  iosClientId: RESOLVED_GOOGLE_IOS_CLIENT_ID,
-  androidClientId: RESOLVED_GOOGLE_ANDROID_CLIENT_ID,
-} = resolveGoogleClientIds(runtimeApplicationId, {
-  iosDev: GOOGLE_IOS_CLIENT_ID_DEV,
-  iosProd: GOOGLE_IOS_CLIENT_ID_PROD,
-  iosLegacy: GOOGLE_IOS_CLIENT_ID,
-  androidDev: GOOGLE_ANDROID_CLIENT_ID_DEV,
-  androidProd: GOOGLE_ANDROID_CLIENT_ID_PROD,
-  androidLegacy: GOOGLE_ANDROID_CLIENT_ID,
-});
-
-type StoredOnboarding = {
-  hasAcceptedTerms: boolean;
-  hasSkippedProfileSetup: boolean;
-  hasCompletedOnboarding: boolean;
-};
-
-type StoredProfile = Pick<User, 'name' | 'handle' | 'bio' | 'avatar' | 'visibility'>;
-
-const defaultOnboardingState: StoredOnboarding = {
-  hasAcceptedTerms: false,
-  hasSkippedProfileSetup: false,
-  hasCompletedOnboarding: false,
-};
-
-const toOnboardingKey = (uid: string) => `${STORAGE_PREFIX}:onboarding:${uid}`;
-const toProfileKey = (uid: string) => `${STORAGE_PREFIX}:profile:${uid}`;
-
-const isProfileComplete = (user: User | null) => {
-  if (!user) {
-    return false;
-  }
-  return Boolean(
-    user.name?.trim() &&
-      user.handle?.trim() &&
-      user.bio?.trim() &&
-      user.visibility
-  );
-};
-
-const toHandle = (value: string) =>
-  value
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, '')
-    .slice(0, 20);
-
-const fallbackHandle = (id: string) => {
-  const suffix = id.replace(/[^a-z0-9]/gi, '').slice(-4).toLowerCase();
-  return `user_${suffix || '0001'}`.slice(0, 20);
-};
-
-const mapFirebaseAuthError = (error: unknown) => {
-  const strings = getStrings();
-  if (error instanceof Error) {
-    const code = (error as Error & { code?: string }).code || '';
-    switch (code) {
-      case 'auth/invalid-credential':
-      case 'auth/wrong-password':
-      case 'auth/user-not-found':
-        return strings.auth.authErrorInvalidCredentials;
-      case 'auth/email-already-in-use':
-        return strings.auth.authErrorEmailInUse;
-      case 'auth/invalid-email':
-        return strings.auth.authErrorInvalidEmail;
-      case 'auth/weak-password':
-        return strings.auth.authErrorWeakPassword;
-      case 'auth/user-disabled':
-        return strings.auth.authErrorUserDisabled;
-      case 'auth/too-many-requests':
-        return strings.auth.authErrorTooManyRequests;
-      case 'auth/network-request-failed':
-        return strings.auth.authErrorNetwork;
-      case 'ERR_REQUEST_CANCELED':
-        return strings.auth.authErrorProviderCanceled;
-      case 'auth/google-not-configured':
-      case 'auth/provider-unavailable':
-        return strings.auth.authErrorProviderUnavailable;
-      default:
-        break;
-    }
-  }
-  return strings.auth.authErrorGeneric;
-};
-
-const readStorage = async <T,>(key: string): Promise<T | null> => {
-  try {
-    const raw = await AsyncStorage.getItem(key);
-    if (!raw) {
-      return null;
-    }
-    return JSON.parse(raw) as T;
-  } catch {
-    return null;
-  }
-};
-
-const writeStorage = async (key: string, value: unknown) => {
-  await AsyncStorage.setItem(key, JSON.stringify(value));
-};
-
-const toStoredProfile = (user: User): StoredProfile => ({
-  name: user.name,
-  handle: user.handle,
-  bio: user.bio,
-  avatar: user.avatar,
-  visibility: user.visibility,
-});
-
-const toAppUser = (
-  firebaseUser: {
-    uid: string;
-    displayName: string | null;
-    photoURL: string | null;
-  },
-  profile: StoredProfile | null
-): User => ({
-  id: firebaseUser.uid,
-  name: profile?.name ?? firebaseUser.displayName ?? '',
-  handle: profile?.handle ?? '',
-  avatar: profile?.avatar ?? firebaseUser.photoURL ?? null,
-  bio: profile?.bio ?? '',
-  visibility: profile?.visibility ?? 'open',
-});
 
 const randomNonce = (length = 32) => {
   const charset = '0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._';
@@ -216,7 +89,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasCompletedProfile, setHasCompletedProfile] = React.useState(false);
   const [hasSkippedProfileSetup, setHasSkippedProfileSetup] = React.useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = React.useState(false);
-  const [isLoadingAuth, setIsLoadingAuth] = React.useState(true);
+  const [isBootstrappingAuth, setIsBootstrappingAuth] = React.useState(true);
+  const [isAuthActionLoading, setIsAuthActionLoading] = React.useState(false);
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = React.useState(false);
 
@@ -282,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const runAuthAction = React.useCallback(
     async (operation: () => Promise<void>) => {
       clearAuthError();
-      setIsLoadingAuth(true);
+      setIsAuthActionLoading(true);
       try {
         if (!isFirebaseConfigured) {
           throw new Error('auth/firebase-not-configured');
@@ -296,7 +170,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         throw error;
       } finally {
-        setIsLoadingAuth(false);
+        setIsAuthActionLoading(false);
       }
     },
     [clearAuthError]
@@ -305,7 +179,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     let mounted = true;
     if (!isFirebaseConfigured) {
-      setIsLoadingAuth(false);
+      setIsBootstrappingAuth(false);
       return () => {
         mounted = false;
       };
@@ -316,14 +190,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!mounted) {
         return;
       }
-      setIsLoadingAuth(true);
+      setIsBootstrappingAuth(true);
       if (!firebaseUser) {
         setUser(null);
         setHasAcceptedTerms(false);
         setHasCompletedProfile(false);
         setHasSkippedProfileSetup(false);
         setHasCompletedOnboarding(false);
-        setIsLoadingAuth(false);
+        setIsBootstrappingAuth(false);
         return;
       }
 
@@ -345,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setHasSkippedProfileSetup(storedOnboarding?.hasSkippedProfileSetup ?? false);
       setHasCompletedOnboarding(storedOnboarding?.hasCompletedOnboarding ?? false);
       setHasCompletedProfile(isProfileComplete(nextUser));
-      setIsLoadingAuth(false);
+      setIsBootstrappingAuth(false);
     });
 
     return () => {
@@ -514,6 +388,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     handle: string;
     bio: string;
     visibility: 'open' | 'locked';
+    avatar?: string | null;
   }) => {
     const uid = user?.id;
     if (!uid) {
@@ -521,8 +396,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const nextUser: User = {
       id: uid,
-      avatar: user?.avatar || null,
       ...profile,
+      avatar: profile.avatar ?? user?.avatar ?? null,
     };
     setUser(nextUser);
     setHasCompletedProfile(true);
@@ -602,7 +477,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     hasCompletedProfile,
     hasSkippedProfileSetup,
     hasCompletedOnboarding,
-    isLoadingAuth,
+    isBootstrappingAuth,
+    isAuthActionLoading,
     authError,
     clearAuthError,
     signInWithEmail,

@@ -1,6 +1,8 @@
 import React from 'react';
 import {
   ImageBackground,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,9 +16,12 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../services/auth';
 import { getStrings } from '../../localization/strings';
+import { pickAvatarFromLibrary } from '../../services/media/avatarPicker';
+import { styles } from './ProfileSetupScreen.styles';
+import { ProfileSetupAvatarSection } from './components/ProfileSetupAvatarSection';
+import { ProfileSetupVisibilitySelector } from './components/ProfileSetupVisibilitySelector';
 
 const heroImage = require('../../../assets/auth/login-hero.jpg');
-const avatarPlaceholder = require('../../../assets/auth/avatar-placeholder.jpg');
 
 const palette = {
   light: {
@@ -60,17 +65,24 @@ export default function ProfileSetupScreen() {
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
 
+  const [avatarUri, setAvatarUri] = React.useState<string | null>(user?.avatar ?? null);
+  const [avatarFeedback, setAvatarFeedback] = React.useState<string | null>(null);
   const [name, setName] = React.useState(user?.name ?? '');
   const [handle, setHandle] = React.useState(user?.handle ?? '');
   const [bio, setBio] = React.useState(user?.bio ?? '');
   const [visibility, setVisibility] = React.useState<'open' | 'locked'>(
     user?.visibility ?? 'open'
   );
+  const [nameFocused, setNameFocused] = React.useState(false);
+  const [handleFocused, setHandleFocused] = React.useState(false);
+  const [bioFocused, setBioFocused] = React.useState(false);
+  const [handleSanitized, setHandleSanitized] = React.useState(false);
 
   const handleValid = HANDLE_REGEX.test(handle);
   const nameValid = name.trim().length > 0;
   const bioValid = bio.trim().length > 0;
   const isComplete = nameValid && handleValid && bioValid && Boolean(visibility);
+  const showHandleError = handle.length > 0 && !handleValid;
 
   const gradientColors =
     colorScheme === 'dark'
@@ -78,21 +90,64 @@ export default function ProfileSetupScreen() {
       : ['rgba(246,246,248,0)', palette.light.background];
 
   const handleChange = (value: string) => {
-    const sanitized = value.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    const normalized = value.toLowerCase();
+    const sanitized = normalized.replace(/[^a-z0-9_]/g, '');
     setHandle(sanitized);
+    setHandleSanitized(sanitized.length !== normalized.length);
+  };
+
+  const handleAvatarPick = async () => {
+    setAvatarFeedback(null);
+
+    const result = await pickAvatarFromLibrary();
+
+    switch (result.status) {
+      case 'success':
+        setAvatarUri(result.uri);
+        break;
+      case 'permission-denied':
+        setAvatarFeedback(strings.profileSetup.avatarPermissionDenied);
+        break;
+      case 'error':
+        setAvatarFeedback(strings.profileSetup.avatarPickerError);
+        break;
+      case 'cancelled':
+      default:
+        break;
+    }
   };
 
   const submitProfile = () => {
     if (!isComplete) {
       return;
     }
+
     completeProfile({
       name: name.trim(),
       handle: handle.trim(),
       bio: bio.trim(),
       visibility,
+      avatar: avatarUri,
     });
   };
+
+  const handleHelper = showHandleError
+    ? strings.profileSetup.handleError
+    : handleSanitized
+      ? strings.profileSetup.handleSanitizedHelper
+      : strings.profileSetup.handleHelper;
+
+  const inputFocusStyle = (focused: boolean) =>
+    focused
+      ? {
+          borderColor: theme.primary,
+          shadowColor: theme.inputRing,
+          shadowOpacity: 1,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 0 },
+          elevation: 2,
+        }
+      : { borderColor: theme.border };
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
@@ -110,216 +165,158 @@ export default function ProfileSetupScreen() {
         <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
           {strings.profileSetup.title}
         </Text>
-        <Pressable onPress={skipProfileSetup}>
+        <Pressable
+          onPress={skipProfileSetup}
+          accessibilityRole="button"
+          accessibilityLabel={strings.profileSetup.skipA11yLabel}
+          accessibilityHint={strings.profileSetup.skipA11yHint}
+        >
           <Text style={[styles.skipText, { color: theme.textMuted }]}>
             {strings.profileSetup.skip}
           </Text>
         </Pressable>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: 140 + insets.bottom }]}
-        showsVerticalScrollIndicator={false}
+      <KeyboardAvoidingView
+        style={styles.safeArea}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <View style={styles.avatarSection}>
-          <Pressable style={styles.avatarWrapper} onPress={() => {}}>
-            <ImageBackground
-              source={avatarPlaceholder}
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: 140 + insets.bottom }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <ProfileSetupAvatarSection
+            avatarUri={avatarUri}
+            onPress={handleAvatarPick}
+            avatarLabel={strings.profileSetup.avatarLabel}
+            addA11yLabel={strings.profileSetup.avatarAddA11yLabel}
+            changeA11yLabel={strings.profileSetup.avatarChangeA11yLabel}
+            a11yHint={strings.profileSetup.avatarA11yHint}
+            errorMessage={avatarFeedback}
+            theme={theme}
+          />
+
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: theme.label }]}>
+              {strings.profileSetup.displayNameLabel}
+            </Text>
+            <TextInput
               style={[
-                styles.avatarImage,
-                { borderColor: theme.border, backgroundColor: theme.surface },
+                styles.input,
+                { backgroundColor: theme.surface, color: theme.textPrimary },
+                inputFocusStyle(nameFocused),
               ]}
-              imageStyle={styles.avatarImageStyle}
-            >
-              <MaterialIcons name="add-a-photo" size={32} color="#ffffffcc" />
-            </ImageBackground>
+              placeholder={strings.profileSetup.displayNamePlaceholder}
+              placeholderTextColor={theme.placeholder}
+              value={name}
+              onChangeText={setName}
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setNameFocused(false)}
+              returnKeyType="next"
+              accessibilityLabel={strings.profileSetup.displayNameLabel}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: theme.label }]}>
+              {strings.profileSetup.handleLabel}
+            </Text>
             <View
               style={[
-                styles.avatarBadge,
-                { backgroundColor: theme.primary, borderColor: theme.background },
+                styles.handleRow,
+                { backgroundColor: theme.surface },
+                inputFocusStyle(handleFocused),
               ]}
             >
-              <MaterialIcons name="edit" size={12} color="#ffffff" />
-            </View>
-          </Pressable>
-          <Text style={[styles.avatarLabel, { color: theme.textMuted }]}>
-            {strings.profileSetup.avatarLabel}
-          </Text>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: theme.label }]}>
-            {strings.profileSetup.displayNameLabel}
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              { backgroundColor: theme.surface, color: theme.textPrimary, borderColor: theme.border },
-            ]}
-            placeholder={strings.profileSetup.displayNamePlaceholder}
-            placeholderTextColor={theme.placeholder}
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: theme.label }]}>
-            {strings.profileSetup.handleLabel}
-          </Text>
-          <View
-            style={[
-              styles.handleRow,
-              { backgroundColor: theme.surface, borderColor: theme.border },
-            ]}
-          >
-            <Text style={[styles.handlePrefix, { color: theme.placeholder }]}>@</Text>
-            <TextInput
-              style={[styles.handleInput, { color: theme.textPrimary }]}
-              placeholder={strings.profileSetup.handlePlaceholder}
-              placeholderTextColor={theme.placeholder}
-              value={handle}
-              onChangeText={handleChange}
-              autoCapitalize="none"
-              maxLength={20}
-            />
-            {handle.length > 0 ? (
-              <MaterialIcons
-                name={handleValid ? 'check-circle' : 'error'}
-                size={18}
-                color={handleValid ? theme.success : theme.danger}
+              <Text style={[styles.handlePrefix, { color: theme.placeholder }]}>@</Text>
+              <TextInput
+                style={[styles.handleInput, { color: theme.textPrimary }]}
+                placeholder={strings.profileSetup.handlePlaceholder}
+                placeholderTextColor={theme.placeholder}
+                value={handle}
+                onChangeText={handleChange}
+                autoCapitalize="none"
+                onFocus={() => setHandleFocused(true)}
+                onBlur={() => setHandleFocused(false)}
+                maxLength={20}
+                returnKeyType="next"
+                accessibilityLabel={strings.profileSetup.handleLabel}
               />
-            ) : null}
-          </View>
-          <Text
-            style={[
-              styles.helperText,
-              { color: handle.length > 0 && !handleValid ? theme.danger : theme.textMuted },
-            ]}
-          >
-            {handle.length > 0 && !handleValid
-              ? strings.profileSetup.handleError
-              : strings.profileSetup.handleHelper}
-          </Text>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <View style={styles.bioHeader}>
-            <Text style={[styles.label, { color: theme.label }]}>
-              {strings.profileSetup.bioLabel}
-            </Text>
-            <Text style={[styles.counterText, { color: theme.textMuted }]}>
-              {bio.length}/{strings.profileSetup.bioMax}
-            </Text>
-          </View>
-          <TextInput
-            style={[
-              styles.textarea,
-              { backgroundColor: theme.surface, color: theme.textPrimary, borderColor: theme.border },
-            ]}
-            placeholder={strings.profileSetup.bioPlaceholder}
-            placeholderTextColor={theme.placeholder}
-            value={bio}
-            onChangeText={setBio}
-            multiline
-            maxLength={strings.profileSetup.bioMax}
-          />
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={[styles.label, { color: theme.label }]}>
-            {strings.profileSetup.visibilityLabel}
-          </Text>
-          <View style={styles.visibilityGrid}>
-            <Pressable onPress={() => setVisibility('open')} style={styles.visibilityCard}>
-              <View
-                style={[
-                  styles.visibilityCardInner,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: visibility === 'open' ? theme.primary : 'transparent',
-                  },
-                ]}
-              >
+              {handle.length > 0 ? (
                 <MaterialIcons
-                  name="public"
-                  size={24}
-                  color={visibility === 'open' ? theme.primary : theme.iconMuted}
-                />
-                <Text
-                  style={[
-                    styles.visibilityTitle,
-                    { color: visibility === 'open' ? theme.primary : theme.textPrimary },
-                  ]}
-                >
-                  {strings.profileSetup.visibilityOpenTitle}
-                </Text>
-                <Text style={[styles.visibilityDesc, { color: theme.textMuted }]}>
-                  {strings.profileSetup.visibilityOpenDesc}
-                </Text>
-              </View>
-              {visibility === 'open' ? (
-                <MaterialIcons
-                  name="check-circle"
+                  name={handleValid ? 'check-circle' : 'error'}
                   size={18}
-                  color={theme.primary}
-                  style={styles.visibilityCheck}
+                  color={handleValid ? theme.success : theme.danger}
                 />
               ) : null}
-            </Pressable>
-
-            <Pressable onPress={() => setVisibility('locked')} style={styles.visibilityCard}>
-              <View
-                style={[
-                  styles.visibilityCardInner,
-                  {
-                    backgroundColor: theme.surface,
-                    borderColor: visibility === 'locked' ? theme.primary : 'transparent',
-                  },
-                ]}
-              >
-                <MaterialIcons
-                  name="lock"
-                  size={24}
-                  color={visibility === 'locked' ? theme.primary : theme.iconMuted}
-                />
-                <Text
-                  style={[
-                    styles.visibilityTitle,
-                    { color: visibility === 'locked' ? theme.primary : theme.textPrimary },
-                  ]}
-                >
-                  {strings.profileSetup.visibilityLockedTitle}
-                </Text>
-                <Text style={[styles.visibilityDesc, { color: theme.textMuted }]}>
-                  {strings.profileSetup.visibilityLockedDesc}
-                </Text>
-              </View>
-              {visibility === 'locked' ? (
-                <MaterialIcons
-                  name="check-circle"
-                  size={18}
-                  color={theme.primary}
-                  style={styles.visibilityCheck}
-                />
-              ) : null}
-            </Pressable>
+            </View>
+            <Text
+              style={[
+                styles.helperText,
+                { color: showHandleError ? theme.danger : theme.textMuted },
+              ]}
+            >
+              {handleHelper}
+            </Text>
           </View>
-        </View>
-      </ScrollView>
+
+          <View style={styles.fieldGroup}>
+            <View style={styles.bioHeader}>
+              <Text style={[styles.label, { color: theme.label }]}>
+                {strings.profileSetup.bioLabel}
+              </Text>
+              <Text style={[styles.counterText, { color: theme.textMuted }]}>
+                {bio.length}/{strings.profileSetup.bioMax}
+              </Text>
+            </View>
+            <TextInput
+              style={[
+                styles.textarea,
+                { backgroundColor: theme.surface, color: theme.textPrimary },
+                inputFocusStyle(bioFocused),
+              ]}
+              placeholder={strings.profileSetup.bioPlaceholder}
+              placeholderTextColor={theme.placeholder}
+              value={bio}
+              onChangeText={setBio}
+              onFocus={() => setBioFocused(true)}
+              onBlur={() => setBioFocused(false)}
+              multiline
+              maxLength={strings.profileSetup.bioMax}
+              accessibilityLabel={strings.profileSetup.bioLabel}
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={[styles.label, { color: theme.label }]}>{strings.profileSetup.visibilityLabel}</Text>
+            <ProfileSetupVisibilitySelector
+              visibility={visibility}
+              onChange={setVisibility}
+              theme={theme}
+              openTitle={strings.profileSetup.visibilityOpenTitle}
+              openDescription={strings.profileSetup.visibilityOpenDesc}
+              openA11yLabel={strings.profileSetup.visibilityOpenA11yLabel}
+              lockedTitle={strings.profileSetup.visibilityLockedTitle}
+              lockedDescription={strings.profileSetup.visibilityLockedDesc}
+              lockedA11yLabel={strings.profileSetup.visibilityLockedA11yLabel}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <View style={[styles.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
         <LinearGradient
-          colors={[
-            `${theme.background}00`,
-            `${theme.background}cc`,
-            theme.background,
-          ]}
+          colors={[`${theme.background}00`, `${theme.background}cc`, theme.background]}
           style={StyleSheet.absoluteFillObject}
         />
         <Pressable
           onPress={submitProfile}
           disabled={!isComplete}
+          accessibilityRole="button"
+          accessibilityLabel={strings.profileSetup.continueA11yLabel}
+          accessibilityHint={strings.profileSetup.continueA11yHint}
+          accessibilityState={{ disabled: !isComplete }}
           style={({ pressed }) => [
             styles.primaryButton,
             {
@@ -337,188 +334,3 @@ export default function ProfileSetupScreen() {
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  heroBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 220,
-  },
-  heroGradient: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  skipText: {
-    fontSize: 13,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  content: {
-    paddingHorizontal: 24,
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 24,
-  },
-  avatarWrapper: {
-    width: 112,
-    height: 112,
-  },
-  avatarImage: {
-    width: 112,
-    height: 112,
-    borderRadius: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderStyle: 'dashed',
-    overflow: 'hidden',
-  },
-  avatarImageStyle: {
-    opacity: 0.5,
-  },
-  avatarBadge: {
-    position: 'absolute',
-    bottom: 0,
-    right: 0,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLabel: {
-    marginTop: 12,
-    fontSize: 13,
-    fontFamily: 'NotoSans-Medium',
-  },
-  fieldGroup: {
-    marginBottom: 18,
-  },
-  label: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Medium',
-    marginBottom: 8,
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    fontSize: 16,
-    fontFamily: 'NotoSans-Regular',
-  },
-  handleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 12,
-    gap: 6,
-  },
-  handlePrefix: {
-    fontSize: 16,
-    fontFamily: 'NotoSans-Medium',
-  },
-  handleInput: {
-    flex: 1,
-    fontSize: 16,
-    fontFamily: 'NotoSans-Regular',
-  },
-  helperText: {
-    marginTop: 6,
-    fontSize: 12,
-    fontFamily: 'NotoSans-Regular',
-  },
-  bioHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-  },
-  counterText: {
-    fontSize: 11,
-    fontFamily: 'NotoSans-Medium',
-  },
-  textarea: {
-    minHeight: 110,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    borderWidth: 1,
-    fontSize: 15,
-    fontFamily: 'NotoSans-Regular',
-    textAlignVertical: 'top',
-  },
-  visibilityGrid: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  visibilityCard: {
-    flex: 1,
-  },
-  visibilityCardInner: {
-    borderRadius: 16,
-    padding: 12,
-    alignItems: 'center',
-    borderWidth: 2,
-  },
-  visibilityTitle: {
-    fontSize: 13,
-    fontFamily: 'BeVietnamPro-Bold',
-    marginTop: 6,
-  },
-  visibilityDesc: {
-    fontSize: 10,
-    fontFamily: 'NotoSans-Regular',
-    textAlign: 'center',
-    marginTop: 4,
-  },
-  visibilityCheck: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-  },
-  bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
-  primaryButton: {
-    height: 56,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 6,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-});

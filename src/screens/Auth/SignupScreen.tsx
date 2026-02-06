@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -19,6 +18,8 @@ import { FontAwesome, MaterialIcons } from '@expo/vector-icons';
 import { Routes } from '../../app/routes';
 import { useAuth } from '../../services/auth';
 import { getStrings } from '../../localization/strings';
+import { AuthLoadingOverlay } from './components/AuthLoadingOverlay';
+import { styles } from './SignupScreen.styles';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -60,7 +61,7 @@ export default function SignupScreen({ navigation }: Props) {
     signUpWithEmail,
     signInWithGoogle,
     signInWithApple,
-    isLoadingAuth,
+    isAuthActionLoading,
     authError,
     clearAuthError,
   } = useAuth();
@@ -87,11 +88,8 @@ export default function SignupScreen({ navigation }: Props) {
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
   const canSubmit = Boolean(name.trim() && email.trim() && password.trim() && passwordsMatch);
 
-  React.useEffect(() => {
-    clearAuthError();
-  }, [name, email, password, confirmPassword, clearAuthError]);
-
   const handleEmailSignUp = async () => {
+    clearAuthError();
     try {
       await signUpWithEmail(name, email, password);
     } catch {
@@ -100,6 +98,7 @@ export default function SignupScreen({ navigation }: Props) {
   };
 
   const handleGoogleSignUp = async () => {
+    clearAuthError();
     try {
       await signInWithGoogle();
     } catch {
@@ -108,6 +107,7 @@ export default function SignupScreen({ navigation }: Props) {
   };
 
   const handleAppleSignUp = async () => {
+    clearAuthError();
     try {
       await signInWithApple();
     } catch {
@@ -117,7 +117,7 @@ export default function SignupScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView
-      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      style={[styles.safeArea, styles.screenContainer, { backgroundColor: theme.background }]}
       edges={['left', 'right']}
     >
       <KeyboardAvoidingView
@@ -125,20 +125,14 @@ export default function SignupScreen({ navigation }: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingBottom: 24 + insets.bottom },
-          ]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 24 + insets.bottom }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroWrapper}>
             <Pressable
               onPress={() => navigation.goBack()}
-              style={[
-                styles.backButton,
-                { top: 12 + insets.top, backgroundColor: theme.surface },
-              ]}
+              style={[styles.backButton, { top: 12 + insets.top, backgroundColor: theme.surface }]}
             >
               <MaterialIcons name="arrow-back-ios-new" size={18} color={theme.textPrimary} />
             </Pressable>
@@ -146,10 +140,7 @@ export default function SignupScreen({ navigation }: Props) {
               source={heroImage}
               style={styles.heroImage}
               resizeMode="cover"
-              imageStyle={[
-                styles.heroImageStyle,
-                { opacity: colorScheme === 'dark' ? 0.5 : 0.7 },
-              ]}
+              imageStyle={[styles.heroImageStyle, { opacity: colorScheme === 'dark' ? 0.5 : 0.7 }]}
             >
               <LinearGradient
                 colors={gradientColors}
@@ -163,12 +154,8 @@ export default function SignupScreen({ navigation }: Props) {
               <View style={[styles.logoBadge, { backgroundColor: theme.primary, shadowColor: theme.primary }]}>
                 <MaterialIcons name="map" size={34} color="#ffffff" />
               </View>
-              <Text style={[styles.title, { color: theme.textPrimary }]}>
-                {strings.auth.signupTitle}
-              </Text>
-              <Text style={[styles.subtitle, { color: theme.textMuted }]}>
-                {strings.auth.signupSubtitle}
-              </Text>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>{strings.auth.signupTitle}</Text>
+              <Text style={[styles.subtitle, { color: theme.textMuted }]}>{strings.auth.signupSubtitle}</Text>
             </View>
           </View>
 
@@ -216,9 +203,7 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: theme.label }]}>
-                {strings.auth.passwordLabel}
-              </Text>
+              <Text style={[styles.label, { color: theme.label }]}>{strings.auth.passwordLabel}</Text>
               <View style={styles.passwordRow}>
                 <TextInput
                   style={[
@@ -253,9 +238,7 @@ export default function SignupScreen({ navigation }: Props) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: theme.label }]}>
-                {strings.auth.confirmPasswordLabel}
-              </Text>
+              <Text style={[styles.label, { color: theme.label }]}>{strings.auth.confirmPasswordLabel}</Text>
               <View style={styles.passwordRow}>
                 <TextInput
                   style={[
@@ -288,7 +271,7 @@ export default function SignupScreen({ navigation }: Props) {
                 </Pressable>
               </View>
               {!passwordsMatch && confirmPassword.length > 0 ? (
-                <Text style={[styles.helperText, { color: theme.primary }]}>
+                <Text style={[styles.hintText, { color: theme.primary }]}>
                   {strings.auth.confirmPasswordMismatch}
                 </Text>
               ) : null}
@@ -296,12 +279,12 @@ export default function SignupScreen({ navigation }: Props) {
 
             <Pressable
               onPress={handleEmailSignUp}
-              disabled={!canSubmit || isLoadingAuth}
+              disabled={!canSubmit || isAuthActionLoading}
               style={({ pressed }) => [
                 styles.primaryButton,
                 {
                   backgroundColor: theme.primary,
-                  opacity: canSubmit && !isLoadingAuth ? 1 : 0.6,
+                  opacity: canSubmit && !isAuthActionLoading ? 1 : 0.6,
                   transform: [{ scale: pressed ? 0.98 : 1 }],
                 },
               ]}
@@ -313,22 +296,20 @@ export default function SignupScreen({ navigation }: Props) {
 
             <View style={styles.dividerRow}>
               <View style={[styles.dividerLine, { backgroundColor: theme.divider }]} />
-              <Text style={[styles.dividerText, { color: theme.textMuted }]}>
-                {strings.auth.divider}
-              </Text>
+              <Text style={[styles.dividerText, { color: theme.textMuted }]}>{strings.auth.divider}</Text>
               <View style={[styles.dividerLine, { backgroundColor: theme.divider }]} />
             </View>
 
             <View style={styles.socialRow}>
               <Pressable
                 onPress={handleGoogleSignUp}
-                disabled={isLoadingAuth}
+                disabled={isAuthActionLoading}
                 style={({ pressed }) => [
                   styles.socialButton,
                   {
                     backgroundColor: theme.socialSurface,
                     borderColor: theme.border,
-                    opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
+                    opacity: isAuthActionLoading ? 0.6 : pressed ? 0.85 : 1,
                   },
                 ]}
               >
@@ -340,13 +321,13 @@ export default function SignupScreen({ navigation }: Props) {
               {Platform.OS === 'ios' ? (
                 <Pressable
                   onPress={handleAppleSignUp}
-                  disabled={isLoadingAuth}
+                  disabled={isAuthActionLoading}
                   style={({ pressed }) => [
                     styles.socialButton,
                     {
                       backgroundColor: theme.socialSurface,
                       borderColor: theme.border,
-                      opacity: isLoadingAuth ? 0.6 : pressed ? 0.85 : 1,
+                      opacity: isAuthActionLoading ? 0.6 : pressed ? 0.85 : 1,
                     },
                   ]}
                 >
@@ -362,8 +343,9 @@ export default function SignupScreen({ navigation }: Props) {
                 </Pressable>
               ) : null}
             </View>
+
             {authError ? (
-              <Text style={[styles.helperText, { color: '#ef4444' }]}>{authError}</Text>
+              <Text style={[styles.feedbackText, { color: '#ef4444' }]}>{authError}</Text>
             ) : null}
           </View>
 
@@ -372,186 +354,12 @@ export default function SignupScreen({ navigation }: Props) {
               {strings.auth.haveAccount}{' '}
             </Text>
             <TouchableOpacity onPress={() => navigation.navigate(Routes.AuthLogin)} activeOpacity={0.7}>
-              <Text style={[styles.footerLink, { color: theme.primary }]}>
-                {strings.auth.backToLogin}
-              </Text>
+              <Text style={[styles.footerLink, { color: theme.primary }]}>{strings.auth.backToLogin}</Text>
             </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <AuthLoadingOverlay visible={isAuthActionLoading} accessibilityLabel={strings.auth.loadingA11y} />
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  heroWrapper: {
-    position: 'relative',
-    minHeight: 320,
-  },
-  heroImage: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 320,
-  },
-  heroImageStyle: {},
-  heroGradient: {
-    flex: 1,
-  },
-  heroContent: {
-    paddingTop: 84,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-  },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    zIndex: 10,
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35,
-    shadowRadius: 16,
-    elevation: 6,
-  },
-  title: {
-    fontSize: 30,
-    fontFamily: 'BeVietnamPro-Bold',
-    letterSpacing: -0.5,
-    textAlign: 'center',
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 14,
-    fontFamily: 'NotoSans-Medium',
-    textAlign: 'center',
-    maxWidth: 280,
-  },
-  formSection: {
-    paddingHorizontal: 24,
-    paddingTop: -52,
-    paddingBottom: 24,
-    gap: 18,
-  },
-  fieldGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Medium',
-  },
-  helperText: {
-    marginTop: 6,
-    fontSize: 12,
-    fontFamily: 'NotoSans-Medium',
-  },
-  input: {
-    height: 56,
-    borderRadius: 16,
-    paddingHorizontal: 16,
-    fontSize: 16,
-    fontFamily: 'NotoSans-Regular',
-    borderWidth: 1,
-  },
-  passwordRow: {
-    position: 'relative',
-    justifyContent: 'center',
-  },
-  passwordInput: {
-    paddingRight: 48,
-  },
-  passwordToggle: {
-    position: 'absolute',
-    right: 16,
-    height: 40,
-    width: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    height: 56,
-    borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 4,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.25,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  primaryButtonText: {
-    fontSize: 16,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginTop: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-  },
-  dividerText: {
-    fontSize: 11,
-    textTransform: 'uppercase',
-    fontFamily: 'NotoSans-Medium',
-    letterSpacing: 1,
-  },
-  socialRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  socialButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-  },
-  socialIcon: {
-    marginRight: 8,
-  },
-  socialLabel: {
-    fontSize: 14,
-    fontFamily: 'NotoSans-Medium',
-  },
-  footer: {
-    marginTop: 'auto',
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    flexDirection: 'row',
-    justifyContent: 'center',
-    flexWrap: 'wrap',
-  },
-  footerText: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Regular',
-  },
-  footerLink: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Bold',
-  },
-});
