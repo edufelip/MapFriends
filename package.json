@@ -13,7 +13,7 @@
     "android:prod": "expo run:android --variant prodDebug",
     "android:release": "expo run:android --variant prodRelease",
     "ios": "expo run:ios",
-    "ios:dev": "BUNDLE_ID_SUFFIX=.dev expo run:ios --configuration Debug",
+    "ios:dev": "./scripts/ios_dev.sh",
     "ios:prod": "expo run:ios --configuration Debug",
     "ios:release": "expo run:ios --configuration Release",
     "web": "expo start --web",
