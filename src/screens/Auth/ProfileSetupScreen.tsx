@@ -20,6 +20,7 @@ import { isHandleValidFormat, sanitizeHandleInput } from '../../services/handleP
 import { styles } from './ProfileSetupScreen.styles';
 import { ProfileSetupAvatarSection } from './components/ProfileSetupAvatarSection';
 import { ProfileSetupVisibilitySelector } from './components/ProfileSetupVisibilitySelector';
+import { AuthLoadingOverlay } from './components/AuthLoadingOverlay';
 import { useHandleAvailability } from './hooks/useHandleAvailability';
 
 const heroImage = require('../../../assets/auth/login-hero.jpg');
@@ -419,6 +420,10 @@ export default function ProfileSetupScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <AuthLoadingOverlay
+        visible={isAuthActionLoading}
+        accessibilityLabel={strings.auth.loadingA11y}
+      />
     </SafeAreaView>
   );
 }
