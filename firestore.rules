@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidHandle(handle) {
+      return handle.matches('^[a-z0-9_]{3,20}$');
+    }
+
+    function isReservedHandle(handle) {
+      return [
+        'admin',
+        'support',
+        'root',
+        'mapfriends',
+        'official',
+        'api',
+        'help',
+        'security',
+        'billing',
+        'about',
+        'terms',
+        'privacy',
+      ].hasAny([handle]) || handle.matches('^(admin|support).*');
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function handlePath(handle) {
+      return /databases/$(database)/documents/handles/$(handle);
+    }
+
+    function handleBelongsToUserAfter(handle, uid) {
+      return existsAfter(handlePath(handle))
+        && getAfter(handlePath(handle)).data.uid == uid;
+    }
+
+    function isHandleImmutableOnUserWrite() {
+      return resource == null || request.resource.data.handle == resource.data.handle;
+    }
+
+    match /handles/{handle} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(request.resource.data.uid)
+        && isValidHandle(handle)
+        && !isReservedHandle(handle)
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
+        && !exists(handlePath(handle));
+      allow update, delete: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && isValidHandle(request.resource.data.handle)
+        && !isReservedHandle(request.resource.data.handle)
+        && isHandleImmutableOnUserWrite()
+        && handleBelongsToUserAfter(request.resource.data.handle, uid);
+      allow delete: if false;
+    }
+  }
+}

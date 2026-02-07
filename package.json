@@ -16,6 +16,7 @@
     "ios:dev": "./scripts/ios_dev.sh",
     "ios:prod": "expo run:ios --configuration Debug",
     "ios:release": "expo run:ios --configuration Release",
+    "firebase": "npx firebase-tools deploy --only firestore:rules",
     "web": "expo start --web",
     "test": "jest"
   },
