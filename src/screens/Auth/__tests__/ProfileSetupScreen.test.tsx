@@ -4,8 +4,9 @@ import ProfileSetupScreen from '../ProfileSetupScreen';
 import { getStrings } from '../../../localization/strings';
 
 const mockCompleteProfile = jest.fn();
-const mockSkipProfileSetup = jest.fn();
 const mockPickAvatarFromLibrary = jest.fn();
+const mockClearAuthError = jest.fn();
+const mockCheckHandleAvailability = jest.fn(async () => 'available');
 
 jest.mock('../../../services/auth', () => ({
   useAuth: () => ({
@@ -18,7 +19,10 @@ jest.mock('../../../services/auth', () => ({
       visibility: 'open',
     },
     completeProfile: mockCompleteProfile,
-    skipProfileSetup: mockSkipProfileSetup,
+    authError: null,
+    clearAuthError: mockClearAuthError,
+    isAuthActionLoading: false,
+    checkHandleAvailability: (...args: unknown[]) => mockCheckHandleAvailability(...args),
   }),
 }));
 
@@ -40,8 +44,9 @@ describe('ProfileSetupScreen', () => {
 
   beforeEach(() => {
     mockCompleteProfile.mockReset();
-    mockSkipProfileSetup.mockReset();
     mockPickAvatarFromLibrary.mockReset();
+    mockClearAuthError.mockReset();
+    mockCheckHandleAvailability.mockClear();
   });
 
   it('picks avatar and submits it in completeProfile payload', async () => {
@@ -106,12 +111,6 @@ describe('ProfileSetupScreen', () => {
 
     expect(screen.queryByText(strings.profileSetup.avatarPermissionDenied)).toBeNull();
     expect(screen.queryByText(strings.profileSetup.avatarPickerError)).toBeNull();
-  });
-
-  it('does not render the skip action in the hero area', () => {
-    const screen = render(<ProfileSetupScreen />);
-
-    expect(screen.queryByLabelText(strings.profileSetup.skipA11yLabel)).toBeNull();
   });
 
   it('keeps the handle row tappable so taps can focus the handle input', () => {

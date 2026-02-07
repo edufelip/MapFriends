@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, render } from '@testing-library/react-native';
 import { AuthProvider, useAuth } from '../auth';
+import { getStrings } from '../../localization/strings';
 
 const mockSignInWithEmailAndPassword = jest.fn();
 const mockCreateUserWithEmailAndPassword = jest.fn();
@@ -8,6 +9,8 @@ const mockSendPasswordResetEmail = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignInWithCredential = jest.fn();
 const mockUpdateProfile = jest.fn();
+const mockClaimProfileHandle = jest.fn();
+const mockCheckHandleAvailability = jest.fn();
 let authStateListener: ((user: unknown) => void) | null = null;
 
 const mockStorage = new Map<string, string>();
@@ -15,6 +18,12 @@ const mockStorage = new Map<string, string>();
 jest.mock('../firebase', () => ({
   isFirebaseConfigured: true,
   getFirebaseAuth: () => ({ app: 'mock-auth' }),
+  getFirestoreDb: () => ({ app: 'mock-firestore' }),
+}));
+
+jest.mock('../handleRegistry', () => ({
+  checkHandleAvailability: (...args: unknown[]) => mockCheckHandleAvailability(...args),
+  claimProfileHandle: (...args: unknown[]) => mockClaimProfileHandle(...args),
 }));
 
 jest.mock('@react-native-async-storage/async-storage', () => ({
@@ -118,6 +127,8 @@ const createDeferred = () => {
 };
 
 describe('AuthProvider', () => {
+  const strings = getStrings();
+
   beforeEach(() => {
     latest = null;
     mockStorage.clear();
@@ -127,6 +138,10 @@ describe('AuthProvider', () => {
     mockSignOut.mockReset();
     mockSignInWithCredential.mockReset();
     mockUpdateProfile.mockReset();
+    mockClaimProfileHandle.mockReset();
+    mockClaimProfileHandle.mockResolvedValue('alex');
+    mockCheckHandleAvailability.mockReset();
+    mockCheckHandleAvailability.mockResolvedValue('available');
   });
 
   it('marks onboarding complete after profile completion', async () => {
@@ -134,8 +149,8 @@ describe('AuthProvider', () => {
 
     await setFirebaseUser(firebaseUser);
 
-    act(() => {
-      latest?.completeProfile({
+    await act(async () => {
+      await latest?.completeProfile({
         name: 'Alex',
         handle: 'alex',
         bio: 'Explorer',
@@ -144,26 +159,68 @@ describe('AuthProvider', () => {
       });
     });
 
+    expect(mockClaimProfileHandle).toHaveBeenCalled();
     expect(latest?.hasCompletedProfile).toBe(true);
     expect(latest?.hasCompletedOnboarding).toBe(true);
     expect(latest?.user?.avatar).toBe('file://avatar-1.jpg');
   });
 
-  it('fills handle and visibility when skipping profile setup', async () => {
+  it('exposes a handle-taken error when handle claim fails', async () => {
+    mockClaimProfileHandle.mockRejectedValueOnce(
+      Object.assign(new Error('profile/handle-taken'), { code: 'profile/handle-taken' })
+    );
+
     await renderProvider();
+    await setFirebaseUser(firebaseUser);
 
-    await setFirebaseUser({
-      ...firebaseUser,
-      displayName: '',
+    await act(async () => {
+      await expect(
+        latest?.completeProfile({
+          name: 'Alex',
+          handle: 'alex',
+          bio: 'Explorer',
+          visibility: 'open',
+          avatar: null,
+        })
+      ).rejects.toBeTruthy();
     });
 
-    act(() => {
-      latest?.skipProfileSetup();
+    expect(latest?.hasCompletedProfile).toBe(false);
+    expect(latest?.authError).toBe(strings.profileSetup.handleTaken);
+  });
+
+  it('exposes a reserved-handle error when handle is blocked', async () => {
+    mockClaimProfileHandle.mockRejectedValueOnce(
+      Object.assign(new Error('profile/handle-reserved'), { code: 'profile/handle-reserved' })
+    );
+
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+
+    await act(async () => {
+      await expect(
+        latest?.completeProfile({
+          name: 'Alex',
+          handle: 'admin',
+          bio: 'Explorer',
+          visibility: 'open',
+          avatar: null,
+        })
+      ).rejects.toBeTruthy();
     });
 
-    expect(latest?.user?.handle?.length || 0).toBeGreaterThanOrEqual(3);
-    expect(latest?.user?.visibility).toBe('open');
-    expect(latest?.hasSkippedProfileSetup).toBe(true);
+    expect(latest?.hasCompletedProfile).toBe(false);
+    expect(latest?.authError).toBe(strings.profileSetup.handleReserved);
+  });
+
+  it('checks handle availability through auth boundary', async () => {
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+
+    const availability = await latest?.checkHandleAvailability('alex');
+
+    expect(availability).toBe('available');
+    expect(mockCheckHandleAvailability).toHaveBeenCalledWith('alex', firebaseUser.uid);
   });
 
   it('calls Firebase email sign in', async () => {

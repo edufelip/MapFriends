@@ -64,7 +64,6 @@ describe('AppNavigator', () => {
       isBootstrappingAuth: false,
       hasAcceptedTerms: false,
       hasCompletedProfile: false,
-      hasSkippedProfileSetup: false,
       hasCompletedOnboarding: false,
     });
 
@@ -79,7 +78,6 @@ describe('AppNavigator', () => {
       isBootstrappingAuth: true,
       hasAcceptedTerms: false,
       hasCompletedProfile: false,
-      hasSkippedProfileSetup: false,
       hasCompletedOnboarding: false,
     });
 
