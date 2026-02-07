@@ -28,6 +28,14 @@ export const mapFirebaseAuthError = (error: unknown) => {
       case 'auth/google-not-configured':
       case 'auth/provider-unavailable':
         return strings.auth.authErrorProviderUnavailable;
+      case 'profile/handle-invalid':
+        return strings.profileSetup.handleError;
+      case 'profile/handle-taken':
+        return strings.profileSetup.handleTaken;
+      case 'profile/handle-reserved':
+        return strings.profileSetup.handleReserved;
+      case 'profile/handle-immutable':
+        return strings.profileSetup.handleImmutable;
       default:
         break;
     }

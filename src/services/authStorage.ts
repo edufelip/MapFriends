@@ -5,7 +5,6 @@ const STORAGE_PREFIX = 'auth';
 
 export type StoredOnboarding = {
   hasAcceptedTerms: boolean;
-  hasSkippedProfileSetup: boolean;
   hasCompletedOnboarding: boolean;
 };
 
@@ -13,7 +12,6 @@ export type StoredProfile = Pick<User, 'name' | 'handle' | 'bio' | 'avatar' | 'v
 
 export const defaultOnboardingState: StoredOnboarding = {
   hasAcceptedTerms: false,
-  hasSkippedProfileSetup: false,
   hasCompletedOnboarding: false,
 };
 

@@ -16,9 +16,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { useAuth } from '../../services/auth';
 import { getStrings } from '../../localization/strings';
 import { pickAvatarFromLibrary } from '../../services/media/avatarPicker';
+import { isHandleValidFormat, sanitizeHandleInput } from '../../services/handlePolicy';
 import { styles } from './ProfileSetupScreen.styles';
 import { ProfileSetupAvatarSection } from './components/ProfileSetupAvatarSection';
 import { ProfileSetupVisibilitySelector } from './components/ProfileSetupVisibilitySelector';
+import { useHandleAvailability } from './hooks/useHandleAvailability';
 
 const heroImage = require('../../../assets/auth/login-hero.jpg');
 
@@ -57,10 +59,15 @@ const palette = {
   },
 };
 
-const HANDLE_REGEX = /^[a-z0-9_]{3,20}$/;
-
 export default function ProfileSetupScreen() {
-  const { user, completeProfile } = useAuth();
+  const {
+    user,
+    completeProfile,
+    authError,
+    clearAuthError,
+    isAuthActionLoading,
+    checkHandleAvailability,
+  } = useAuth();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
@@ -80,11 +87,12 @@ export default function ProfileSetupScreen() {
   const [handleSanitized, setHandleSanitized] = React.useState(false);
   const handleInputRef = React.useRef<TextInput>(null);
 
-  const handleValid = HANDLE_REGEX.test(handle);
+  const handleValid = isHandleValidFormat(handle);
   const nameValid = name.trim().length > 0;
   const bioValid = bio.trim().length > 0;
   const isComplete = nameValid && handleValid && bioValid && Boolean(visibility);
   const showHandleError = handle.length > 0 && !handleValid;
+  const handleAvailability = useHandleAvailability({ handle, checkHandleAvailability });
 
   const gradientColors =
     colorScheme === 'dark'
@@ -92,11 +100,15 @@ export default function ProfileSetupScreen() {
       : ['rgba(246,246,248,0)', palette.light.background];
 
   const handleChange = (value: string) => {
-    const normalized = value.toLowerCase();
-    const sanitized = normalized.replace(/[^a-z0-9_]/g, '');
-    setHandle(sanitized);
-    setHandleSanitized(sanitized.length !== normalized.length);
+    const sanitized = sanitizeHandleInput(value);
+    clearAuthError();
+    setHandle(sanitized.handle);
+    setHandleSanitized(sanitized.removedUnsupported);
   };
+
+  React.useEffect(() => {
+    clearAuthError();
+  }, [clearAuthError]);
 
   const focusHandleInput = () => {
     handleInputRef.current?.focus();
@@ -123,25 +135,61 @@ export default function ProfileSetupScreen() {
     }
   };
 
-  const submitProfile = () => {
-    if (!isComplete) {
+  const submitProfile = async () => {
+    if (
+      !isComplete ||
+      isAuthActionLoading ||
+      handleAvailability === 'checking' ||
+      handleAvailability === 'taken' ||
+      handleAvailability === 'reserved'
+    ) {
       return;
     }
 
-    completeProfile({
-      name: name.trim(),
-      handle: handle.trim(),
-      bio: bio.trim(),
-      visibility,
-      avatar: avatarUri,
-    });
+    clearAuthError();
+    try {
+      await completeProfile({
+        name: name.trim(),
+        handle: handle.trim(),
+        bio: bio.trim(),
+        visibility,
+        avatar: avatarUri,
+      });
+    } catch {
+      // Auth provider exposes translated error via `authError`.
+    }
   };
 
   const handleHelper = showHandleError
     ? strings.profileSetup.handleError
-    : handleSanitized
-      ? strings.profileSetup.handleSanitizedHelper
-      : strings.profileSetup.handleHelper;
+    : handleAvailability === 'checking'
+      ? strings.profileSetup.handleChecking
+      : handleAvailability === 'taken'
+        ? strings.profileSetup.handleTaken
+        : handleAvailability === 'reserved'
+          ? strings.profileSetup.handleReserved
+          : handleAvailability === 'available'
+            ? strings.profileSetup.handleAvailable
+            : handleSanitized
+              ? strings.profileSetup.handleSanitizedHelper
+              : strings.profileSetup.handleHelper;
+
+  const handleHelperColor =
+    showHandleError ||
+    handleAvailability === 'taken' ||
+    handleAvailability === 'reserved' ||
+    handleAvailability === 'error'
+      ? theme.danger
+      : handleAvailability === 'available'
+        ? theme.success
+        : theme.textMuted;
+
+  const canSubmit =
+    isComplete &&
+    !isAuthActionLoading &&
+    handleAvailability !== 'checking' &&
+    handleAvailability !== 'taken' &&
+    handleAvailability !== 'reserved';
 
   const inputFocusStyle = (focused: boolean) =>
     focused
@@ -289,7 +337,7 @@ export default function ProfileSetupScreen() {
                 <Text
                   style={[
                     styles.helperText,
-                    { color: showHandleError ? theme.danger : theme.textMuted },
+                    { color: handleHelperColor },
                   ]}
                 >
                   {handleHelper}
@@ -345,17 +393,17 @@ export default function ProfileSetupScreen() {
 
               <Pressable
                 onPress={submitProfile}
-                disabled={!isComplete}
+                disabled={!canSubmit}
                 accessibilityRole="button"
                 accessibilityLabel={strings.profileSetup.continueA11yLabel}
                 accessibilityHint={strings.profileSetup.continueA11yHint}
-                accessibilityState={{ disabled: !isComplete }}
+                accessibilityState={{ disabled: !canSubmit }}
                 style={({ pressed }) => [
                   styles.primaryButton,
                   {
                     backgroundColor: theme.primary,
-                    opacity: isComplete ? 1 : 0.5,
-                    transform: [{ scale: pressed && isComplete ? 0.98 : 1 }],
+                    opacity: canSubmit ? 1 : 0.5,
+                    transform: [{ scale: pressed && canSubmit ? 0.98 : 1 }],
                   },
                 ]}
               >
@@ -363,6 +411,10 @@ export default function ProfileSetupScreen() {
                   {strings.profileSetup.continueButton}
                 </Text>
               </Pressable>
+
+              {authError ? (
+                <Text style={[styles.formErrorText, { color: theme.danger }]}>{authError}</Text>
+              ) : null}
             </View>
           </View>
         </ScrollView>

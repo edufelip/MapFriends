@@ -208,4 +208,10 @@ export const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'BeVietnamPro-Bold',
   },
+  formErrorText: {
+    marginTop: 10,
+    fontSize: 12,
+    fontFamily: 'NotoSans-Medium',
+    textAlign: 'center',
+  },
 });

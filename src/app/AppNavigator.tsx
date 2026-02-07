@@ -105,7 +105,6 @@ export default function AppNavigator() {
     isAuthenticated,
     hasAcceptedTerms,
     hasCompletedProfile,
-    hasSkippedProfileSetup,
     hasCompletedOnboarding,
   } = useAuth();
 
@@ -115,7 +114,7 @@ export default function AppNavigator() {
         <AuthStack />
       ) : !hasAcceptedTerms ? (
         <TermsStack />
-      ) : !hasCompletedProfile && !hasSkippedProfileSetup ? (
+      ) : !hasCompletedProfile ? (
         <ProfileSetupStack />
       ) : !hasCompletedOnboarding ? (
         <OnboardingStack />

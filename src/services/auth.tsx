@@ -35,14 +35,19 @@ import {
   toStoredProfile,
   writeStorage,
 } from './authStorage';
-import { fallbackHandle, isProfileComplete, toAppUser, toHandle } from './authUser';
+import { isProfileComplete, toAppUser } from './authUser';
+import {
+  checkHandleAvailability,
+  claimProfileHandle,
+  HandleAvailabilityStatus,
+} from './handleRegistry';
+import { isHandleValidFormat, normalizeHandle } from './handlePolicy';
 
 type AuthState = {
   user: User | null;
   isAuthenticated: boolean;
   hasAcceptedTerms: boolean;
   hasCompletedProfile: boolean;
-  hasSkippedProfileSetup: boolean;
   hasCompletedOnboarding: boolean;
 };
 
@@ -51,6 +56,7 @@ type AuthContextValue = AuthState & {
   isAuthActionLoading: boolean;
   authError: string | null;
   clearAuthError: () => void;
+  checkHandleAvailability: (handle: string) => Promise<HandleAvailabilityStatus>;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -64,8 +70,7 @@ type AuthContextValue = AuthState & {
     bio: string;
     visibility: 'open' | 'locked';
     avatar?: string | null;
-  }) => void;
-  skipProfileSetup: () => void;
+  }) => Promise<void>;
   completeOnboarding: () => void;
   updateVisibility: (visibility: 'open' | 'locked') => void;
 };
@@ -87,7 +92,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [hasAcceptedTerms, setHasAcceptedTerms] = React.useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = React.useState(false);
-  const [hasSkippedProfileSetup, setHasSkippedProfileSetup] = React.useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = React.useState(false);
   const [isBootstrappingAuth, setIsBootstrappingAuth] = React.useState(true);
   const [isAuthActionLoading, setIsAuthActionLoading] = React.useState(false);
@@ -195,7 +199,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(null);
         setHasAcceptedTerms(false);
         setHasCompletedProfile(false);
-        setHasSkippedProfileSetup(false);
         setHasCompletedOnboarding(false);
         setIsBootstrappingAuth(false);
         return;
@@ -216,7 +219,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const nextUser = toAppUser(firebaseUser, storedProfile);
       setUser(nextUser);
       setHasAcceptedTerms(storedOnboarding?.hasAcceptedTerms ?? false);
-      setHasSkippedProfileSetup(storedOnboarding?.hasSkippedProfileSetup ?? false);
       setHasCompletedOnboarding(storedOnboarding?.hasCompletedOnboarding ?? false);
       setHasCompletedProfile(isProfileComplete(nextUser));
       setIsBootstrappingAuth(false);
@@ -250,6 +252,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
     };
   }, []);
+
+  const checkProfileHandleAvailability = React.useCallback(
+    async (handle: string) => checkHandleAvailability(handle, user?.id),
+    [user?.id]
+  );
 
   const signInWithEmail = React.useCallback(
     async (email: string, password: string) => {
@@ -383,72 +390,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void persistOnboarding(uid, { hasAcceptedTerms: true });
   };
 
-  const completeProfile = (profile: {
-    name: string;
-    handle: string;
-    bio: string;
-    visibility: 'open' | 'locked';
-    avatar?: string | null;
-  }) => {
-    const uid = user?.id;
-    if (!uid) {
-      return;
-    }
-    const nextUser: User = {
-      id: uid,
-      ...profile,
-      avatar: profile.avatar ?? user?.avatar ?? null,
-    };
-    setUser(nextUser);
-    setHasCompletedProfile(true);
-    setHasSkippedProfileSetup(false);
-    setHasCompletedOnboarding(true);
-    void persistProfile(uid, toStoredProfile(nextUser));
-    void persistOnboarding(uid, {
-      hasSkippedProfileSetup: false,
-      hasCompletedOnboarding: true,
-    });
-  };
-
-  const skipProfileSetup = () => {
-    const uid = user?.id;
-    if (!uid) {
-      return;
-    }
-    setUser((prev) => {
-      if (!prev) {
-        return prev;
+  const completeProfile = React.useCallback(
+    async (profile: {
+      name: string;
+      handle: string;
+      bio: string;
+      visibility: 'open' | 'locked';
+      avatar?: string | null;
+    }) => {
+      const uid = user?.id;
+      if (!uid) {
+        return;
       }
-      const nextHandle =
-        prev.handle?.trim() ||
-        toHandle(prev.name || '') ||
-        fallbackHandle(prev.id);
-      return {
-        ...prev,
-        handle: nextHandle.length >= 3 ? nextHandle : fallbackHandle(prev.id),
-        visibility: prev.visibility || 'open',
-      };
-    });
-    setHasSkippedProfileSetup(true);
-    const next = {
-      ...(user || {
-        id: uid,
-        name: '',
-        avatar: null,
-        bio: '',
-        handle: '',
-        visibility: 'open' as const,
-      }),
-    };
-    const handle = next.handle?.trim() || toHandle(next.name || '') || fallbackHandle(uid);
-    const stored: User = {
-      ...next,
-      handle: handle.length >= 3 ? handle : fallbackHandle(uid),
-      visibility: next.visibility || 'open',
-    };
-    void persistProfile(uid, toStoredProfile(stored));
-    void persistOnboarding(uid, { hasSkippedProfileSetup: true });
-  };
+
+      await runAuthAction(async () => {
+        const requestedHandle = normalizeHandle(profile.handle);
+        const currentHandle = normalizeHandle(user?.handle || '');
+
+        if (!isHandleValidFormat(requestedHandle)) {
+          throw Object.assign(new Error('profile/handle-invalid'), { code: 'profile/handle-invalid' });
+        }
+
+        if (currentHandle && currentHandle !== requestedHandle) {
+          throw Object.assign(new Error('profile/handle-immutable'), {
+            code: 'profile/handle-immutable',
+          });
+        }
+
+        const claimedHandle = await claimProfileHandle({
+          uid,
+          name: profile.name.trim(),
+          handle: requestedHandle,
+          bio: profile.bio.trim(),
+          visibility: profile.visibility,
+          avatar: profile.avatar ?? user?.avatar ?? null,
+        });
+
+        const nextUser: User = {
+          id: uid,
+          name: profile.name.trim(),
+          handle: claimedHandle,
+          bio: profile.bio.trim(),
+          visibility: profile.visibility,
+          avatar: profile.avatar ?? user?.avatar ?? null,
+        };
+
+        setUser(nextUser);
+        setHasCompletedProfile(true);
+        setHasCompletedOnboarding(true);
+        await persistProfile(uid, toStoredProfile(nextUser));
+        await persistOnboarding(uid, {
+          hasCompletedOnboarding: true,
+        });
+      });
+    },
+    [persistOnboarding, persistProfile, runAuthAction, user]
+  );
 
   const completeOnboarding = () => {
     const uid = user?.id;
@@ -475,12 +472,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: Boolean(user),
     hasAcceptedTerms,
     hasCompletedProfile,
-    hasSkippedProfileSetup,
     hasCompletedOnboarding,
     isBootstrappingAuth,
     isAuthActionLoading,
     authError,
     clearAuthError,
+    checkHandleAvailability: checkProfileHandleAvailability,
     signInWithEmail,
     signUpWithEmail,
     signInWithGoogle,
@@ -489,7 +486,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     acceptTerms,
     completeProfile,
-    skipProfileSetup,
     completeOnboarding,
     updateVisibility,
   };
