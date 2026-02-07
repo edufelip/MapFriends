@@ -34,4 +34,5 @@ Pull requests should note which docs were updated and link to them.
 
 - `docs/specs/auth-loading-state.md` — separates bootstrap loading from auth action loading and defines the blurred in-screen auth overlay behavior.
 - `docs/specs/app-branding-icons.md` — defines the MapFriends display name and reproducible launcher icon generation from the auth map badge mark.
+- `docs/specs/ios-dev-launch-reliability.md` — defines a retry-safe iOS dev-client startup flow and native scheme parity without relying on prebuild.
 - `docs/specs/profile-setup.md` — documents profile completion gate behavior, avatar selection UX, and related validation rules.
