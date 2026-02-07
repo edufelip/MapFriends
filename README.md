@@ -34,3 +34,8 @@ Notes:
 
 - iOS Apple Sign In requires Apple capability enabled for the app id.
 - Android Google Sign In requires OAuth client setup (including SHA fingerprints) in Firebase Console.
+
+## Firestore Rules Deploy
+
+- Deploy Firestore rules with: `yarn firebase`
+- Requires Firebase CLI authentication (`firebase login`) and project selection (`firebase use <project-id>`).

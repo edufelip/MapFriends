@@ -10,16 +10,15 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 
 ## Non-Goals
 - Backend/cloud media upload pipeline.
-- Server-side handle availability checks.
 - Camera capture flow (gallery picker only for now).
 
 ## User Flows
 - Login/Signup → Terms → Profile Setup (if incomplete) → Onboarding/Main flow.
-- Tap **Continue** with valid inputs → profile is completed and persisted.
+- Tap **Continue** with valid inputs → handle is atomically claimed, profile is completed and persisted.
 - Pick avatar from gallery → preview updates immediately → saved on Continue.
 
 ## Data Model / State
-- Auth state tracks: `hasCompletedProfile`, `hasSkippedProfileSetup`.
+- Auth state tracks: `hasCompletedProfile`.
 - User profile fields in auth state/storage: `name`, `handle`, `bio`, `visibility`, `avatar`.
 
 ## UI/UX Notes
@@ -31,8 +30,11 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 - Empty avatar state uses a plain circular surface with camera icon only (no background photo).
 - Avatar picking is delegated to `src/services/media/avatarPicker.ts` to isolate native module interactions from screen UI.
 - Handle validation: lowercase letters, numbers, underscore, 3–20 chars.
+- Handle must be globally unique and non-reserved.
+- Handle is immutable after first successful claim.
 - Tapping anywhere in the handle row (`@`, input area, validation icon) focuses the handle input to keep keyboard behavior consistent on iOS.
 - Unsupported handle characters are sanitized with helper feedback.
+- Handle availability is checked with debounce while typing.
 - Form content is presented in a bordered card surface, matching auth screen rhythm.
 - Bio character counter is displayed live inside the textarea at the bottom-right corner.
 - Continue button remains disabled until required fields are valid.
@@ -41,6 +43,7 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 
 ## Edge Cases
 - Handle invalid chars → sanitized input + helper feedback.
+- Handle taken/reserved → Continue remains disabled and inline feedback is shown.
 - Media permission denied → no avatar update, inline feedback message is shown, user can still continue without avatar.
 - Media picker unexpected error → inline feedback message is shown, user can retry or continue without avatar.
 - Bio capped to configured maximum length.
