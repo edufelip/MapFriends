@@ -107,4 +107,19 @@ describe('ProfileSetupScreen', () => {
     expect(screen.queryByText(strings.profileSetup.avatarPermissionDenied)).toBeNull();
     expect(screen.queryByText(strings.profileSetup.avatarPickerError)).toBeNull();
   });
+
+  it('does not render the skip action in the hero area', () => {
+    const screen = render(<ProfileSetupScreen />);
+
+    expect(screen.queryByLabelText(strings.profileSetup.skipA11yLabel)).toBeNull();
+  });
+
+  it('keeps the handle row tappable so taps can focus the handle input', () => {
+    const screen = render(<ProfileSetupScreen />);
+
+    fireEvent.press(screen.getByTestId('profile-setup-handle-row'));
+    fireEvent.changeText(screen.getByLabelText(strings.profileSetup.handleLabel), 'new_handle');
+
+    expect(screen.getByDisplayValue('new_handle')).toBeTruthy();
+  });
 });
