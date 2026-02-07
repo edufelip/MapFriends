@@ -4,41 +4,68 @@ export const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
   },
-  heroBackground: {
+  scrollContent: {
+    flexGrow: 1,
+  },
+  heroWrapper: {
+    position: 'relative',
+    minHeight: 320,
+  },
+  heroImage: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: 220,
+    height: 320,
   },
+  heroImageStyle: {},
   heroGradient: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  headerSpacer: {
-    width: 40,
-    height: 40,
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  skipText: {
-    fontSize: 13,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  content: {
+  heroContent: {
+    paddingTop: 40,
+    paddingBottom: 24,
     paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  logoBadge: {
+    width: 64,
+    height: 64,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+  title: {
+    fontSize: 30,
+    fontFamily: 'BeVietnamPro-Bold',
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  subtitle: {
+    marginTop: 8,
+    fontSize: 14,
+    fontFamily: 'NotoSans-Medium',
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  formSection: {
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  formCard: {
+    borderRadius: 24,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 20,
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: 20,
     marginBottom: 24,
   },
   avatarWrapper: {
@@ -54,9 +81,6 @@ export const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: 'dashed',
     overflow: 'hidden',
-  },
-  avatarImageStyle: {
-    opacity: 0.5,
   },
   avatarBadge: {
     position: 'absolute',
@@ -119,12 +143,13 @@ export const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'NotoSans-Regular',
   },
-  bioHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
+  textareaWrapper: {
+    position: 'relative',
   },
   counterText: {
+    position: 'absolute',
+    right: 12,
+    bottom: 10,
     fontSize: 12,
     fontFamily: 'NotoSans-Medium',
   },
@@ -133,6 +158,7 @@ export const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 16,
     paddingTop: 12,
+    paddingBottom: 30,
     borderWidth: 1,
     fontSize: 15,
     fontFamily: 'NotoSans-Regular',
@@ -167,23 +193,16 @@ export const styles = StyleSheet.create({
     top: 8,
     right: 8,
   },
-  bottomBar: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-  },
   primaryButton: {
     height: 56,
-    borderRadius: 20,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    marginTop: 6,
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.25,
     shadowRadius: 20,
-    elevation: 6,
+    elevation: 4,
   },
   primaryButtonText: {
     fontSize: 16,

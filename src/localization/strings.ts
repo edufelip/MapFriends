@@ -67,6 +67,7 @@ const STRINGS = {
     },
     profileSetup: {
       title: 'Profile Setup',
+      subtitle: 'Create your profile so friends can recognize your map activity.',
       skip: 'Skip',
       avatarLabel: 'Upload Avatar',
       displayNameLabel: 'Display Name',
@@ -251,6 +252,7 @@ const STRINGS = {
     },
     profileSetup: {
       title: 'Configuração do perfil',
+      subtitle: 'Monte seu perfil para que amigos reconheçam sua atividade no mapa.',
       skip: 'Pular',
       avatarLabel: 'Enviar avatar',
       displayNameLabel: 'Nome de exibição',

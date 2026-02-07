@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -26,6 +25,7 @@ const heroImage = require('../../../assets/auth/login-hero.jpg');
 const palette = {
   light: {
     background: '#f6f6f8',
+    cardSurface: '#ffffff',
     surface: '#ffffff',
     textPrimary: '#0f172a',
     textMuted: '#64748b',
@@ -41,6 +41,7 @@ const palette = {
   },
   dark: {
     background: '#101622',
+    cardSurface: '#1c2333',
     surface: '#1c2333',
     textPrimary: '#ffffff',
     textMuted: '#94a3b8',
@@ -59,7 +60,7 @@ const palette = {
 const HANDLE_REGEX = /^[a-z0-9_]{3,20}$/;
 
 export default function ProfileSetupScreen() {
-  const { user, completeProfile, skipProfileSetup } = useAuth();
+  const { user, completeProfile } = useAuth();
   const colorScheme = useColorScheme();
   const insets = useSafeAreaInsets();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
@@ -77,6 +78,7 @@ export default function ProfileSetupScreen() {
   const [handleFocused, setHandleFocused] = React.useState(false);
   const [bioFocused, setBioFocused] = React.useState(false);
   const [handleSanitized, setHandleSanitized] = React.useState(false);
+  const handleInputRef = React.useRef<TextInput>(null);
 
   const handleValid = HANDLE_REGEX.test(handle);
   const nameValid = name.trim().length > 0;
@@ -94,6 +96,10 @@ export default function ProfileSetupScreen() {
     const sanitized = normalized.replace(/[^a-z0-9_]/g, '');
     setHandle(sanitized);
     setHandleSanitized(sanitized.length !== normalized.length);
+  };
+
+  const focusHandleInput = () => {
+    handleInputRef.current?.focus();
   };
 
   const handleAvatarPick = async () => {
@@ -150,187 +156,217 @@ export default function ProfileSetupScreen() {
       : { borderColor: theme.border };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.background }]}>
-      <ImageBackground
-        source={heroImage}
-        style={styles.heroBackground}
-        resizeMode="cover"
-        imageStyle={{ opacity: colorScheme === 'dark' ? 0.2 : 0.25 }}
-      >
-        <LinearGradient colors={gradientColors} style={styles.heroGradient} />
-      </ImageBackground>
-
-      <View style={[styles.header, { backgroundColor: theme.background }]}>
-        <View style={styles.headerSpacer} />
-        <Text style={[styles.headerTitle, { color: theme.textPrimary }]}>
-          {strings.profileSetup.title}
-        </Text>
-        <Pressable
-          onPress={skipProfileSetup}
-          accessibilityRole="button"
-          accessibilityLabel={strings.profileSetup.skipA11yLabel}
-          accessibilityHint={strings.profileSetup.skipA11yHint}
-        >
-          <Text style={[styles.skipText, { color: theme.textMuted }]}>
-            {strings.profileSetup.skip}
-          </Text>
-        </Pressable>
-      </View>
-
+    <SafeAreaView
+      style={[styles.safeArea, { backgroundColor: theme.background }]}
+      edges={['left', 'right', 'bottom']}
+    >
       <KeyboardAvoidingView
         style={styles.safeArea}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingBottom: 140 + insets.bottom }]}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: 32 + insets.bottom }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <ProfileSetupAvatarSection
-            avatarUri={avatarUri}
-            onPress={handleAvatarPick}
-            avatarLabel={strings.profileSetup.avatarLabel}
-            addA11yLabel={strings.profileSetup.avatarAddA11yLabel}
-            changeA11yLabel={strings.profileSetup.avatarChangeA11yLabel}
-            a11yHint={strings.profileSetup.avatarA11yHint}
-            errorMessage={avatarFeedback}
-            theme={theme}
-          />
-
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: theme.label }]}>
-              {strings.profileSetup.displayNameLabel}
-            </Text>
-            <TextInput
-              style={[
-                styles.input,
-                { backgroundColor: theme.surface, color: theme.textPrimary },
-                inputFocusStyle(nameFocused),
+          <View style={styles.heroWrapper}>
+            <ImageBackground
+              source={heroImage}
+              style={styles.heroImage}
+              resizeMode="cover"
+              imageStyle={[
+                styles.heroImageStyle,
+                { opacity: colorScheme === 'dark' ? 0.5 : 0.7 },
               ]}
-              placeholder={strings.profileSetup.displayNamePlaceholder}
-              placeholderTextColor={theme.placeholder}
-              value={name}
-              onChangeText={setName}
-              onFocus={() => setNameFocused(true)}
-              onBlur={() => setNameFocused(false)}
-              returnKeyType="next"
-              accessibilityLabel={strings.profileSetup.displayNameLabel}
-            />
+            >
+              <LinearGradient
+                colors={gradientColors}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.heroGradient}
+              />
+            </ImageBackground>
+
+            <View style={[styles.heroContent, { paddingTop: insets.top + 40 }]}>
+              <View
+                style={[
+                  styles.logoBadge,
+                  { backgroundColor: theme.primary, shadowColor: theme.primary },
+                ]}
+              >
+                <MaterialIcons name="map" size={34} color="#ffffff" />
+              </View>
+              <Text style={[styles.title, { color: theme.textPrimary }]}>
+                {strings.profileSetup.title}
+              </Text>
+              <Text style={[styles.subtitle, { color: theme.textMuted }]}>
+                {strings.profileSetup.subtitle}
+              </Text>
+            </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: theme.label }]}>
-              {strings.profileSetup.handleLabel}
-            </Text>
+          <View style={styles.formSection}>
             <View
               style={[
-                styles.handleRow,
-                { backgroundColor: theme.surface },
-                inputFocusStyle(handleFocused),
+                styles.formCard,
+                { backgroundColor: theme.cardSurface, borderColor: theme.border },
               ]}
             >
-              <Text style={[styles.handlePrefix, { color: theme.placeholder }]}>@</Text>
-              <TextInput
-                style={[styles.handleInput, { color: theme.textPrimary }]}
-                placeholder={strings.profileSetup.handlePlaceholder}
-                placeholderTextColor={theme.placeholder}
-                value={handle}
-                onChangeText={handleChange}
-                autoCapitalize="none"
-                onFocus={() => setHandleFocused(true)}
-                onBlur={() => setHandleFocused(false)}
-                maxLength={20}
-                returnKeyType="next"
-                accessibilityLabel={strings.profileSetup.handleLabel}
+              <ProfileSetupAvatarSection
+                avatarUri={avatarUri}
+                onPress={handleAvatarPick}
+                avatarLabel={strings.profileSetup.avatarLabel}
+                addA11yLabel={strings.profileSetup.avatarAddA11yLabel}
+                changeA11yLabel={strings.profileSetup.avatarChangeA11yLabel}
+                a11yHint={strings.profileSetup.avatarA11yHint}
+                errorMessage={avatarFeedback}
+                theme={theme}
               />
-              {handle.length > 0 ? (
-                <MaterialIcons
-                  name={handleValid ? 'check-circle' : 'error'}
-                  size={18}
-                  color={handleValid ? theme.success : theme.danger}
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: theme.label }]}>
+                  {strings.profileSetup.displayNameLabel}
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    { backgroundColor: theme.surface, color: theme.textPrimary },
+                    inputFocusStyle(nameFocused),
+                  ]}
+                  placeholder={strings.profileSetup.displayNamePlaceholder}
+                  placeholderTextColor={theme.placeholder}
+                  value={name}
+                  onChangeText={setName}
+                  onFocus={() => setNameFocused(true)}
+                  onBlur={() => setNameFocused(false)}
+                  returnKeyType="next"
+                  accessibilityLabel={strings.profileSetup.displayNameLabel}
                 />
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.helperText,
-                { color: showHandleError ? theme.danger : theme.textMuted },
-              ]}
-            >
-              {handleHelper}
-            </Text>
-          </View>
+              </View>
 
-          <View style={styles.fieldGroup}>
-            <View style={styles.bioHeader}>
-              <Text style={[styles.label, { color: theme.label }]}>
-                {strings.profileSetup.bioLabel}
-              </Text>
-              <Text style={[styles.counterText, { color: theme.textMuted }]}>
-                {bio.length}/{strings.profileSetup.bioMax}
-              </Text>
-            </View>
-            <TextInput
-              style={[
-                styles.textarea,
-                { backgroundColor: theme.surface, color: theme.textPrimary },
-                inputFocusStyle(bioFocused),
-              ]}
-              placeholder={strings.profileSetup.bioPlaceholder}
-              placeholderTextColor={theme.placeholder}
-              value={bio}
-              onChangeText={setBio}
-              onFocus={() => setBioFocused(true)}
-              onBlur={() => setBioFocused(false)}
-              multiline
-              maxLength={strings.profileSetup.bioMax}
-              accessibilityLabel={strings.profileSetup.bioLabel}
-            />
-          </View>
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: theme.label }]}>
+                  {strings.profileSetup.handleLabel}
+                </Text>
+                <Pressable
+                  testID="profile-setup-handle-row"
+                  onPress={focusHandleInput}
+                  style={[
+                    styles.handleRow,
+                    { backgroundColor: theme.surface },
+                    inputFocusStyle(handleFocused),
+                  ]}
+                >
+                  <Text
+                    pointerEvents="none"
+                    style={[styles.handlePrefix, { color: theme.placeholder }]}
+                  >
+                    @
+                  </Text>
+                  <TextInput
+                    ref={handleInputRef}
+                    style={[styles.handleInput, { color: theme.textPrimary }]}
+                    placeholder={strings.profileSetup.handlePlaceholder}
+                    placeholderTextColor={theme.placeholder}
+                    value={handle}
+                    onChangeText={handleChange}
+                    autoCapitalize="none"
+                    onFocus={() => setHandleFocused(true)}
+                    onBlur={() => setHandleFocused(false)}
+                    maxLength={20}
+                    returnKeyType="next"
+                    accessibilityLabel={strings.profileSetup.handleLabel}
+                  />
+                  {handle.length > 0 ? (
+                    <MaterialIcons
+                      pointerEvents="none"
+                      name={handleValid ? 'check-circle' : 'error'}
+                      size={18}
+                      color={handleValid ? theme.success : theme.danger}
+                    />
+                  ) : null}
+                </Pressable>
+                <Text
+                  style={[
+                    styles.helperText,
+                    { color: showHandleError ? theme.danger : theme.textMuted },
+                  ]}
+                >
+                  {handleHelper}
+                </Text>
+              </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={[styles.label, { color: theme.label }]}>{strings.profileSetup.visibilityLabel}</Text>
-            <ProfileSetupVisibilitySelector
-              visibility={visibility}
-              onChange={setVisibility}
-              theme={theme}
-              openTitle={strings.profileSetup.visibilityOpenTitle}
-              openDescription={strings.profileSetup.visibilityOpenDesc}
-              openA11yLabel={strings.profileSetup.visibilityOpenA11yLabel}
-              lockedTitle={strings.profileSetup.visibilityLockedTitle}
-              lockedDescription={strings.profileSetup.visibilityLockedDesc}
-              lockedA11yLabel={strings.profileSetup.visibilityLockedA11yLabel}
-            />
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: theme.label }]}>
+                  {strings.profileSetup.bioLabel}
+                </Text>
+                <View style={styles.textareaWrapper}>
+                  <TextInput
+                    style={[
+                      styles.textarea,
+                      { backgroundColor: theme.surface, color: theme.textPrimary },
+                      inputFocusStyle(bioFocused),
+                    ]}
+                    placeholder={strings.profileSetup.bioPlaceholder}
+                    placeholderTextColor={theme.placeholder}
+                    value={bio}
+                    onChangeText={setBio}
+                    onFocus={() => setBioFocused(true)}
+                    onBlur={() => setBioFocused(false)}
+                    multiline
+                    maxLength={strings.profileSetup.bioMax}
+                    accessibilityLabel={strings.profileSetup.bioLabel}
+                  />
+                  <Text
+                    pointerEvents="none"
+                    style={[styles.counterText, { color: theme.textMuted }]}
+                  >
+                    {bio.length}/{strings.profileSetup.bioMax}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={[styles.label, { color: theme.label }]}>
+                  {strings.profileSetup.visibilityLabel}
+                </Text>
+                <ProfileSetupVisibilitySelector
+                  visibility={visibility}
+                  onChange={setVisibility}
+                  theme={theme}
+                  openTitle={strings.profileSetup.visibilityOpenTitle}
+                  openDescription={strings.profileSetup.visibilityOpenDesc}
+                  openA11yLabel={strings.profileSetup.visibilityOpenA11yLabel}
+                  lockedTitle={strings.profileSetup.visibilityLockedTitle}
+                  lockedDescription={strings.profileSetup.visibilityLockedDesc}
+                  lockedA11yLabel={strings.profileSetup.visibilityLockedA11yLabel}
+                />
+              </View>
+
+              <Pressable
+                onPress={submitProfile}
+                disabled={!isComplete}
+                accessibilityRole="button"
+                accessibilityLabel={strings.profileSetup.continueA11yLabel}
+                accessibilityHint={strings.profileSetup.continueA11yHint}
+                accessibilityState={{ disabled: !isComplete }}
+                style={({ pressed }) => [
+                  styles.primaryButton,
+                  {
+                    backgroundColor: theme.primary,
+                    opacity: isComplete ? 1 : 0.5,
+                    transform: [{ scale: pressed && isComplete ? 0.98 : 1 }],
+                  },
+                ]}
+              >
+                <Text style={[styles.primaryButtonText, { color: theme.buttonText }]}>
+                  {strings.profileSetup.continueButton}
+                </Text>
+              </Pressable>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <View style={[styles.bottomBar, { paddingBottom: 20 + insets.bottom }]}>
-        <LinearGradient
-          colors={[`${theme.background}00`, `${theme.background}cc`, theme.background]}
-          style={StyleSheet.absoluteFillObject}
-        />
-        <Pressable
-          onPress={submitProfile}
-          disabled={!isComplete}
-          accessibilityRole="button"
-          accessibilityLabel={strings.profileSetup.continueA11yLabel}
-          accessibilityHint={strings.profileSetup.continueA11yHint}
-          accessibilityState={{ disabled: !isComplete }}
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: theme.primary,
-              opacity: isComplete ? 1 : 0.5,
-              transform: [{ scale: pressed && isComplete ? 0.98 : 1 }],
-            },
-          ]}
-        >
-          <Text style={[styles.primaryButtonText, { color: theme.buttonText }]}>
-            {strings.profileSetup.continueButton}
-          </Text>
-        </Pressable>
-      </View>
     </SafeAreaView>
   );
 }

@@ -1,9 +1,7 @@
 import React from 'react';
-import { Image, ImageBackground, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { styles } from '../ProfileSetupScreen.styles';
-
-const avatarPlaceholder = require('../../../../assets/auth/avatar-placeholder.jpg');
 
 type AvatarTheme = {
   border: string;
@@ -54,16 +52,14 @@ export function ProfileSetupAvatarSection({
             accessibilityIgnoresInvertColors
           />
         ) : (
-          <ImageBackground
-            source={avatarPlaceholder}
+          <View
             style={[
               styles.avatarImage,
               { borderColor: theme.border, backgroundColor: theme.surface },
             ]}
-            imageStyle={styles.avatarImageStyle}
           >
-            <MaterialIcons name="add-a-photo" size={32} color="#ffffffcc" />
-          </ImageBackground>
+            <MaterialIcons name="add-a-photo" size={32} color={theme.textMuted} />
+          </View>
         )}
 
         <View
