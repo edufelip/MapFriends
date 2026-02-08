@@ -30,6 +30,7 @@ type Props = {
   hasToken: boolean;
   isDark: boolean;
   topInset: number;
+  userCoordinate: [number, number] | null;
   onPlacePress: () => void;
 };
 
@@ -41,6 +42,7 @@ export default function MapTab({
   hasToken,
   isDark,
   topInset,
+  userCoordinate,
   onPlacePress,
 }: Props) {
   return (
@@ -53,7 +55,10 @@ export default function MapTab({
           compassEnabled={false}
           attributionEnabled={false}
         >
-          <Mapbox.Camera zoomLevel={12} centerCoordinate={MAP_CENTER} />
+          <Mapbox.Camera
+            zoomLevel={userCoordinate ? 14 : 12}
+            centerCoordinate={userCoordinate || MAP_CENTER}
+          />
         </Mapbox.MapView>
       ) : (
         <View style={[styles.mapFallback, { backgroundColor: theme.background }]}> 

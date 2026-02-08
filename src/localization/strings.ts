@@ -119,6 +119,11 @@ const STRINGS = {
       navActivity: 'Activity',
       navProfile: 'Profile',
       mapTokenMissing: 'Add EXPO_PUBLIC_MAPBOX_TOKEN to enable the map.',
+      locationPromptTitle: 'Enable your location',
+      locationPromptMessage:
+        'We use your location to show nearby recommendations and personalized map content.',
+      locationPromptAllow: 'Allow location',
+      locationPromptNotNow: 'Not now',
       exploreTitle: 'Explore',
       exploreSubtitle: 'Search and discover new places.',
     },
@@ -306,6 +311,11 @@ const STRINGS = {
       navActivity: 'Atividade',
       navProfile: 'Perfil',
       mapTokenMissing: 'Adicione EXPO_PUBLIC_MAPBOX_TOKEN para ativar o mapa.',
+      locationPromptTitle: 'Ative sua localizacao',
+      locationPromptMessage:
+        'Usamos sua localizacao para mostrar recomendacoes proximas e conteudo personalizado no mapa.',
+      locationPromptAllow: 'Permitir localizacao',
+      locationPromptNotNow: 'Agora nao',
       exploreTitle: 'Explorar',
       exploreSubtitle: 'Pesquise e descubra novos lugares.',
     },
