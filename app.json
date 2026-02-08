@@ -18,7 +18,8 @@
       "bundleIdentifier": "com.edufelip.mapfriends",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "MapFriends uses your photo library so you can choose a profile avatar.",
-        "NSPhotoLibraryAddUsageDescription": "MapFriends may save edited profile photos to your photo library."
+        "NSPhotoLibraryAddUsageDescription": "MapFriends may save edited profile photos to your photo library.",
+        "NSLocationWhenInUseUsageDescription": "MapFriends uses your location to show nearby recommendations and personalized map content."
       }
     },
     "android": {
@@ -28,7 +29,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.edufelip.mapfriends"
+      "package": "com.edufelip.mapfriends",
+      "permissions": ["ACCESS_FINE_LOCATION", "ACCESS_COARSE_LOCATION"]
     },
     "web": {
       "favicon": "./assets/favicon.png"
