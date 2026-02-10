@@ -83,7 +83,6 @@ type AuthContextValue = AuthState & {
     visibility: 'open' | 'locked';
   }) => Promise<void>;
   completeOnboarding: () => void;
-  updateVisibility: (visibility: 'open' | 'locked') => void;
 };
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -764,17 +763,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [persistProfile, runAuthAction, user]
   );
 
-  const updateVisibility = (visibility: 'open' | 'locked') => {
-    setUser((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      const next = { ...prev, visibility };
-      void persistProfile(prev.id, toStoredProfile(next));
-      return next;
-    });
-  };
-
   const value: AuthContextValue = {
     user,
     accountEmail,
@@ -798,7 +786,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     completeProfile,
     updateProfileDetails,
     completeOnboarding,
-    updateVisibility,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
