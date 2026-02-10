@@ -34,6 +34,78 @@ service cloud.firestore {
       return /databases/$(database)/documents/handles/$(handle);
     }
 
+    function reviewPath(reviewId) {
+      return /databases/$(database)/documents/reviews/$(reviewId);
+    }
+
+    function userReviewPath(uid, reviewId) {
+      return /databases/$(database)/documents/userReviews/$(uid)/items/$(reviewId);
+    }
+
+    function hasReviewKeys(data) {
+      return data.keys().hasOnly([
+        'id',
+        'placeId',
+        'placeTitle',
+        'title',
+        'notes',
+        'rating',
+        'visibility',
+        'userId',
+        'userName',
+        'userHandle',
+        'userAvatar',
+        'photos',
+        'photoUrls',
+        'createdAt',
+        'updatedAt',
+      ]);
+    }
+
+    function isValidReviewPayload(data, uid, reviewId) {
+      return hasReviewKeys(data)
+        && data.id == reviewId
+        && data.userId == uid
+        && data.placeId is string
+        && data.placeTitle is string
+        && data.title is string
+        && data.notes is string
+        && data.notes.size() > 0
+        && data.notes.size() <= 400
+        && data.rating is number
+        && data.rating >= 1
+        && data.rating <= 10
+        && data.visibility in ['followers', 'subscribers']
+        && data.userName is string
+        && data.userHandle is string
+        && (data.userAvatar == null || data.userAvatar is string)
+        && data.photos is list
+        && data.photoUrls is list
+        && data.photos.size() <= 10
+        && data.photoUrls.size() <= 10
+        && data.photos.size() == data.photoUrls.size()
+        && data.createdAt is string
+        && data.updatedAt is string;
+    }
+
+    function docsMatch(a, b) {
+      return a.id == b.id
+        && a.placeId == b.placeId
+        && a.placeTitle == b.placeTitle
+        && a.title == b.title
+        && a.notes == b.notes
+        && a.rating == b.rating
+        && a.visibility == b.visibility
+        && a.userId == b.userId
+        && a.userName == b.userName
+        && a.userHandle == b.userHandle
+        && a.userAvatar == b.userAvatar
+        && a.photos == b.photos
+        && a.photoUrls == b.photoUrls
+        && a.createdAt == b.createdAt
+        && a.updatedAt == b.updatedAt;
+    }
+
     function handleBelongsToUserAfter(handle, uid) {
       return existsAfter(handlePath(handle))
         && getAfter(handlePath(handle)).data.uid == uid;
@@ -82,6 +154,37 @@ service cloud.firestore {
         && request.resource.data.hasCompletedOnboarding is bool
         && request.resource.data.onboardingVersion is int;
       allow delete: if isOwner(uid);
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && isValidReviewPayload(request.resource.data, request.auth.uid, reviewId)
+        && (resource == null || (
+          request.resource.data.userId == resource.data.userId
+          && request.resource.data.createdAt == resource.data.createdAt
+        ))
+        && existsAfter(userReviewPath(request.auth.uid, reviewId))
+        && docsMatch(
+          request.resource.data,
+          getAfter(userReviewPath(request.auth.uid, reviewId)).data
+        );
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && !existsAfter(userReviewPath(request.auth.uid, reviewId));
+    }
+
+    match /userReviews/{uid}/items/{reviewId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && isValidReviewPayload(request.resource.data, uid, reviewId)
+        && existsAfter(reviewPath(reviewId))
+        && docsMatch(
+          request.resource.data,
+          getAfter(reviewPath(reviewId)).data
+        );
+      allow delete: if isOwner(uid)
+        && !existsAfter(reviewPath(reviewId));
     }
   }
 }
