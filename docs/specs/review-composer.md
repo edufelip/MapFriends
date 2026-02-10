@@ -1,15 +1,16 @@
 # Review Composer
 
 ## Overview
-The Review Composer lets users create a new review from the middle action in the bottom navigation. It follows the provided visual reference and keeps behavior lightweight.
+The Review Composer lets users create and edit reviews from the middle action in the bottom navigation (or from review cards in place details). It now persists to Firebase Storage + Firestore with rollback protections.
 
 ## Goals
 - Provide a focused, premium-feeling review UI.
-- Allow users to set rating, write notes, add photos, and pick visibility.
-- Keep state local and mock-driven.
+- Allow users to set location, rating, notes, photos, and visibility.
+- Enforce submit validation before posting.
+- Keep review data consistent across top-level review docs and user projections.
 
 ## UI Structure
-- Minimal top-left back button (no top toolbar).
+- Minimal top row with back button (left) and submit button (right).
 - Location picker area:
   - Search input for businesses/restaurants/places.
   - Debounced suggestions list while typing.
@@ -21,26 +22,51 @@ The Review Composer lets users create a new review from the middle action in the
 
 ## Behavior
 - Back button returns to the previous screen.
-- Post creates a review via `createReview()` and returns.
+- Submit button is disabled until:
+  - a location/place is selected
+  - review text is non-empty (`trim().length > 0`)
+- Submit supports two modes:
+  - Create mode: creates a new review.
+  - Edit mode: updates an existing owned review.
+- On successful submit, user returns to previous screen.
 - Location search is debounced (~280ms) and uses Mapbox Search Box Suggest (`/search/searchbox/v1/suggest`) for POI/business hints.
 - If Mapbox token/network is unavailable, search gracefully falls back to local mock place filtering.
 - Selecting a suggestion transitions input -> chip.
 - Clearing chip transitions chip -> input and allows selecting another place.
 - Rating slider updates numeric value and fill.
 - Review notes are capped at 400 characters.
-- Photos are local-only (selectable from library and removable), with no default seeded photos.
-- Visibility is local-only (not persisted).
+- Photos are optional (0..10).
+- New photos are compressed before upload and then sent to Firebase Storage.
+- If any write step fails after upload, uploaded files from that attempt are deleted (rollback).
+- Visibility is persisted.
+
+## Persistence Model
+- Firestore source of truth:
+  - `reviews/{reviewId}`
+- Firestore projection (denormalized for user-scoped reads):
+  - `userReviews/{uid}/items/{reviewId}`
+- Storage paths for review photos:
+  - `reviews/{uid}/{reviewId}/photo-<timestamp>-<index>.jpg`
+- Review writes use a Firestore batch to keep `reviews` and `userReviews` in sync atomically.
+- Review updates:
+  - keep retained photos
+  - upload new photos
+  - remove discarded photos from storage after successful doc update
+- Review delete:
+  - delete both Firestore docs atomically
+  - then remove storage files best effort
 
 ## Localization
 Strings are defined under `reviewComposer` in `src/localization/strings.ts` for `en-US` and `pt-BR`.
 
 ## Test Cases
-- Posting creates a review with rating and timestamps.
-- Back action navigates back without creating a review.
-- Slider updates rating state.
-- Removing a photo updates the strip.
-- Notes counter updates and input is capped at 400 characters.
-- Tapping photo add tile opens media picker and appends selected photos up to 10 max.
-- Typing in location input triggers debounced suggestions.
-- Selecting a suggestion shows selected chip; removing chip restores search state.
-- Mapbox search result mapping and local fallback are covered by service-level tests.
+- Submit remains disabled until required fields are valid.
+- Valid submit calls create path and navigates back.
+- Location picker debounce/select/clear flow.
+- Notes counter and max-length enforcement.
+- Photo add flow and max 10 cap.
+- Review mutation service:
+  - create uploads photos + writes doc pair
+  - rollback deletes uploaded photos when write fails
+  - update keeps retained photos and deletes removed assets
+  - delete removes doc pair and cleans storage assets
