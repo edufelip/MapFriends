@@ -11,9 +11,14 @@ const mockSignInWithCredential = jest.fn();
 const mockUpdateProfile = jest.fn();
 const mockClaimProfileHandle = jest.fn();
 const mockCheckHandleAvailability = jest.fn();
+const mockDoc = jest.fn();
+const mockGetDoc = jest.fn();
+const mockSetDoc = jest.fn();
+const mockServerTimestamp = jest.fn(() => 'server-timestamp');
 let authStateListener: ((user: unknown) => void) | null = null;
 
 const mockStorage = new Map<string, string>();
+const mockFirestoreDocs = new Map<string, Record<string, unknown>>();
 
 jest.mock('../firebase', () => ({
   isFirebaseConfigured: true,
@@ -87,6 +92,13 @@ jest.mock('firebase/auth', () => ({
   updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
 }));
 
+jest.mock('firebase/firestore', () => ({
+  doc: (...args: unknown[]) => mockDoc(...args),
+  getDoc: (...args: unknown[]) => mockGetDoc(...args),
+  setDoc: (...args: unknown[]) => mockSetDoc(...args),
+  serverTimestamp: () => mockServerTimestamp(),
+}));
+
 let latest: ReturnType<typeof useAuth> | null = null;
 
 function TestConsumer() {
@@ -114,7 +126,7 @@ const firebaseUser = {
 
 const setFirebaseUser = async (user: typeof firebaseUser | null) => {
   await act(async () => {
-    authStateListener?.(user);
+    await authStateListener?.(user);
   });
 };
 
@@ -142,6 +154,48 @@ describe('AuthProvider', () => {
     mockClaimProfileHandle.mockResolvedValue('alex');
     mockCheckHandleAvailability.mockReset();
     mockCheckHandleAvailability.mockResolvedValue('available');
+    mockFirestoreDocs.clear();
+    mockDoc.mockReset();
+    mockDoc.mockImplementation((_db: unknown, collection: string, uid: string) => ({
+      path: `${collection}/${uid}`,
+    }));
+    mockGetDoc.mockReset();
+    mockGetDoc.mockImplementation(async (ref: { path: string }) => {
+      const stored = mockFirestoreDocs.get(ref.path);
+      return {
+        exists: () => Boolean(stored),
+        data: () => stored || {},
+      };
+    });
+    mockSetDoc.mockReset();
+    mockSetDoc.mockImplementation(
+      async (
+        ref: { path: string },
+        value: Record<string, unknown>,
+        options?: { merge?: boolean }
+      ) => {
+        const current = mockFirestoreDocs.get(ref.path) || {};
+        mockFirestoreDocs.set(ref.path, options?.merge ? { ...current, ...value } : value);
+      }
+    );
+  });
+
+  it('hydrates onboarding and profile flags from remote user meta on bootstrap', async () => {
+    mockFirestoreDocs.set('userMeta/user-001', {
+      uid: 'user-001',
+      hasAcceptedTerms: true,
+      hasCompletedProfile: true,
+      hasCompletedOnboarding: true,
+      onboardingVersion: 1,
+    });
+
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+
+    expect(mockGetDoc).toHaveBeenCalled();
+    expect(latest?.hasAcceptedTerms).toBe(true);
+    expect(latest?.hasCompletedProfile).toBe(true);
+    expect(latest?.hasCompletedOnboarding).toBe(true);
   });
 
   it('marks onboarding complete after profile completion', async () => {
@@ -160,9 +214,14 @@ describe('AuthProvider', () => {
     });
 
     expect(mockClaimProfileHandle).toHaveBeenCalled();
+    expect(mockSetDoc).toHaveBeenCalled();
     expect(latest?.hasCompletedProfile).toBe(true);
     expect(latest?.hasCompletedOnboarding).toBe(true);
     expect(latest?.user?.avatar).toBe('file://avatar-1.jpg');
+    const writtenPayloads = mockSetDoc.mock.calls.map(
+      ([, payload]: [unknown, Record<string, unknown>]) => payload
+    );
+    expect(writtenPayloads.some((payload) => payload.hasCompletedProfile === true)).toBe(true);
   });
 
   it('exposes a handle-taken error when handle claim fails', async () => {
@@ -221,6 +280,25 @@ describe('AuthProvider', () => {
 
     expect(availability).toBe('available');
     expect(mockCheckHandleAvailability).toHaveBeenCalledWith('alex', firebaseUser.uid);
+  });
+
+  it('syncs terms acceptance and onboarding completion to remote user meta', async () => {
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+    mockSetDoc.mockClear();
+
+    await act(async () => {
+      latest?.acceptTerms();
+      latest?.completeOnboarding();
+      await Promise.resolve();
+    });
+
+    expect(mockSetDoc).toHaveBeenCalled();
+    const writtenPayloads = mockSetDoc.mock.calls.map(
+      ([, payload]: [unknown, Record<string, unknown>]) => payload
+    );
+    expect(writtenPayloads.some((payload) => payload.hasAcceptedTerms === true)).toBe(true);
+    expect(writtenPayloads.some((payload) => payload.hasCompletedOnboarding === true)).toBe(true);
   });
 
   it('calls Firebase email sign in', async () => {

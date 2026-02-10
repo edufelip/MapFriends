@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
-import { render, waitFor } from '@testing-library/react-native';
+import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import MapHomeScreen from '../MapHomeScreen';
 
 const mockMapTab = jest.fn(() => null);
@@ -8,9 +8,10 @@ const mockFeedTab = jest.fn(() => null);
 const mockBottomNav = jest.fn(() => null);
 
 const mockRequestAndroidLocationPermissions = jest.fn();
-const mockGetLastKnownLocation = jest.fn();
-const mockAddListener = jest.fn();
-const mockRemoveListener = jest.fn();
+const mockGetForegroundPermissionsAsync = jest.fn();
+const mockRequestForegroundPermissionsAsync = jest.fn();
+const mockGetLastKnownPositionAsync = jest.fn();
+const mockGetCurrentPositionAsync = jest.fn();
 
 jest.mock('@rnmapbox/maps', () => ({
   setAccessToken: jest.fn(),
@@ -18,11 +19,17 @@ jest.mock('@rnmapbox/maps', () => ({
   Camera: () => null,
   StyleURL: { Dark: 'dark', Light: 'light' },
   requestAndroidLocationPermissions: () => mockRequestAndroidLocationPermissions(),
-  locationManager: {
-    getLastKnownLocation: () => mockGetLastKnownLocation(),
-    addListener: (listener: unknown) => mockAddListener(listener),
-    removeListener: (listener: unknown) => mockRemoveListener(listener),
+  locationManager: {},
+}));
+
+jest.mock('expo-location', () => ({
+  Accuracy: {
+    Balanced: 'balanced',
   },
+  getForegroundPermissionsAsync: () => mockGetForegroundPermissionsAsync(),
+  requestForegroundPermissionsAsync: () => mockRequestForegroundPermissionsAsync(),
+  getLastKnownPositionAsync: () => mockGetLastKnownPositionAsync(),
+  getCurrentPositionAsync: () => mockGetCurrentPositionAsync(),
 }));
 
 jest.mock('../components/MapTab', () => (props: unknown) => mockMapTab(props));
@@ -80,12 +87,15 @@ describe('MapHomeScreen', () => {
     jest.spyOn(PermissionsAndroid, 'check').mockResolvedValue(true);
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
     mockRequestAndroidLocationPermissions.mockResolvedValue(false);
-    mockGetLastKnownLocation.mockResolvedValue(null);
+    mockGetForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
+    mockGetLastKnownPositionAsync.mockResolvedValue(null);
+    mockGetCurrentPositionAsync.mockResolvedValue(null);
   });
 
   it('shows a location explanation before requesting Android permission when not granted', async () => {
     (PermissionsAndroid.check as jest.Mock).mockResolvedValue(false);
-    mockGetLastKnownLocation.mockResolvedValue({
+    mockGetLastKnownPositionAsync.mockResolvedValue({
       coords: {
         longitude: -46.633308,
         latitude: -23.55052,
@@ -103,7 +113,7 @@ describe('MapHomeScreen', () => {
   });
 
   it('focuses map on current user location when Android location permission is already granted', async () => {
-    mockGetLastKnownLocation.mockResolvedValue({
+    mockGetLastKnownPositionAsync.mockResolvedValue({
       coords: {
         longitude: -46.633308,
         latitude: -23.55052,
@@ -119,5 +129,22 @@ describe('MapHomeScreen', () => {
         })
       )
     );
+  });
+
+  it('supports controlled home mode and emits mode changes', async () => {
+    const onHomeModeChange = jest.fn();
+
+    const screen = render(
+      <MapHomeScreen
+        navigation={navigation}
+        route={{ key: 'MapHome', name: 'MapHome' }}
+        homeMode="feed"
+        onHomeModeChange={onHomeModeChange}
+      />
+    );
+
+    expect(mockFeedTab).toHaveBeenCalled();
+    fireEvent.press(screen.getByText('Map'));
+    expect(onHomeModeChange).toHaveBeenCalledWith('map');
   });
 });

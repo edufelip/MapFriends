@@ -28,6 +28,10 @@ jest.mock('../../screens/Connect/FindPeopleScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>find-people-screen</Text>;
 });
+jest.mock('../../screens/Main/MainShellScreen', () => {
+  const { Text } = require('react-native');
+  return () => <Text>main-shell-screen</Text>;
+});
 jest.mock('../../screens/Map/MapHomeScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>map-home-screen</Text>;
@@ -51,6 +55,10 @@ jest.mock('../../screens/Notifications/NotificationsScreen', () => {
 jest.mock('../../screens/Profile/ProfileScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>profile-screen</Text>;
+});
+jest.mock('../../screens/Profile/EditProfileScreen', () => {
+  const { Text } = require('react-native');
+  return () => <Text>edit-profile-screen</Text>;
 });
 jest.mock('../../screens/Settings/SettingsScreen', () => {
   const { Text } = require('react-native');
