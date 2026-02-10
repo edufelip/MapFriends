@@ -3,15 +3,12 @@ import {
   Alert,
   Animated,
   Easing,
-  PermissionsAndroid,
-  Platform,
   StyleSheet,
   View,
   useColorScheme,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Mapbox from '@rnmapbox/maps';
 import * as Location from 'expo-location';
 import { useAuth } from '../../services/auth';
 import { getFeedPosts } from '../../services/feed';
@@ -22,6 +19,8 @@ import MapTab from './components/MapTab';
 import BottomNav from './components/BottomNav';
 import SegmentedControl from './components/SegmentedControl';
 import { Routes } from '../../app/routes';
+import { createLocationPermissionStrategy } from '../../services/locationPermission/createLocationPermissionStrategy';
+import { ensureLocationPermission } from '../../services/locationPermission/ensureLocationPermission';
 
 type Props = NativeStackScreenProps<any> & {
   hideBottomNav?: boolean;
@@ -45,6 +44,7 @@ export default function MapHomeScreen({
   const [locationResolved, setLocationResolved] = React.useState(false);
   const currentTab = homeMode ?? activeTab;
   const tabTransition = React.useRef(new Animated.Value(currentTab === 'feed' ? 1 : 0)).current;
+  const locationPermissionStrategy = React.useMemo(() => createLocationPermissionStrategy(), []);
   const insets = useSafeAreaInsets();
 
   const hasToken = Boolean(process.env.EXPO_PUBLIC_MAPBOX_TOKEN);
@@ -135,36 +135,14 @@ export default function MapHomeScreen({
         }
       };
 
-      if (Platform.OS === 'android') {
-        const hasLocationPermission = await PermissionsAndroid.check(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
-        );
-        if (!hasLocationPermission) {
-          const shouldRequestPermission = await requestLocationEducation();
-          if (!shouldRequestPermission) {
-            finalize();
-            return;
-          }
-          const granted = await Mapbox.requestAndroidLocationPermissions();
-          if (!granted) {
-            finalize();
-            return;
-          }
-        }
-      } else {
-        const currentPermission = await Location.getForegroundPermissionsAsync();
-        if (currentPermission.status !== 'granted') {
-          const shouldRequestPermission = await requestLocationEducation();
-          if (!shouldRequestPermission) {
-            finalize();
-            return;
-          }
-          const requestedPermission = await Location.requestForegroundPermissionsAsync();
-          if (requestedPermission.status !== 'granted') {
-            finalize();
-            return;
-          }
-        }
+      const hasPermission = await ensureLocationPermission({
+        strategy: locationPermissionStrategy,
+        requestEducation: requestLocationEducation,
+      });
+
+      if (!hasPermission) {
+        finalize();
+        return;
       }
 
       const coordinate = await getCurrentCoordinate();
@@ -179,7 +157,7 @@ export default function MapHomeScreen({
     return () => {
       mounted = false;
     };
-  }, [getCurrentCoordinate, requestLocationEducation]);
+  }, [getCurrentCoordinate, locationPermissionStrategy, requestLocationEducation]);
 
   React.useEffect(() => {
     Animated.timing(tabTransition, {
