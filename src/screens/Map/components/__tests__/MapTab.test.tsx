@@ -52,8 +52,6 @@ describe('MapTab', () => {
 
     expect(mockCamera).toHaveBeenCalledWith(
       expect.objectContaining({
-        centerCoordinate: [-46.633308, -23.55052],
-        zoomLevel: 14,
         animationDuration: 0,
         defaultSettings: {
           centerCoordinate: [-46.633308, -23.55052],

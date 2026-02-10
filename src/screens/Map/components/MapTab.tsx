@@ -36,15 +36,24 @@ export default function MapTab({
   locationResolved,
   onPlacePress,
 }: Props) {
-  const [isMapLayoutReady, setIsMapLayoutReady] = React.useState(false);
+  const [mapLayout, setMapLayout] = React.useState<{ width: number; height: number } | null>(null);
   const cameraCenter = userCoordinate || MAP_CENTER;
   const cameraZoom = userCoordinate ? 14 : 12;
+  const cameraKey = `${cameraCenter[0]}:${cameraCenter[1]}:${cameraZoom}`;
 
   const handleLayout = React.useCallback(
     (event: { nativeEvent: { layout: { width: number; height: number } } }) => {
       const { width, height } = event.nativeEvent.layout;
-      const ready = width > 0 && height > 0;
-      setIsMapLayoutReady((prev) => (prev === ready ? prev : ready));
+      if (width <= 0 || height <= 0) {
+        setMapLayout(null);
+        return;
+      }
+      setMapLayout((prev) => {
+        if (prev && prev.width === width && prev.height === height) {
+          return prev;
+        }
+        return { width, height };
+      });
     },
     []
   );
@@ -72,21 +81,20 @@ export default function MapTab({
 
   return (
     <View style={styles.container} onLayout={handleLayout} testID="map-tab-root">
-      {hasToken && isMapLayoutReady && locationResolved ? (
+      {hasToken && mapLayout && locationResolved ? (
         <Mapbox.MapView
-          style={StyleSheet.absoluteFillObject}
+          style={[styles.mapView, { width: mapLayout.width, height: mapLayout.height }]}
           styleURL={isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Light}
           logoEnabled={false}
           compassEnabled={false}
           attributionEnabled={false}
         >
           <Mapbox.Camera
+            key={cameraKey}
             defaultSettings={{
               centerCoordinate: cameraCenter,
               zoomLevel: cameraZoom,
             }}
-            centerCoordinate={cameraCenter}
-            zoomLevel={cameraZoom}
             animationDuration={0}
           />
           {userPinShape ? (
@@ -164,6 +172,11 @@ export default function MapTab({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  mapView: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
   },
   mapFallback: {
     ...StyleSheet.absoluteFillObject,
