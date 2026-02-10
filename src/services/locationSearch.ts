@@ -162,7 +162,7 @@ export async function searchLocationHints(
       const suggestions = Array.isArray(suggestData?.suggestions) ? suggestData.suggestions : [];
       const searchboxHints = suggestions
         .map(toHintFromSearchboxSuggestion)
-        .filter((hint): hint is LocationHint => Boolean(hint))
+        .filter((hint: LocationHint | null): hint is LocationHint => Boolean(hint))
         .slice(0, limit);
 
       debugLog('searchbox-results', {
@@ -224,7 +224,7 @@ export async function searchLocationHints(
 
     const hints = features
       .map(toHintFromMapboxFeature)
-      .filter((hint): hint is LocationHint => Boolean(hint))
+      .filter((hint: LocationHint | null): hint is LocationHint => Boolean(hint))
       .slice(0, limit);
     debugLog('mapbox-results', {
       requestId,

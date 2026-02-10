@@ -2,6 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MaterialIcons } from '@expo/vector-icons';
+import type { FeatureCollection, Point } from 'geojson';
 
 const MAP_CENTER: [number, number] = [-122.4194, 37.7749];
 
@@ -52,7 +53,7 @@ export default function MapTab({
     if (!userCoordinate) {
       return null;
     }
-    return {
+    const featureCollection: FeatureCollection<Point> = {
       type: 'FeatureCollection',
       features: [
         {
@@ -65,7 +66,8 @@ export default function MapTab({
           },
         },
       ],
-    } as const;
+    };
+    return featureCollection;
   }, [userCoordinate]);
 
   return (
