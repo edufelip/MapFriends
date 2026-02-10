@@ -14,7 +14,7 @@ type Options = {
 
 const MAPBOX_FORWARD_ENDPOINT = 'https://api.mapbox.com/search/geocode/v6/forward';
 const MAPBOX_SEARCHBOX_SUGGEST_ENDPOINT = 'https://api.mapbox.com/search/searchbox/v1/suggest';
-const SHOULD_DEBUG_LOG = process.env.NODE_ENV !== 'production';
+const SHOULD_DEBUG_LOG = process.env.EXPO_PUBLIC_DEBUG_LOCATION_HINTS === '1';
 let requestSeq = 0;
 const SEARCHBOX_SESSION_TOKEN = Math.random().toString(36).slice(2, 14);
 
