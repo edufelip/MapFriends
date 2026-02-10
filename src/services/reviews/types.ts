@@ -20,12 +20,14 @@ export type ReviewPhotoDraft = {
 export type ReviewPlace = {
   id: string;
   title: string;
+  coordinates?: [number, number] | null;
 };
 
 export type ReviewRecord = {
   id: string;
   placeId: string;
   placeTitle: string;
+  placeCoordinates: [number, number] | null;
   title: string;
   notes: string;
   rating: number;

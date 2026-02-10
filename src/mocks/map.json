@@ -7,7 +7,8 @@
       "summary": "Easy waterfront walk with skyline views.",
       "rating": 4.6,
       "tags": ["Scenic", "Easy"],
-      "address": "Waterfront District"
+      "address": "Waterfront District",
+      "coordinates": [-122.4037, 37.7955]
     },
     {
       "id": "place-002",
@@ -16,7 +17,8 @@
       "summary": "Crowded market with local bites.",
       "rating": 4.2,
       "tags": ["Food", "Local"],
-      "address": "Old Town"
+      "address": "Old Town",
+      "coordinates": [-122.4102, 37.7808]
     },
     {
       "id": "place-003",
@@ -25,7 +27,8 @@
       "summary": "Short hike with panoramic views.",
       "rating": 4.8,
       "tags": ["Hike", "Views"],
-      "address": "Pine Ridge"
+      "address": "Pine Ridge",
+      "coordinates": [-122.4328, 37.7664]
     }
   ]
 }

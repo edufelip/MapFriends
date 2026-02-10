@@ -9,6 +9,7 @@ type ReviewRepository = {
   writeReviewPair: (review: ReviewRecord) => Promise<void>;
   deleteReviewPair: (review: ReviewRecord) => Promise<void>;
   listReviewsForPlace: (placeId: string) => Promise<ReviewRecord[]>;
+  listRecentReviews: (limitCount: number) => Promise<ReviewRecord[]>;
 };
 
 const localReviews: ReviewRecord[] = [];
@@ -33,6 +34,21 @@ const toPhoto = (value: unknown) => {
     path: value.path,
     url: value.url,
   };
+};
+
+const toCoordinates = (value: unknown): [number, number] | null => {
+  if (!Array.isArray(value) || value.length < 2) {
+    return null;
+  }
+
+  const longitude = Number(value[0]);
+  const latitude = Number(value[1]);
+
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return null;
+  }
+
+  return [longitude, latitude];
 };
 
 const toReviewRecord = (id: string, raw: unknown): ReviewRecord | null => {
@@ -62,6 +78,7 @@ const toReviewRecord = (id: string, raw: unknown): ReviewRecord | null => {
     id,
     placeId: raw.placeId,
     placeTitle: raw.placeTitle,
+    placeCoordinates: toCoordinates(raw.placeCoordinates),
     title: raw.title,
     notes: raw.notes,
     rating: raw.rating,
@@ -102,6 +119,11 @@ function createLocalReviewRepository(): ReviewRepository {
         .filter((review) => review.placeId === placeId)
         .sort(byRecent)
         .slice(0, REVIEW_LIST_LIMIT),
+    listRecentReviews: async (limitCount) =>
+      localReviews
+        .slice()
+        .sort(byRecent)
+        .slice(0, Math.max(1, limitCount)),
   };
 }
 
@@ -134,6 +156,7 @@ function createFirestoreReviewRepository(): ReviewRepository {
         id: review.id,
         placeId: review.placeId,
         placeTitle: review.placeTitle,
+        placeCoordinates: review.placeCoordinates,
         title: review.title,
         notes: review.notes,
         rating: review.rating,
@@ -194,6 +217,31 @@ function createFirestoreReviewRepository(): ReviewRepository {
         'reviews.listReviewsForPlace',
         {
           placeId,
+        },
+        () => getDocs(reviewsQuery)
+      );
+      const reviews: ReviewRecord[] = [];
+      snapshot.forEach((item) => {
+        const review = toReviewRecord(item.id, item.data());
+        if (review) {
+          reviews.push(review);
+        }
+      });
+      return reviews;
+    },
+    listRecentReviews: async (limitCount) => {
+      const { collection, getDocs, limit, orderBy, query } = await import('firebase/firestore');
+      const db = getFirestoreDb();
+      const boundedLimit = Math.max(1, limitCount);
+      const reviewsQuery = query(
+        collection(db, 'reviews'),
+        orderBy('createdAt', 'desc'),
+        limit(boundedLimit)
+      );
+      const snapshot = await runFirestoreOperation(
+        'reviews.listRecentReviews',
+        {
+          limit: boundedLimit,
         },
         () => getDocs(reviewsQuery)
       );

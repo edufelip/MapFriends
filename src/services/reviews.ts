@@ -52,3 +52,7 @@ export async function getReviewById(reviewId: string): Promise<ReviewRecord | nu
 export async function getReviewsForPlace(placeId: string): Promise<ReviewRecord[]> {
   return repository.listReviewsForPlace(placeId);
 }
+
+export async function getRecentReviews(limit = 100): Promise<ReviewRecord[]> {
+  return repository.listRecentReviews(limit);
+}

@@ -83,7 +83,9 @@ const toHintFromLocalPlace = (place: any): LocationHint => ({
   id: place.id,
   title: place.name,
   subtitle: `${place.category} · ${place.address}`,
-  coordinates: null,
+  coordinates: Array.isArray(place?.coordinates) && place.coordinates.length >= 2
+    ? [Number(place.coordinates[0]), Number(place.coordinates[1])]
+    : null,
 });
 
 const readResponseErrorBody = async (response: Response) => {

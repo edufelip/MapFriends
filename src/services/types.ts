@@ -15,6 +15,7 @@ export type Place = {
   rating: number;
   tags: string[];
   address: string;
+  coordinates?: [number, number];
 };
 
 export type Person = {
