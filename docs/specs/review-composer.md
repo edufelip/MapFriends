@@ -29,6 +29,7 @@ The Review Composer lets users create and edit reviews from the middle action in
   - Create mode: creates a new review.
   - Edit mode: updates an existing owned review.
 - On successful submit, user returns to previous screen.
+- Review appears in Feed and Map only after successful persistence (no optimistic insert).
 - Location search is debounced (~280ms) and uses Mapbox Search Box Suggest (`/search/searchbox/v1/suggest`) for POI/business hints.
 - If Mapbox token/network is unavailable, search gracefully falls back to local mock place filtering.
 - Selecting a suggestion transitions input -> chip.
@@ -47,6 +48,7 @@ The Review Composer lets users create and edit reviews from the middle action in
   - `userReviews/{uid}/items/{reviewId}`
 - Storage paths for review photos:
   - `reviews/{uid}/{reviewId}/photo-<timestamp>-<index>.jpg`
+- Each review persists `placeCoordinates` (when available) so map pins can be rendered from persisted data.
 - Review writes use a Firestore batch to keep `reviews` and `userReviews` in sync atomically.
 - Review updates:
   - keep retained photos
