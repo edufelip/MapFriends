@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Alert,
-  Pressable,
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,8 +11,14 @@ import {
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
-import { createReview } from '../../services/reviews';
+import { useAuth } from '../../services/auth';
+import {
+  createReview,
+  getReviewById,
+  ReviewPhotoDraft,
+  ReviewVisibility,
+  updateReview,
+} from '../../services/reviews';
 import { getPlaceById } from '../../services/map';
 import { LocationHint } from '../../services/locationSearch';
 import { getStrings } from '../../localization/strings';
@@ -22,13 +28,16 @@ import RatingSlider from './components/RatingSlider';
 import PhotoStrip from './components/PhotoStrip';
 import VisibilitySelector from './components/VisibilitySelector';
 import LocationPicker from './components/LocationPicker';
+import ComposerTopBar from './components/ComposerTopBar';
 
-const DEFAULT_PHOTOS: string[] = [];
+const DEFAULT_PHOTOS: ReviewPhotoDraft[] = [];
 const MAX_NOTES_LENGTH = 400;
 const MAX_REVIEW_PHOTOS = 10;
 
 export default function ReviewComposerScreen({ route, navigation }: NativeStackScreenProps<any>) {
+  const reviewId = route.params?.reviewId as string | undefined;
   const initialPlaceId = route.params?.placeId;
+  const { user } = useAuth();
   const [selectedPlace, setSelectedPlace] = React.useState<LocationHint | null>(() => {
     const place = initialPlaceId ? getPlaceById(initialPlaceId) : null;
     if (!place) {
@@ -43,24 +52,142 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   });
   const [notes, setNotes] = React.useState('');
   const [rating, setRating] = React.useState(8);
-  const [photos, setPhotos] = React.useState<string[]>(DEFAULT_PHOTOS);
-  const [visibility, setVisibility] = React.useState<'followers' | 'subscribers'>('followers');
+  const [photos, setPhotos] = React.useState<ReviewPhotoDraft[]>(DEFAULT_PHOTOS);
+  const [visibility, setVisibility] = React.useState<ReviewVisibility>('followers');
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isLoadingReview, setIsLoadingReview] = React.useState(Boolean(reviewId));
 
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const insets = useSafeAreaInsets();
 
-  const handleSubmit = () => {
-    if (!selectedPlace?.id) return;
-    createReview({
-      placeId: selectedPlace.id,
-      title: selectedPlace.title || strings.reviewComposer.defaultTitle,
-      notes: notes.trim() || strings.reviewComposer.defaultNotes,
+  React.useEffect(() => {
+    let isMounted = true;
+
+    const loadReview = async () => {
+      if (!reviewId) {
+        setIsLoadingReview(false);
+        return;
+      }
+
+      if (!user?.id) {
+        if (isMounted) {
+          setIsLoadingReview(false);
+        }
+        return;
+      }
+
+      setIsLoadingReview(true);
+      try {
+        const review = await getReviewById(reviewId);
+        if (!isMounted) {
+          return;
+        }
+
+        if (!review || review.userId !== user.id) {
+          Alert.alert(
+            strings.reviewComposer.post,
+            strings.reviewComposer.reviewLoadError
+          );
+          navigation.goBack();
+          return;
+        }
+
+        setSelectedPlace({
+          id: review.placeId,
+          title: review.placeTitle,
+          subtitle: '',
+          coordinates: null,
+        });
+        setNotes(review.notes);
+        setRating(review.rating);
+        setVisibility(review.visibility);
+        setPhotos(
+          review.photos.map((photo) => ({
+            uri: photo.url,
+            storagePath: photo.path,
+          }))
+        );
+      } catch {
+        if (isMounted) {
+          Alert.alert(
+            strings.reviewComposer.post,
+            strings.reviewComposer.reviewLoadError
+          );
+          navigation.goBack();
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingReview(false);
+        }
+      }
+    };
+
+    void loadReview();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigation, reviewId, strings.reviewComposer.post, strings.reviewComposer.reviewLoadError, user?.id]);
+
+  const canSubmit = Boolean(selectedPlace?.id && notes.trim().length > 0 && user?.id);
+
+  const handleSubmit = React.useCallback(async () => {
+    if (!canSubmit || !selectedPlace || !user) {
+      return;
+    }
+
+    setIsSubmitting(true);
+    const payload = {
+      author: {
+        id: user.id,
+        name: user.name || user.handle || 'Unknown',
+        handle: user.handle || 'user',
+        avatar: user.avatar || null,
+      },
+      place: {
+        id: selectedPlace.id,
+        title: selectedPlace.title || strings.reviewComposer.defaultTitle,
+      },
+      notes: notes.trim(),
       rating,
-    });
-    navigation.goBack();
-  };
+      visibility,
+      photos,
+    };
+
+    try {
+      if (reviewId) {
+        await updateReview({
+          reviewId,
+          ...payload,
+        });
+      } else {
+        await createReview(payload);
+      }
+      navigation.goBack();
+    } catch {
+      Alert.alert(
+        strings.reviewComposer.post,
+        strings.reviewComposer.submitError
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [
+    canSubmit,
+    navigation,
+    notes,
+    photos,
+    rating,
+    reviewId,
+    selectedPlace,
+    strings.reviewComposer.defaultTitle,
+    strings.reviewComposer.post,
+    strings.reviewComposer.submitError,
+    user,
+    visibility,
+  ]);
 
   const handleRemovePhoto = (index: number) => {
     setPhotos((prev) => prev.filter((_, idx) => idx !== index));
@@ -89,7 +216,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
     }
 
     setPhotos((prev) => {
-      const next = [...prev, ...result.uris];
+      const next = [...prev, ...result.uris.map((uri) => ({ uri }))];
       return next.slice(0, MAX_REVIEW_PHOTOS);
     });
   }, [
@@ -105,19 +232,21 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Pressable
-        onPress={() => navigation.goBack()}
-        style={[
-          styles.backButton,
-          {
-            top: insets.top + 8,
-            backgroundColor: theme.surface,
-            borderColor: theme.border,
-          },
-        ]}
-      >
-        <MaterialIcons name="arrow-back-ios-new" size={16} color={theme.textPrimary} />
-      </Pressable>
+      <ComposerTopBar
+        topInset={insets.top}
+        onBack={() => navigation.goBack()}
+        onSubmit={() => void handleSubmit()}
+        submitLabel={reviewId ? strings.reviewComposer.save : strings.reviewComposer.post}
+        isSubmitting={isSubmitting}
+        disabled={!canSubmit || isLoadingReview}
+        theme={{
+          surface: theme.surface,
+          border: theme.border,
+          textPrimary: theme.textPrimary,
+          textMuted: theme.textMuted,
+          primary: theme.primary,
+        }}
+      />
 
       <ScrollView
         contentContainerStyle={[
@@ -126,6 +255,12 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {isLoadingReview ? (
+          <View style={styles.loadingWrap}>
+            <ActivityIndicator size="small" color={theme.primary} />
+          </View>
+        ) : null}
+
         <LocationPicker
           selectedHint={selectedPlace}
           onSelectHint={setSelectedPlace}
@@ -177,7 +312,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
 
         <View style={styles.section}>
           <PhotoStrip
-            photos={photos}
+            photos={photos.map((photo) => photo.uri)}
             onRemove={handleRemovePhoto}
             onAdd={handleAddPhotos}
             label={strings.reviewComposer.photosLabel}
@@ -219,19 +354,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  backButton: {
-    position: 'absolute',
-    left: 16,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 2,
-  },
   content: {
     paddingHorizontal: 16,
+  },
+  loadingWrap: {
+    paddingVertical: 16,
+    alignItems: 'center',
   },
   compactSection: {
     marginTop: 12,
