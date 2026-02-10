@@ -10,7 +10,8 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 
 ## Data Model / State
 - `activeTab` in shell: `home | explore | activity | profile`.
-- Animated transition index drives crossfade between mounted panels.
+- A single animated opacity value drives tab-content fade in (`260ms`).
+- Only the active primary tab panel is mounted (inactive tab trees are unmounted).
 
 ## UI/UX Notes
 - Bottom nav is mounted once in shell.
