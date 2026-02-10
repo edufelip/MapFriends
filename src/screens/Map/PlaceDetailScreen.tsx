@@ -6,6 +6,7 @@ import { getPlaceById } from '../../services/map';
 import { deleteReview, getReviewsForPlace, ReviewRecord } from '../../services/reviews';
 import { Routes } from '../../app/routes';
 import { useAuth } from '../../services/auth';
+import { useReviewStore } from '../../state/reviews';
 import PlaceReviewCard from './components/PlaceReviewCard';
 
 type Props = NativeStackScreenProps<any>;
@@ -14,6 +15,7 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
   const placeId = route.params?.placeId as string | undefined;
   const place = placeId ? getPlaceById(placeId) : null;
   const { user } = useAuth();
+  const removeReview = useReviewStore((state) => state.removeReview);
   const [reviews, setReviews] = React.useState<ReviewRecord[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
 
@@ -60,6 +62,7 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
               }
               try {
                 await deleteReview({ reviewId: review.id, authorId: user.id });
+                removeReview(review.id);
                 await loadReviews();
               } catch {
                 Alert.alert('Delete review', 'Could not delete review right now.');
@@ -69,7 +72,7 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
         ]
       );
     },
-    [loadReviews, user?.id]
+    [loadReviews, removeReview, user?.id]
   );
 
   if (!place) {

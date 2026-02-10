@@ -13,17 +13,16 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/auth';
 import {
-  createReview,
   getReviewById,
   ReviewPhotoDraft,
   ReviewVisibility,
-  updateReview,
 } from '../../services/reviews';
 import { getPlaceById } from '../../services/map';
 import { LocationHint } from '../../services/locationSearch';
 import { getStrings } from '../../localization/strings';
 import { palette } from '../../theme/palette';
 import { pickReviewPhotosFromLibrary } from '../../services/media/reviewPhotoPicker';
+import { useReviewStore } from '../../state/reviews';
 import RatingSlider from './components/RatingSlider';
 import PhotoStrip from './components/PhotoStrip';
 import VisibilitySelector from './components/VisibilitySelector';
@@ -47,7 +46,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
       id: place.id,
       title: place.name,
       subtitle: `${place.category} · ${place.address}`,
-      coordinates: null,
+      coordinates: place.coordinates || null,
     };
   });
   const [notes, setNotes] = React.useState('');
@@ -62,6 +61,8 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const insets = useSafeAreaInsets();
+  const createReviewAndStore = useReviewStore((state) => state.createReviewAndStore);
+  const updateReviewAndStore = useReviewStore((state) => state.updateReviewAndStore);
 
   React.useEffect(() => {
     let isMounted = true;
@@ -99,7 +100,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
           id: review.placeId,
           title: review.placeTitle,
           subtitle: '',
-          coordinates: null,
+          coordinates: review.placeCoordinates,
         });
         setNotes(review.notes);
         setRating(review.rating);
@@ -151,6 +152,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
       place: {
         id: selectedPlace.id,
         title: selectedPlace.title || strings.reviewComposer.defaultTitle,
+        coordinates: selectedPlace.coordinates,
       },
       notes: notes.trim(),
       rating,
@@ -160,12 +162,12 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
 
     try {
       if (reviewId) {
-        await updateReview({
+        await updateReviewAndStore({
           reviewId,
           ...payload,
         });
       } else {
-        await createReview(payload);
+        await createReviewAndStore(payload);
       }
       navigation.goBack();
     } catch {
@@ -185,9 +187,11 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
     rating,
     reviewId,
     selectedPlace,
+    createReviewAndStore,
     strings.reviewComposer.defaultTitle,
     strings.reviewComposer.post,
     strings.reviewComposer.submitError,
+    updateReviewAndStore,
     user,
     visibility,
   ]);

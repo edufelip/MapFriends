@@ -21,6 +21,7 @@ import SegmentedControl from './components/SegmentedControl';
 import { Routes } from '../../app/routes';
 import { createLocationPermissionStrategy } from '../../services/locationPermission/createLocationPermissionStrategy';
 import { ensureLocationPermission } from '../../services/locationPermission/ensureLocationPermission';
+import { useHydrateReviewState, useReviewFeedPosts, useReviewPins } from '../../state/reviews';
 
 type Props = NativeStackScreenProps<any> & {
   hideBottomNav?: boolean;
@@ -38,7 +39,11 @@ export default function MapHomeScreen({
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const { user } = useAuth();
-  const posts = getFeedPosts();
+  useHydrateReviewState();
+  const reviewFeedPosts = useReviewFeedPosts();
+  const reviewPins = useReviewPins();
+  const seededPosts = React.useMemo(() => getFeedPosts(), []);
+  const posts = React.useMemo(() => [...reviewFeedPosts, ...seededPosts], [reviewFeedPosts, seededPosts]);
   const [activeTab, setActiveTab] = React.useState<'feed' | 'map'>(homeMode || 'map');
   const [userCoordinate, setUserCoordinate] = React.useState<[number, number] | null>(null);
   const [locationResolved, setLocationResolved] = React.useState(false);
@@ -202,6 +207,7 @@ export default function MapHomeScreen({
           isDark={isDark}
           userCoordinate={userCoordinate}
           locationResolved={locationResolved}
+          reviewPins={reviewPins}
           onPlacePress={() => navigation.navigate(Routes.PlaceDetail, { placeId: 'place-001' })}
         />
       </Animated.View>

@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import Mapbox from '@rnmapbox/maps';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { FeatureCollection, Point } from 'geojson';
+import { ReviewMapPin } from '../../../state/reviews';
 
 const MAP_CENTER: [number, number] = [-122.4194, 37.7749];
 
@@ -24,6 +25,7 @@ type Props = {
   isDark: boolean;
   userCoordinate: [number, number] | null;
   locationResolved: boolean;
+  reviewPins: ReviewMapPin[];
   onPlacePress: () => void;
 };
 
@@ -34,6 +36,7 @@ export default function MapTab({
   isDark,
   userCoordinate,
   locationResolved,
+  reviewPins,
   onPlacePress,
 }: Props) {
   const [mapLayout, setMapLayout] = React.useState<{ width: number; height: number } | null>(null);
@@ -79,6 +82,32 @@ export default function MapTab({
     return featureCollection;
   }, [userCoordinate]);
 
+  const reviewPinsShape = React.useMemo(() => {
+    if (reviewPins.length === 0) {
+      return null;
+    }
+
+    const featureCollection: FeatureCollection<Point> = {
+      type: 'FeatureCollection',
+      features: reviewPins.map((pin) => ({
+        type: 'Feature',
+        id: pin.id,
+        properties: {
+          title: pin.title,
+          rating: pin.rating,
+          reviewId: pin.reviewId,
+          placeId: pin.placeId,
+        },
+        geometry: {
+          type: 'Point',
+          coordinates: pin.coordinates,
+        },
+      })),
+    };
+
+    return featureCollection;
+  }, [reviewPins]);
+
   return (
     <View style={styles.container} onLayout={handleLayout} testID="map-tab-root">
       {hasToken && mapLayout && locationResolved ? (
@@ -115,6 +144,37 @@ export default function MapTab({
                   circleColor: '#135bec',
                   circleStrokeColor: '#ffffff',
                   circleStrokeWidth: 2,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ) : null}
+          {reviewPinsShape ? (
+            <Mapbox.ShapeSource id="review-pins-source" shape={reviewPinsShape}>
+              <Mapbox.CircleLayer
+                id="review-pin-shadow"
+                style={{
+                  circleRadius: 10,
+                  circleColor: 'rgba(0,0,0,0.2)',
+                  circleTranslate: [0, 2],
+                  circlePitchAlignment: 'map',
+                }}
+              />
+              <Mapbox.CircleLayer
+                id="review-pin-dot"
+                style={{
+                  circleRadius: 8,
+                  circleColor: '#f59e0b',
+                  circleStrokeColor: '#ffffff',
+                  circleStrokeWidth: 2,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+              <Mapbox.CircleLayer
+                id="review-pin-core"
+                style={{
+                  circleRadius: 2.5,
+                  circleColor: '#ffffff',
                   circlePitchAlignment: 'map',
                 }}
               />
