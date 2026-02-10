@@ -133,6 +133,28 @@ describe('ReviewComposerScreen location picker flow', () => {
     expect(screen.queryByLabelText('Remove selected place')).toBeNull();
   });
 
+  it('shows empty-state message when search request fails', async () => {
+    const strings = getStrings();
+    mockSearchPlaces.mockRejectedValueOnce(new Error('network-down'));
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={{ goBack: jest.fn() } as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+
+    await waitFor(() => {
+      expect(screen.getByText(strings.reviewComposer.locationSuggestionsEmpty)).toBeTruthy();
+    });
+  });
+
   it('caps notes input at 400 chars and shows counter', () => {
     const strings = getStrings();
     const screen = render(

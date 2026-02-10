@@ -19,6 +19,7 @@ export function useLocationHints({
   const requestRef = React.useRef(0);
 
   React.useEffect(() => {
+    let isCancelled = false;
     if (!enabled || !query.trim()) {
       setHints([]);
       setIsLoading(false);
@@ -29,16 +30,31 @@ export function useLocationHints({
     const requestId = requestRef.current + 1;
     requestRef.current = requestId;
 
-    const timer = setTimeout(async () => {
-      const results = await searchLocationHints(query, { limit });
-      if (requestRef.current !== requestId) {
-        return;
-      }
-      setHints(results);
-      setIsLoading(false);
+    const timer = setTimeout(() => {
+      const loadHints = async () => {
+        try {
+          const results = await searchLocationHints(query, { limit });
+          if (isCancelled || requestRef.current !== requestId) {
+            return;
+          }
+          setHints(results);
+        } catch {
+          if (isCancelled || requestRef.current !== requestId) {
+            return;
+          }
+          setHints([]);
+        } finally {
+          if (!isCancelled && requestRef.current === requestId) {
+            setIsLoading(false);
+          }
+        }
+      };
+
+      void loadHints();
     }, debounceMs);
 
     return () => {
+      isCancelled = true;
       clearTimeout(timer);
     };
   }, [debounceMs, enabled, limit, query]);
