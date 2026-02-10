@@ -1,16 +1,76 @@
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import { getPlaceById } from '../../services/map';
-import { getReviewsForPlace } from '../../services/reviews';
+import { deleteReview, getReviewsForPlace, ReviewRecord } from '../../services/reviews';
 import { Routes } from '../../app/routes';
+import { useAuth } from '../../services/auth';
+import PlaceReviewCard from './components/PlaceReviewCard';
 
 type Props = NativeStackScreenProps<any>;
 
 export default function PlaceDetailScreen({ route, navigation }: Props) {
-  const { placeId } = route.params;
-  const place = getPlaceById(placeId);
-  const reviews = getReviewsForPlace(placeId);
+  const placeId = route.params?.placeId as string | undefined;
+  const place = placeId ? getPlaceById(placeId) : null;
+  const { user } = useAuth();
+  const [reviews, setReviews] = React.useState<ReviewRecord[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  const loadReviews = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      if (!placeId) {
+        setReviews([]);
+        return;
+      }
+      const next = await getReviewsForPlace(placeId);
+      setReviews(next);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [placeId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      void loadReviews();
+    }, [loadReviews])
+  );
+
+  const handleEditReview = React.useCallback(
+    (reviewId: string) => {
+      navigation.navigate(Routes.ShareReview, { reviewId });
+    },
+    [navigation]
+  );
+
+  const handleDeleteReview = React.useCallback(
+    (review: ReviewRecord) => {
+      Alert.alert(
+        'Delete review',
+        'This action cannot be undone.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              if (!user?.id) {
+                return;
+              }
+              try {
+                await deleteReview({ reviewId: review.id, authorId: user.id });
+                await loadReviews();
+              } catch {
+                Alert.alert('Delete review', 'Could not delete review right now.');
+              }
+            },
+          },
+        ]
+      );
+    },
+    [loadReviews, user?.id]
+  );
 
   if (!place) {
     return (
@@ -43,15 +103,19 @@ export default function PlaceDetailScreen({ route, navigation }: Props) {
       </TouchableOpacity>
 
       <Text style={styles.sectionTitle}>Recent reviews</Text>
-      {reviews.length === 0 ? (
+      {isLoading ? (
+        <Text style={styles.emptyText}>Loading reviews...</Text>
+      ) : reviews.length === 0 ? (
         <Text style={styles.emptyText}>No reviews yet. Be the first to share.</Text>
       ) : (
         reviews.map((review) => (
-          <View key={review.id} style={styles.reviewCard}>
-            <Text style={styles.reviewTitle}>{review.title}</Text>
-            <Text style={styles.reviewMeta}>Rating {review.rating} · {new Date(review.createdAt).toLocaleDateString()}</Text>
-            <Text style={styles.reviewNotes}>{review.notes}</Text>
-          </View>
+          <PlaceReviewCard
+            key={review.id}
+            review={review}
+            isOwner={review.userId === user?.id}
+            onEdit={handleEditReview}
+            onDelete={handleDeleteReview}
+          />
         ))
       )}
     </View>
@@ -122,26 +186,5 @@ const styles = StyleSheet.create({
   emptyText: {
     marginTop: 8,
     color: '#6c7a7f',
-  },
-  reviewCard: {
-    marginTop: 12,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#e2ddd2',
-  },
-  reviewTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1f2a2e',
-  },
-  reviewMeta: {
-    marginTop: 6,
-    color: '#6c7a7f',
-  },
-  reviewNotes: {
-    marginTop: 8,
-    color: '#46555a',
   },
 });
