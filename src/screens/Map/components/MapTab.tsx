@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MaterialIcons } from '@expo/vector-icons';
 
@@ -36,6 +36,8 @@ export default function MapTab({
   onPlacePress,
 }: Props) {
   const [isMapLayoutReady, setIsMapLayoutReady] = React.useState(false);
+  const cameraCenter = userCoordinate || MAP_CENTER;
+  const cameraZoom = userCoordinate ? 14 : 12;
 
   const handleLayout = React.useCallback(
     (event: { nativeEvent: { layout: { width: number; height: number } } }) => {
@@ -67,7 +69,7 @@ export default function MapTab({
   }, [userCoordinate]);
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
+    <View style={styles.container} onLayout={handleLayout} testID="map-tab-root">
       {hasToken && isMapLayoutReady && locationResolved ? (
         <Mapbox.MapView
           style={StyleSheet.absoluteFillObject}
@@ -77,8 +79,13 @@ export default function MapTab({
           attributionEnabled={false}
         >
           <Mapbox.Camera
-            zoomLevel={userCoordinate ? 14 : 12}
-            centerCoordinate={userCoordinate || MAP_CENTER}
+            defaultSettings={{
+              centerCoordinate: cameraCenter,
+              zoomLevel: cameraZoom,
+            }}
+            centerCoordinate={cameraCenter}
+            zoomLevel={cameraZoom}
+            animationDuration={0}
           />
           {userPinShape ? (
             <Mapbox.ShapeSource id="user-location-source" shape={userPinShape}>
@@ -105,11 +112,19 @@ export default function MapTab({
           ) : null}
         </Mapbox.MapView>
       ) : (
-        <View style={[styles.mapFallback, { backgroundColor: theme.background }]}> 
-          <Text style={[styles.mapFallbackText, { color: theme.textMuted }]}>
-            {strings.mapTokenMissing}
-          </Text>
-        </View>
+        <>
+          {!hasToken ? (
+            <View style={[styles.mapFallback, { backgroundColor: theme.background }]}>
+              <Text style={[styles.mapFallbackText, { color: theme.textMuted }]}>
+                {strings.mapTokenMissing}
+              </Text>
+            </View>
+          ) : (
+            <View style={[styles.mapLoading, { backgroundColor: theme.background }]}>
+              <ActivityIndicator size="small" color={theme.primary} />
+            </View>
+          )}
+        </>
       )}
 
       <View style={styles.mapOverlay} pointerEvents="box-none">
@@ -149,6 +164,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mapFallback: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapLoading: {
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',

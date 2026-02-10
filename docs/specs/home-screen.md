@@ -26,6 +26,7 @@ Create a new Home screen with a top segmented control (Feed/Map) and a bottom na
 ## UI/UX Notes
 - Map tab uses Mapbox map as background and adapts to light/dark styles.
 - Map camera focuses on user location after location permission is granted (or if it was already granted).
+- Camera uses non-animated initial settings so first paint starts directly at the resolved user coordinate.
 - User location is rendered as a static map pin (`ShapeSource` + `CircleLayer`) at the captured coordinate; map pan/zoom does not move this pin.
 - A single segmented control (`Feed` | `Map`) is rendered once at Home shell level (fixed near top) and remains visible while switching tabs.
 - Segmented control selection uses a sliding animated indicator.
@@ -37,6 +38,7 @@ Create a new Home screen with a top segmented control (Feed/Map) and a bottom na
 
 ## Edge Cases
 - Missing Mapbox token shows a fallback message.
+- While map layout/location are still resolving (and token exists), a loading indicator is shown instead of token-missing fallback copy.
 - User declines location prompt or OS permission: keep default map center and continue with non-location experience.
 - Empty feed list renders no cards.
 
