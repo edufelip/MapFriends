@@ -1,3 +1,4 @@
+import * as Crypto from 'expo-crypto';
 import { getFirestoreDb, isFirebaseConfigured } from '../firebase';
 import { runFirestoreOperation } from '../firebaseDbLogger';
 import { ReviewRecord } from './types';
@@ -12,6 +13,14 @@ type ReviewRepository = {
 
 const localReviews: ReviewRecord[] = [];
 const REVIEW_LIST_LIMIT = 50;
+
+const createReviewIdentifier = () => {
+  try {
+    return `review-${Crypto.randomUUID()}`;
+  } catch {
+    return `review-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
@@ -72,7 +81,7 @@ const byRecent = (a: ReviewRecord, b: ReviewRecord) => b.createdAt.localeCompare
 
 function createLocalReviewRepository(): ReviewRepository {
   return {
-    createReviewId: () => `review-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+    createReviewId: () => createReviewIdentifier(),
     loadReview: async (reviewId) => localReviews.find((review) => review.id === reviewId) || null,
     writeReviewPair: async (review) => {
       const index = localReviews.findIndex((item) => item.id === review.id);
@@ -98,7 +107,7 @@ function createLocalReviewRepository(): ReviewRepository {
 
 function createFirestoreReviewRepository(): ReviewRepository {
   return {
-    createReviewId: () => `review-${Date.now()}-${Math.floor(Math.random() * 1000000)}`,
+    createReviewId: () => createReviewIdentifier(),
     loadReview: async (reviewId) => {
       const { doc, getDoc } = await import('firebase/firestore');
       const db = getFirestoreDb();
