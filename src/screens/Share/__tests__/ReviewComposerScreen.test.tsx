@@ -1,10 +1,15 @@
 import React from 'react';
+import { Alert } from 'react-native';
 import { fireEvent, render, waitFor } from '@testing-library/react-native';
 import ReviewComposerScreen from '../ReviewComposerScreen';
 import { getStrings } from '../../../localization/strings';
 
 const mockSearchPlaces = jest.fn();
 const mockPickReviewPhotosFromLibrary = jest.fn();
+const mockCreateReview = jest.fn();
+const mockUpdateReview = jest.fn();
+const mockGetReviewById = jest.fn();
+const mockUseAuth = jest.fn();
 
 jest.mock('../../../services/map', () => ({
   getPlaceById: jest.fn(() => null),
@@ -19,21 +24,45 @@ jest.mock('../../../services/media/reviewPhotoPicker', () => ({
 }));
 
 jest.mock('../../../services/reviews', () => ({
-  createReview: jest.fn(),
+  createReview: (...args: unknown[]) => mockCreateReview(...args),
+  updateReview: (...args: unknown[]) => mockUpdateReview(...args),
+  getReviewById: (...args: unknown[]) => mockGetReviewById(...args),
 }));
 
 jest.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
+jest.mock('../../../services/auth', () => ({
+  useAuth: () => mockUseAuth(),
+}));
+
 describe('ReviewComposerScreen location picker flow', () => {
+  let alertSpy: jest.SpyInstance;
+
+  const isSubmitDisabled = (screen: ReturnType<typeof render>) =>
+    Boolean(screen.getByTestId('review-submit').props.accessibilityState?.disabled);
+
   beforeEach(() => {
     jest.useFakeTimers();
     mockSearchPlaces.mockReset();
     mockPickReviewPhotosFromLibrary.mockReset();
+    mockCreateReview.mockReset();
+    mockUpdateReview.mockReset();
+    mockGetReviewById.mockReset();
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 'user-001',
+        name: 'Alex',
+        handle: 'alex',
+        avatar: null,
+      },
+    });
+    alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
+    alertSpy.mockRestore();
     jest.useRealTimers();
   });
 
@@ -162,5 +191,204 @@ describe('ReviewComposerScreen location picker flow', () => {
     await waitFor(() => {
       expect(screen.getByText(strings.reviewComposer.photosCount.replace('{count}', '10'))).toBeTruthy();
     });
+  });
+
+  it('keeps submit disabled until location and review body are filled', async () => {
+    const strings = getStrings();
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={{ goBack: jest.fn() } as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    expect(isSubmitDisabled(screen)).toBe(true);
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+
+    expect(isSubmitDisabled(screen)).toBe(true);
+
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Great food');
+    expect(isSubmitDisabled(screen)).toBe(false);
+  });
+
+  it('submits when valid and navigates back', async () => {
+    const strings = getStrings();
+    const navigation = { goBack: jest.fn() };
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+    mockCreateReview.mockResolvedValueOnce({
+      id: 'review-001',
+    });
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={navigation as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Loved this place');
+
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    await waitFor(() => {
+      expect(mockCreateReview).toHaveBeenCalled();
+      expect(navigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  it('loads owned review in edit mode and submits update', async () => {
+    const strings = getStrings();
+    const navigation = { goBack: jest.fn() };
+    mockGetReviewById.mockResolvedValueOnce({
+      id: 'review-001',
+      placeId: 'place-002',
+      placeTitle: 'Old Town Market',
+      title: 'Old Town Market',
+      notes: 'Existing note',
+      rating: 7,
+      visibility: 'followers',
+      userId: 'user-001',
+      userName: 'Alex',
+      userHandle: 'alex',
+      userAvatar: null,
+      createdAt: '2026-02-10T09:00:00.000Z',
+      updatedAt: '2026-02-10T09:00:00.000Z',
+      photos: [],
+      photoUrls: [],
+    });
+    mockUpdateReview.mockResolvedValueOnce({
+      id: 'review-001',
+    });
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={navigation as never}
+        route={{ key: 'review', name: 'ShareReview', params: { reviewId: 'review-001' } } as never}
+      />
+    );
+
+    await waitFor(() => {
+      expect(mockGetReviewById).toHaveBeenCalledWith('review-001');
+      expect(screen.getByDisplayValue('Existing note')).toBeTruthy();
+    });
+
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Updated note');
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    await waitFor(() => {
+      expect(mockUpdateReview).toHaveBeenCalledWith(
+        expect.objectContaining({
+          reviewId: 'review-001',
+          notes: 'Updated note',
+          place: { id: 'place-002', title: 'Old Town Market' },
+        })
+      );
+      expect(navigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  it('returns back when edit review does not belong to current user', async () => {
+    const navigation = { goBack: jest.fn() };
+    mockGetReviewById.mockResolvedValueOnce({
+      id: 'review-001',
+      placeId: 'place-002',
+      placeTitle: 'Old Town Market',
+      title: 'Old Town Market',
+      notes: 'Existing note',
+      rating: 7,
+      visibility: 'followers',
+      userId: 'user-999',
+      userName: 'Someone else',
+      userHandle: 'else',
+      userAvatar: null,
+      createdAt: '2026-02-10T09:00:00.000Z',
+      updatedAt: '2026-02-10T09:00:00.000Z',
+      photos: [],
+      photoUrls: [],
+    });
+
+    render(
+      <ReviewComposerScreen
+        navigation={navigation as never}
+        route={{ key: 'review', name: 'ShareReview', params: { reviewId: 'review-001' } } as never}
+      />
+    );
+
+    await waitFor(() => {
+      expect(navigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  it('ignores duplicate submit while request is pending', async () => {
+    const strings = getStrings();
+    const pending = new Promise(() => {
+      // intentionally unresolved promise to hold submitting state
+    });
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+    mockCreateReview.mockReturnValueOnce(pending);
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={{ goBack: jest.fn() } as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Great food');
+
+    fireEvent.press(screen.getByTestId('review-submit'));
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    expect(mockCreateReview).toHaveBeenCalledTimes(1);
   });
 });
