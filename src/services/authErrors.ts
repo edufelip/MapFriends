@@ -23,6 +23,10 @@ export const mapFirebaseAuthError = (error: unknown) => {
         return strings.auth.authErrorTooManyRequests;
       case 'auth/network-request-failed':
         return strings.auth.authErrorNetwork;
+      case 'auth/requires-recent-login':
+        return strings.auth.authErrorRecentLogin;
+      case 'auth/delete-email-mismatch':
+        return strings.auth.authErrorDeleteEmailMismatch;
       case 'ERR_REQUEST_CANCELED':
         return strings.auth.authErrorProviderCanceled;
       case 'auth/google-not-configured':

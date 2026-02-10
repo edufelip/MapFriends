@@ -10,6 +10,7 @@ type Props = {
   subtitle: string;
   value: boolean;
   onToggle: (next: boolean) => void;
+  toggleA11yLabel?: string;
   theme: {
     textPrimary: string;
     textMuted: string;
@@ -27,6 +28,7 @@ export default function ToggleRow({
   subtitle,
   value,
   onToggle,
+  toggleA11yLabel,
   theme,
 }: Props) {
   return (
@@ -42,6 +44,7 @@ export default function ToggleRow({
       </View>
       <Pressable
         onPress={() => onToggle(!value)}
+        accessibilityLabel={toggleA11yLabel}
         style={[
           styles.toggle,
           { backgroundColor: value ? '#22c55e' : theme.border },

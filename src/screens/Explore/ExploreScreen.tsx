@@ -22,7 +22,9 @@ import BottomNav from '../Map/components/BottomNav';
 
 type Props = NativeStackScreenProps<any>;
 
-export default function ExploreScreen({ navigation }: Props) {
+type ScreenProps = Props & { hideBottomNav?: boolean };
+
+export default function ExploreScreen({ navigation, hideBottomNav = false }: ScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
@@ -191,26 +193,28 @@ export default function ExploreScreen({ navigation }: Props) {
         )}
       </ScrollView>
 
-      <BottomNav
-        navigation={navigation}
-        active="explore"
-        theme={{
-          glass: theme.glass || 'rgba(16,22,34,0.8)',
-          border: theme.border,
-          primary: theme.primary,
-          textMuted: theme.textMuted,
-          surface: theme.surface,
-          textPrimary: theme.textPrimary,
-        }}
-        labels={{
-          home: strings.home.navHome,
-          explore: strings.home.navExplore,
-          activity: strings.home.navActivity,
-          profile: strings.home.navProfile,
-        }}
-        user={user}
-        bottomInset={insets.bottom}
-      />
+      {!hideBottomNav ? (
+        <BottomNav
+          navigation={navigation}
+          active="explore"
+          theme={{
+            glass: theme.glass || 'rgba(16,22,34,0.8)',
+            border: theme.border,
+            primary: theme.primary,
+            textMuted: theme.textMuted,
+            surface: theme.surface,
+            textPrimary: theme.textPrimary,
+          }}
+          labels={{
+            home: strings.home.navHome,
+            explore: strings.home.navExplore,
+            activity: strings.home.navActivity,
+            profile: strings.home.navProfile,
+          }}
+          user={user}
+          bottomInset={insets.bottom}
+        />
+      ) : null}
     </View>
   );
 }

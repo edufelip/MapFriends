@@ -37,6 +37,7 @@ export default function PhotoStrip({
         <Pressable
           style={[styles.addTile, { borderColor: theme.border }]}
           onPress={onAdd}
+          testID="photo-strip-add"
         >
           <View style={[styles.addIconWrap, { backgroundColor: `${theme.primary}1a` }]}>
             <MaterialIcons name="add-a-photo" size={20} color={theme.primary} />

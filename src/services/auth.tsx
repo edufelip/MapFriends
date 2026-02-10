@@ -13,10 +13,12 @@ import {
   signInWithCredential,
   signInWithEmailAndPassword,
   signOut as firebaseSignOut,
+  deleteUser,
   updateProfile,
 } from 'firebase/auth';
+import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getStrings } from '../localization/strings';
-import { getFirebaseAuth, isFirebaseConfigured } from './firebase';
+import { getFirebaseAuth, getFirestoreDb, isFirebaseConfigured } from './firebase';
 import { User } from './types';
 import { mapFirebaseAuthError } from './authErrors';
 import {
@@ -29,6 +31,7 @@ import {
   StoredOnboarding,
   StoredProfile,
   defaultOnboardingState,
+  deleteStorage,
   readStorage,
   toOnboardingKey,
   toProfileKey,
@@ -45,6 +48,7 @@ import { isHandleValidFormat, normalizeHandle } from './handlePolicy';
 
 type AuthState = {
   user: User | null;
+  accountEmail: string | null;
   isAuthenticated: boolean;
   hasAcceptedTerms: boolean;
   hasCompletedProfile: boolean;
@@ -63,6 +67,7 @@ type AuthContextValue = AuthState & {
   signInWithApple: () => Promise<void>;
   sendPasswordReset: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
+  deleteAccount: (emailConfirmation: string) => Promise<void>;
   acceptTerms: () => void;
   completeProfile: (profile: {
     name: string;
@@ -71,11 +76,26 @@ type AuthContextValue = AuthState & {
     visibility: 'open' | 'locked';
     avatar?: string | null;
   }) => Promise<void>;
+  updateProfileDetails: (profile: {
+    name: string;
+    bio: string;
+    avatar?: string | null;
+    visibility: 'open' | 'locked';
+  }) => Promise<void>;
   completeOnboarding: () => void;
   updateVisibility: (visibility: 'open' | 'locked') => void;
 };
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
+const ONBOARDING_VERSION = 1;
+
+type RemoteUserMeta = {
+  uid: string;
+  hasAcceptedTerms: boolean;
+  hasCompletedProfile: boolean;
+  hasCompletedOnboarding: boolean;
+  onboardingVersion: number;
+};
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -93,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasAcceptedTerms, setHasAcceptedTerms] = React.useState(false);
   const [hasCompletedProfile, setHasCompletedProfile] = React.useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = React.useState(false);
+  const [accountEmail, setAccountEmail] = React.useState<string | null>(null);
   const [isBootstrappingAuth, setIsBootstrappingAuth] = React.useState(true);
   const [isAuthActionLoading, setIsAuthActionLoading] = React.useState(false);
   const [authError, setAuthError] = React.useState<string | null>(null);
@@ -113,6 +134,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuthError = React.useCallback(() => {
     setAuthError(null);
+  }, []);
+
+  const readRemoteUserMeta = React.useCallback(async (uid: string): Promise<RemoteUserMeta | null> => {
+    if (!isFirebaseConfigured) {
+      return null;
+    }
+    try {
+      const db = getFirestoreDb();
+      const userMetaRef = doc(db, 'userMeta', uid);
+      const snapshot = await getDoc(userMetaRef);
+      if (!snapshot.exists()) {
+        return null;
+      }
+      const data = snapshot.data() as Partial<RemoteUserMeta>;
+      return {
+        uid,
+        hasAcceptedTerms: Boolean(data.hasAcceptedTerms),
+        hasCompletedProfile: Boolean(data.hasCompletedProfile),
+        hasCompletedOnboarding: Boolean(data.hasCompletedOnboarding),
+        onboardingVersion:
+          typeof data.onboardingVersion === 'number' ? data.onboardingVersion : ONBOARDING_VERSION,
+      };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const persistRemoteUserMeta = React.useCallback(async (meta: RemoteUserMeta) => {
+    if (!isFirebaseConfigured) {
+      return;
+    }
+    try {
+      const db = getFirestoreDb();
+      const userMetaRef = doc(db, 'userMeta', meta.uid);
+      await setDoc(
+        userMetaRef,
+        {
+          uid: meta.uid,
+          hasAcceptedTerms: meta.hasAcceptedTerms,
+          hasCompletedProfile: meta.hasCompletedProfile,
+          hasCompletedOnboarding: meta.hasCompletedOnboarding,
+          onboardingVersion: ONBOARDING_VERSION,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+    } catch {
+      // Keep local flow functional if remote sync fails.
+    }
   }, []);
 
   const persistOnboarding = React.useCallback(
@@ -197,12 +267,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsBootstrappingAuth(true);
       if (!firebaseUser) {
         setUser(null);
+        setAccountEmail(null);
         setHasAcceptedTerms(false);
         setHasCompletedProfile(false);
         setHasCompletedOnboarding(false);
         setIsBootstrappingAuth(false);
         return;
       }
+      setAccountEmail(firebaseUser.email || null);
 
       await seedUserStorage(firebaseUser.uid, {
         name: firebaseUser.displayName || '',
@@ -212,23 +284,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         readStorage<StoredProfile>(toProfileKey(firebaseUser.uid)),
         readStorage<StoredOnboarding>(toOnboardingKey(firebaseUser.uid)),
       ]);
+      const remoteMeta = await readRemoteUserMeta(firebaseUser.uid);
 
       if (!mounted) {
         return;
       }
       const nextUser = toAppUser(firebaseUser, storedProfile);
+      const inferredProfileComplete = isProfileComplete(nextUser);
+      const nextHasAcceptedTerms = Boolean(
+        remoteMeta?.hasAcceptedTerms || storedOnboarding?.hasAcceptedTerms
+      );
+      const nextHasCompletedProfile = Boolean(
+        remoteMeta?.hasCompletedProfile || inferredProfileComplete
+      );
+      const nextHasCompletedOnboarding = Boolean(
+        remoteMeta?.hasCompletedOnboarding || storedOnboarding?.hasCompletedOnboarding
+      );
+
       setUser(nextUser);
-      setHasAcceptedTerms(storedOnboarding?.hasAcceptedTerms ?? false);
-      setHasCompletedOnboarding(storedOnboarding?.hasCompletedOnboarding ?? false);
-      setHasCompletedProfile(isProfileComplete(nextUser));
+      setHasAcceptedTerms(nextHasAcceptedTerms);
+      setHasCompletedOnboarding(nextHasCompletedOnboarding);
+      setHasCompletedProfile(nextHasCompletedProfile);
       setIsBootstrappingAuth(false);
+
+      const shouldBackfillRemoteMeta =
+        !remoteMeta ||
+        remoteMeta.hasAcceptedTerms !== nextHasAcceptedTerms ||
+        remoteMeta.hasCompletedProfile !== nextHasCompletedProfile ||
+        remoteMeta.hasCompletedOnboarding !== nextHasCompletedOnboarding;
+
+      if (shouldBackfillRemoteMeta) {
+        void persistRemoteUserMeta({
+          uid: firebaseUser.uid,
+          hasAcceptedTerms: nextHasAcceptedTerms,
+          hasCompletedProfile: nextHasCompletedProfile,
+          hasCompletedOnboarding: nextHasCompletedOnboarding,
+          onboardingVersion: ONBOARDING_VERSION,
+        });
+      }
     });
 
     return () => {
       mounted = false;
       unsubscribe();
     };
-  }, [seedUserStorage]);
+  }, [persistRemoteUserMeta, readRemoteUserMeta, seedUserStorage]);
 
   React.useEffect(() => {
     let mounted = true;
@@ -381,6 +481,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, [runAuthAction]);
 
+  const deleteAccount = React.useCallback(
+    async (emailConfirmation: string) => {
+      const uid = user?.id;
+      if (!uid) {
+        return;
+      }
+
+      await runAuthAction(async () => {
+        const auth = getFirebaseAuth();
+        const currentUser = auth.currentUser;
+        const currentEmail = (currentUser?.email || accountEmail || '').trim().toLowerCase();
+        const providedEmail = emailConfirmation.trim().toLowerCase();
+
+        if (!currentUser || !currentEmail) {
+          throw Object.assign(new Error('auth/user-not-found'), { code: 'auth/user-not-found' });
+        }
+
+        if (providedEmail !== currentEmail) {
+          throw Object.assign(new Error('auth/delete-email-mismatch'), { code: 'auth/delete-email-mismatch' });
+        }
+
+        await deleteUser(currentUser);
+
+        setUser(null);
+        setAccountEmail(null);
+        setHasAcceptedTerms(false);
+        setHasCompletedProfile(false);
+        setHasCompletedOnboarding(false);
+
+        await Promise.all([
+          deleteStorage(toProfileKey(uid)),
+          deleteStorage(toOnboardingKey(uid)),
+        ]);
+
+        if (!isFirebaseConfigured) {
+          return;
+        }
+
+        const db = getFirestoreDb();
+        const normalizedHandle = normalizeHandle(user?.handle || '');
+
+        try {
+          await Promise.all([
+            deleteDoc(doc(db, 'userMeta', uid)),
+            deleteDoc(doc(db, 'users', uid)),
+            normalizedHandle ? deleteDoc(doc(db, 'handles', normalizedHandle)) : Promise.resolve(),
+          ]);
+        } catch {
+          // Keep deletion flow resilient even if remote cleanup is partial.
+        }
+      });
+    },
+    [accountEmail, runAuthAction, user]
+  );
+
   const acceptTerms = () => {
     const uid = user?.id;
     if (!uid) {
@@ -388,6 +543,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setHasAcceptedTerms(true);
     void persistOnboarding(uid, { hasAcceptedTerms: true });
+    void persistRemoteUserMeta({
+      uid,
+      hasAcceptedTerms: true,
+      hasCompletedProfile,
+      hasCompletedOnboarding,
+      onboardingVersion: ONBOARDING_VERSION,
+    });
   };
 
   const completeProfile = React.useCallback(
@@ -442,9 +604,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistOnboarding(uid, {
           hasCompletedOnboarding: true,
         });
+        await persistRemoteUserMeta({
+          uid,
+          hasAcceptedTerms: true,
+          hasCompletedProfile: true,
+          hasCompletedOnboarding: true,
+          onboardingVersion: ONBOARDING_VERSION,
+        });
       });
     },
-    [persistOnboarding, persistProfile, runAuthAction, user]
+    [persistOnboarding, persistProfile, persistRemoteUserMeta, runAuthAction, user]
   );
 
   const completeOnboarding = () => {
@@ -454,7 +623,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setHasCompletedOnboarding(true);
     void persistOnboarding(uid, { hasCompletedOnboarding: true });
+    void persistRemoteUserMeta({
+      uid,
+      hasAcceptedTerms,
+      hasCompletedProfile,
+      hasCompletedOnboarding: true,
+      onboardingVersion: ONBOARDING_VERSION,
+    });
   };
+
+  const updateProfileDetails = React.useCallback(
+    async (profile: {
+      name: string;
+      bio: string;
+      avatar?: string | null;
+      visibility: 'open' | 'locked';
+    }) => {
+      const uid = user?.id;
+      if (!uid || !user) {
+        return;
+      }
+
+      await runAuthAction(async () => {
+        const nextUser: User = {
+          ...user,
+          name: profile.name.trim(),
+          bio: profile.bio.trim(),
+          avatar: profile.avatar ?? user.avatar ?? null,
+          visibility: profile.visibility,
+        };
+
+        setUser(nextUser);
+        await persistProfile(uid, toStoredProfile(nextUser));
+
+        if (isFirebaseConfigured) {
+          const auth = getFirebaseAuth();
+          if (auth.currentUser && nextUser.name && auth.currentUser.displayName !== nextUser.name) {
+            await updateProfile(auth.currentUser, { displayName: nextUser.name });
+          }
+
+          try {
+            const db = getFirestoreDb();
+            const userRef = doc(db, 'users', uid);
+            await setDoc(
+              userRef,
+              {
+                uid,
+                name: nextUser.name,
+                bio: nextUser.bio,
+                avatar: nextUser.avatar,
+                visibility: nextUser.visibility,
+                updatedAt: serverTimestamp(),
+              },
+              { merge: true }
+            );
+          } catch {
+            // Keep local profile update working when remote sync fails.
+          }
+        }
+      });
+    },
+    [persistProfile, runAuthAction, user]
+  );
 
   const updateVisibility = (visibility: 'open' | 'locked') => {
     setUser((prev) => {
@@ -469,6 +699,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     user,
+    accountEmail,
     isAuthenticated: Boolean(user),
     hasAcceptedTerms,
     hasCompletedProfile,
@@ -484,8 +715,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signInWithApple,
     sendPasswordReset,
     signOut,
+    deleteAccount,
     acceptTerms,
     completeProfile,
+    updateProfileDetails,
     completeOnboarding,
     updateVisibility,
   };

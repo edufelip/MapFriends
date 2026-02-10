@@ -8,15 +8,18 @@ import SignupScreen from '../screens/Auth/SignupScreen';
 import AcceptTermsScreen from '../screens/Auth/AcceptTermsScreen';
 import ProfileSetupScreen from '../screens/Auth/ProfileSetupScreen';
 import FindPeopleScreen from '../screens/Connect/FindPeopleScreen';
+import MainShellScreen from '../screens/Main/MainShellScreen';
 import MapHomeScreen from '../screens/Map/MapHomeScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
 import PlaceDetailScreen from '../screens/Map/PlaceDetailScreen';
 import ReviewComposerScreen from '../screens/Share/ReviewComposerScreen';
 import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
+import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 
 type RootStackParamList = {
+  [Routes.MainShell]: undefined;
   [Routes.AuthLogin]: undefined;
   [Routes.AuthSignup]: undefined;
   [Routes.AcceptTerms]: undefined;
@@ -28,6 +31,7 @@ type RootStackParamList = {
   [Routes.ShareReview]: { placeId?: string } | undefined;
   [Routes.Notifications]: undefined;
   [Routes.Profile]: undefined;
+  [Routes.EditProfile]: undefined;
   [Routes.Settings]: undefined;
 };
 
@@ -86,15 +90,29 @@ function MainStack() {
   return (
     <Stack.Navigator>
       <Stack.Screen
+        name={Routes.MainShell}
+        component={MainShellScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
         name={Routes.MapHome}
         component={MapHomeScreen}
         options={{ headerShown: false }}
       />
       <Stack.Screen name={Routes.Explore} component={ExploreScreen} options={{ title: 'Explore' }} />
       <Stack.Screen name={Routes.PlaceDetail} component={PlaceDetailScreen} options={{ title: 'Place' }} />
-      <Stack.Screen name={Routes.ShareReview} component={ReviewComposerScreen} options={{ title: 'Share review' }} />
+      <Stack.Screen
+        name={Routes.ShareReview}
+        component={ReviewComposerScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name={Routes.Notifications} component={NotificationsScreen} options={{ title: 'Notifications' }} />
       <Stack.Screen name={Routes.Profile} component={ProfileScreen} options={{ title: 'Profile' }} />
+      <Stack.Screen
+        name={Routes.EditProfile}
+        component={EditProfileScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen name={Routes.Settings} component={SettingsScreen} options={{ title: 'Settings' }} />
     </Stack.Navigator>
   );

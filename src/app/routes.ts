@@ -1,4 +1,5 @@
 export const Routes = {
+  MainShell: 'MainShell',
   AuthLogin: 'AuthLogin',
   AuthSignup: 'AuthSignup',
   AcceptTerms: 'AcceptTerms',
@@ -10,6 +11,7 @@ export const Routes = {
   ShareReview: 'ShareReview',
   Notifications: 'Notifications',
   Profile: 'Profile',
+  EditProfile: 'EditProfile',
   Settings: 'Settings',
 } as const;
 

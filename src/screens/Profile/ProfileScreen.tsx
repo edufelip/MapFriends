@@ -10,21 +10,21 @@ import ProfileHeader from './components/ProfileHeader';
 import ProfileHero from './components/ProfileHero';
 import SettingsSection from './components/SettingsSection';
 import SettingsRow from './components/SettingsRow';
-import ToggleRow from './components/ToggleRow';
 import LogoutRow from './components/LogoutRow';
+import { Routes } from '../../app/routes';
 
 type Props = NativeStackScreenProps<any>;
 
-export default function ProfileScreen({ navigation }: Props) {
-  const { user, signOut, updateVisibility } = useAuth();
+type ScreenProps = Props & { hideBottomNav?: boolean };
+
+export default function ProfileScreen({ navigation, hideBottomNav = false }: ScreenProps) {
+  const { user, signOut } = useAuth();
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const insets = useSafeAreaInsets();
 
   const handle = `${strings.profile.handlePrefix}${user?.handle || 'alex_explorer'}`;
-  const isOpen = user?.visibility !== 'locked';
-
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
       <ProfileHeader
@@ -47,8 +47,9 @@ export default function ProfileScreen({ navigation }: Props) {
       >
         <ProfileHero
           handle={handle}
-          subtitle={strings.profile.subtitle}
+          subtitle={user?.bio?.trim() || strings.profile.subtitle}
           avatar={user?.avatar || undefined}
+          onEdit={() => navigation.navigate(Routes.EditProfile)}
           editLabel={strings.profile.editProfile}
           theme={{
             primary: theme.primary,
@@ -61,28 +62,6 @@ export default function ProfileScreen({ navigation }: Props) {
         />
 
         <View style={styles.sectionGroup}>
-          <SettingsSection
-            title={strings.profile.sectionPrivacy}
-            theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
-          >
-            <ToggleRow
-              icon="lock-open"
-              iconBg="rgba(37,99,235,0.15)"
-              iconColor="#3b82f6"
-              title={strings.profile.visibilityTitle}
-              subtitle={strings.profile.visibilitySubtitle}
-              value={isOpen}
-              onToggle={(next) => updateVisibility(next ? 'open' : 'locked')}
-              theme={{
-                textPrimary: theme.textPrimary,
-                textMuted: theme.textMuted,
-                border: theme.border,
-                surface: theme.surface,
-                primary: theme.primary,
-              }}
-            />
-          </SettingsSection>
-
           <SettingsSection
             title={strings.profile.sectionCreator}
             theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
@@ -149,26 +128,28 @@ export default function ProfileScreen({ navigation }: Props) {
         />
       </ScrollView>
 
-      <BottomNav
-        navigation={navigation}
-        active="profile"
-        theme={{
-          glass: theme.glass || 'rgba(16,22,34,0.8)',
-          border: theme.border,
-          primary: theme.primary,
-          textMuted: theme.textMuted,
-          surface: theme.surface,
-          textPrimary: theme.textPrimary,
-        }}
-        labels={{
-          home: strings.home.navHome,
-          explore: strings.home.navExplore,
-          activity: strings.home.navActivity,
-          profile: strings.home.navProfile,
-        }}
-        user={user}
-        bottomInset={insets.bottom}
-      />
+      {!hideBottomNav ? (
+        <BottomNav
+          navigation={navigation}
+          active="profile"
+          theme={{
+            glass: theme.glass || 'rgba(16,22,34,0.8)',
+            border: theme.border,
+            primary: theme.primary,
+            textMuted: theme.textMuted,
+            surface: theme.surface,
+            textPrimary: theme.textPrimary,
+          }}
+          labels={{
+            home: strings.home.navHome,
+            explore: strings.home.navExplore,
+            activity: strings.home.navActivity,
+            profile: strings.home.navProfile,
+          }}
+          user={user}
+          bottomInset={insets.bottom}
+        />
+      ) : null}
     </View>
   );
 }

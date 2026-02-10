@@ -63,5 +63,24 @@ service cloud.firestore {
         && handleBelongsToUserAfter(request.resource.data.handle, uid);
       allow delete: if false;
     }
+
+    match /userMeta/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.uid == uid
+        && request.resource.data.keys().hasOnly([
+          'uid',
+          'hasAcceptedTerms',
+          'hasCompletedProfile',
+          'hasCompletedOnboarding',
+          'onboardingVersion',
+          'updatedAt',
+        ])
+        && request.resource.data.hasAcceptedTerms is bool
+        && request.resource.data.hasCompletedProfile is bool
+        && request.resource.data.hasCompletedOnboarding is bool
+        && request.resource.data.onboardingVersion is int;
+      allow delete: if false;
+    }
   }
 }

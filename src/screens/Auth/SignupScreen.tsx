@@ -70,12 +70,10 @@ export default function SignupScreen({ navigation }: Props) {
   const strings = getStrings();
   const insets = useSafeAreaInsets();
 
-  const [name, setName] = React.useState('');
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [confirmPassword, setConfirmPassword] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
-  const [nameFocused, setNameFocused] = React.useState(false);
   const [emailFocused, setEmailFocused] = React.useState(false);
   const [passwordFocused, setPasswordFocused] = React.useState(false);
   const [confirmFocused, setConfirmFocused] = React.useState(false);
@@ -86,12 +84,12 @@ export default function SignupScreen({ navigation }: Props) {
       : ['rgba(246,246,248,0)', palette.light.background];
 
   const passwordsMatch = password.length > 0 && confirmPassword.length > 0 && password === confirmPassword;
-  const canSubmit = Boolean(name.trim() && email.trim() && password.trim() && passwordsMatch);
+  const canSubmit = Boolean(email.trim() && password.trim() && passwordsMatch);
 
   const handleEmailSignUp = async () => {
     clearAuthError();
     try {
-      await signUpWithEmail(name, email, password);
+      await signUpWithEmail('', email, password);
     } catch {
       // AuthProvider exposes translated error via authError.
     }
@@ -160,26 +158,6 @@ export default function SignupScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.formSection}>
-            <View style={styles.fieldGroup}>
-              <Text style={[styles.label, { color: theme.label }]}>{strings.auth.nameLabel}</Text>
-              <TextInput
-                style={[
-                  styles.input,
-                  {
-                    backgroundColor: theme.surface,
-                    color: theme.textPrimary,
-                    borderColor: nameFocused ? theme.primary : theme.border,
-                  },
-                ]}
-                placeholder={strings.auth.namePlaceholder}
-                placeholderTextColor={theme.placeholder}
-                value={name}
-                onChangeText={setName}
-                onFocus={() => setNameFocused(true)}
-                onBlur={() => setNameFocused(false)}
-              />
-            </View>
-
             <View style={styles.fieldGroup}>
               <Text style={[styles.label, { color: theme.label }]}>{strings.auth.emailLabel}</Text>
               <TextInput

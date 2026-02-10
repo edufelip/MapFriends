@@ -2,7 +2,6 @@ import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Mapbox from '@rnmapbox/maps';
 import { MaterialIcons } from '@expo/vector-icons';
-import SegmentedControl from './SegmentedControl';
 
 const MAP_CENTER: [number, number] = [-122.4194, 37.7749];
 
@@ -16,38 +15,60 @@ type Props = {
     border: string;
     glass: string;
   };
-  activeTab: 'feed' | 'map';
-  onChangeTab: (tab: 'feed' | 'map') => void;
   strings: {
-    tabFeed: string;
-    tabMap: string;
-    filterPeopleAll: string;
-    filterContentPremium: string;
-    youLabel: string;
     sampleQuote: string;
     mapTokenMissing: string;
   };
   hasToken: boolean;
   isDark: boolean;
-  topInset: number;
   userCoordinate: [number, number] | null;
+  locationResolved: boolean;
   onPlacePress: () => void;
 };
 
 export default function MapTab({
   theme,
-  activeTab,
-  onChangeTab,
   strings,
   hasToken,
   isDark,
-  topInset,
   userCoordinate,
+  locationResolved,
   onPlacePress,
 }: Props) {
+  const [isMapLayoutReady, setIsMapLayoutReady] = React.useState(false);
+
+  const handleLayout = React.useCallback(
+    (event: { nativeEvent: { layout: { width: number; height: number } } }) => {
+      const { width, height } = event.nativeEvent.layout;
+      const ready = width > 0 && height > 0;
+      setIsMapLayoutReady((prev) => (prev === ready ? prev : ready));
+    },
+    []
+  );
+
+  const userPinShape = React.useMemo(() => {
+    if (!userCoordinate) {
+      return null;
+    }
+    return {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          id: 'user-location-pin',
+          properties: {},
+          geometry: {
+            type: 'Point',
+            coordinates: userCoordinate,
+          },
+        },
+      ],
+    } as const;
+  }, [userCoordinate]);
+
   return (
-    <View style={styles.container}>
-      {hasToken ? (
+    <View style={styles.container} onLayout={handleLayout}>
+      {hasToken && isMapLayoutReady && locationResolved ? (
         <Mapbox.MapView
           style={StyleSheet.absoluteFillObject}
           styleURL={isDark ? Mapbox.StyleURL.Dark : Mapbox.StyleURL.Light}
@@ -59,6 +80,29 @@ export default function MapTab({
             zoomLevel={userCoordinate ? 14 : 12}
             centerCoordinate={userCoordinate || MAP_CENTER}
           />
+          {userPinShape ? (
+            <Mapbox.ShapeSource id="user-location-source" shape={userPinShape}>
+              <Mapbox.CircleLayer
+                id="user-location-ring"
+                style={{
+                  circleRadius: 10,
+                  circleColor: 'rgba(19,91,236,0.28)',
+                  circleStrokeWidth: 0,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+              <Mapbox.CircleLayer
+                id="user-location-dot"
+                style={{
+                  circleRadius: 5,
+                  circleColor: '#135bec',
+                  circleStrokeColor: '#ffffff',
+                  circleStrokeWidth: 2,
+                  circlePitchAlignment: 'map',
+                }}
+              />
+            </Mapbox.ShapeSource>
+          ) : null}
         </Mapbox.MapView>
       ) : (
         <View style={[styles.mapFallback, { backgroundColor: theme.background }]}> 
@@ -69,57 +113,6 @@ export default function MapTab({
       )}
 
       <View style={styles.mapOverlay} pointerEvents="box-none">
-        <View style={[styles.topOverlay, { paddingTop: 16 + topInset }]} pointerEvents="box-none">
-          <View
-            style={[
-              styles.segmentedWrap,
-              { backgroundColor: theme.glass, borderColor: theme.border },
-            ]}
-          >
-            <SegmentedControl
-              value={activeTab}
-              onChange={onChangeTab}
-              labels={{ feed: strings.tabFeed, map: strings.tabMap }}
-              textColor={theme.textMuted}
-              activeTextColor="#ffffff"
-              activeBackground={theme.primary}
-              background="transparent"
-            />
-          </View>
-          <View style={styles.filterRow} pointerEvents="auto">
-            <Pressable style={[styles.filterChip, { backgroundColor: theme.glass }]}> 
-              <Text style={[styles.filterText, { color: theme.textPrimary }]}> 
-                {strings.filterPeopleAll}
-              </Text>
-            </Pressable>
-            <Pressable style={[styles.filterChip, { backgroundColor: theme.glass }]}> 
-              <Text style={[styles.filterText, { color: theme.accentGold }]}> 
-                {strings.filterContentPremium}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-
-        <View style={styles.pinLayer} pointerEvents="none">
-          <View style={[styles.userPulse, { borderColor: theme.primary }]} />
-          <View style={[styles.userDot, { backgroundColor: theme.primary }]} />
-          <Text style={styles.userLabel}>{strings.youLabel}</Text>
-
-          <View style={[styles.friendPin, { left: '18%', top: '30%' }]}> 
-            <View style={[styles.friendAvatar, { borderColor: theme.primary }]} />
-            <View style={[styles.pinTip, { backgroundColor: theme.primary }]} />
-          </View>
-
-          <View style={[styles.friendPin, { right: '20%', top: '40%' }]}> 
-            <View style={[styles.premiumAvatar, { borderColor: theme.accentGold }]} />
-            <View style={[styles.pinTip, { backgroundColor: theme.accentGold }]} />
-          </View>
-
-          <View style={[styles.clusterPin, { left: '12%', bottom: '38%' }]}> 
-            <Text style={[styles.clusterText, { color: theme.textPrimary }]}>+4</Text>
-          </View>
-        </View>
-
         <View style={styles.bottomOverlay} pointerEvents="box-none">
           <Pressable style={[styles.fab, { backgroundColor: theme.glass }]} onPress={() => {}}>
             <MaterialIcons name="my-location" size={20} color={theme.primary} />
@@ -167,107 +160,11 @@ const styles = StyleSheet.create({
   mapOverlay: {
     ...StyleSheet.absoluteFillObject,
   },
-  topOverlay: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  segmentedWrap: {
-    padding: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    alignSelf: 'center',
-    width: 200,
-  },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 10,
-    alignSelf: 'center',
-  },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 12,
-  },
-  filterText: {
-    fontSize: 12,
-    fontFamily: 'NotoSans-Medium',
-  },
-  pinLayer: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  userPulse: {
-    position: 'absolute',
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 2,
-    opacity: 0.3,
-  },
-  userDot: {
-    position: 'absolute',
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: '#ffffff',
-  },
-  userLabel: {
-    position: 'absolute',
-    bottom: '45%',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    color: '#ffffff',
-    fontSize: 10,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  friendPin: {
-    position: 'absolute',
-    alignItems: 'center',
-  },
-  friendAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 2,
-    backgroundColor: '#1c1f27',
-  },
-  premiumAvatar: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    borderWidth: 3,
-    backgroundColor: '#1c1f27',
-  },
-  pinTip: {
-    width: 8,
-    height: 8,
-    transform: [{ rotate: '45deg' }],
-    marginTop: -2,
-  },
-  clusterPin: {
-    position: 'absolute',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#1c1f27',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  clusterText: {
-    fontSize: 12,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
   bottomOverlay: {
     position: 'absolute',
     left: 16,
     right: 16,
-    bottom: 110,
+    bottom: 126,
     gap: 14,
   },
   fab: {

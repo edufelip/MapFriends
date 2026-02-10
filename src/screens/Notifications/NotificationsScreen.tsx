@@ -1,6 +1,7 @@
 import React from 'react';
-import { SectionList, StyleSheet, View, useColorScheme } from 'react-native';
+import { SectionList, StyleSheet, Text, View, useColorScheme } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getNotificationSections } from '../../services/notifications';
 import { getStrings } from '../../localization/strings';
 import { palette } from '../../theme/palette';
@@ -15,10 +16,13 @@ type Section = {
   data: ReturnType<typeof getNotificationSections>[keyof ReturnType<typeof getNotificationSections>];
 };
 
-export default function NotificationsScreen({ navigation }: Props) {
+type ScreenProps = Props & { variant?: 'screen' | 'panel' };
+
+export default function NotificationsScreen({ navigation, variant = 'screen' }: ScreenProps) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
+  const insets = useSafeAreaInsets();
 
   const [sections, setSections] = React.useState(getNotificationSections());
 
@@ -34,19 +38,28 @@ export default function NotificationsScreen({ navigation }: Props) {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}> 
-      <NotificationsHeader
-        title={strings.notifications.title}
-        clearLabel={strings.notifications.clear}
-        onBack={() => navigation.goBack()}
-        onClear={clearAll}
-        colors={{
-          background: theme.background,
-          border: theme.border,
-          text: theme.textPrimary,
-          primary: theme.primary,
-          muted: theme.textMuted,
-        }}
-      />
+      {variant === 'screen' ? (
+        <NotificationsHeader
+          title={strings.notifications.title}
+          clearLabel={strings.notifications.clear}
+          onBack={() => navigation.goBack()}
+          onClear={clearAll}
+          colors={{
+            background: theme.background,
+            border: theme.border,
+            text: theme.textPrimary,
+            primary: theme.primary,
+            muted: theme.textMuted,
+          }}
+        />
+      ) : (
+        <View style={[styles.panelHeader, { paddingTop: 68 + insets.top, borderBottomColor: theme.border }]}>
+          <Text style={[styles.panelTitle, { color: theme.textPrimary }]}>{strings.notifications.title}</Text>
+          <Text style={[styles.panelClear, { color: theme.primary }]} onPress={clearAll}>
+            {strings.notifications.clear}
+          </Text>
+        </View>
+      )}
       <SectionList
         sections={listSections}
         keyExtractor={(item) => item.id}
@@ -78,7 +91,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             }}
           />
         )}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, variant === 'panel' && { paddingBottom: 140 + insets.bottom }]}
         showsVerticalScrollIndicator={false}
       />
     </View>
@@ -91,5 +104,21 @@ const styles = StyleSheet.create({
   },
   list: {
     paddingBottom: 24,
+  },
+  panelHeader: {
+    borderBottomWidth: 1,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  panelTitle: {
+    fontSize: 20,
+    fontFamily: 'BeVietnamPro-Bold',
+  },
+  panelClear: {
+    fontSize: 12,
+    fontFamily: 'BeVietnamPro-Bold',
   },
 });

@@ -35,6 +35,10 @@ export const writeStorage = async (key: string, value: unknown) => {
   await AsyncStorage.setItem(key, JSON.stringify(value));
 };
 
+export const deleteStorage = async (key: string) => {
+  await AsyncStorage.removeItem(key);
+};
+
 export const toStoredProfile = (user: User): StoredProfile => ({
   name: user.name,
   handle: user.handle,
