@@ -21,6 +21,7 @@ Create a new Home screen with a top segmented control (Feed/Map) and a bottom na
 ## Data Model / State
 - UI-only tab state (`feed` | `map`) local to Home screen.
 - Optional user coordinate state (`[longitude, latitude] | null`) to center the map camera when permission is granted.
+- Location permission flow uses a strategy adapter (`LocationPermissionStrategy`) selected by platform factory, so platform-specific behavior can be extended without modifying `MapHomeScreen`.
 - Feed cards use mock data in `src/mocks/feed.json` via `src/services/feed.ts`.
 
 ## UI/UX Notes
