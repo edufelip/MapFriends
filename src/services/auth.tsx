@@ -97,6 +97,54 @@ type RemoteUserMeta = {
   onboardingVersion: number;
 };
 
+const toRemoteStoredProfile = (data: Record<string, unknown>): StoredProfile => {
+  const visibility = data.visibility === 'locked' ? 'locked' : 'open';
+  return {
+    name: typeof data.name === 'string' ? data.name : '',
+    handle: normalizeHandle(typeof data.handle === 'string' ? data.handle : ''),
+    bio: typeof data.bio === 'string' ? data.bio : '',
+    avatar: typeof data.avatar === 'string' ? data.avatar : null,
+    visibility,
+  };
+};
+
+const mergeStoredProfiles = (
+  local: StoredProfile | null,
+  remote: StoredProfile | null,
+  fallback: { name: string; avatar: string | null }
+): StoredProfile | null => {
+  if (!local && !remote) {
+    return null;
+  }
+  const base = remote || local || {
+    name: fallback.name,
+    handle: '',
+    bio: '',
+    avatar: fallback.avatar,
+    visibility: 'open' as const,
+  };
+  return {
+    name: base.name || local?.name || fallback.name,
+    handle: base.handle || local?.handle || '',
+    bio: base.bio || local?.bio || '',
+    avatar: base.avatar ?? local?.avatar ?? fallback.avatar ?? null,
+    visibility: base.visibility,
+  };
+};
+
+const hasProfileDiff = (left: StoredProfile | null, right: StoredProfile | null) => {
+  if (!left || !right) {
+    return left !== right;
+  }
+  return (
+    left.name !== right.name
+    || left.handle !== right.handle
+    || left.bio !== right.bio
+    || left.avatar !== right.avatar
+    || left.visibility !== right.visibility
+  );
+};
+
 WebBrowser.maybeCompleteAuthSession();
 
 const randomNonce = (length = 32) => {
@@ -156,6 +204,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         onboardingVersion:
           typeof data.onboardingVersion === 'number' ? data.onboardingVersion : ONBOARDING_VERSION,
       };
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const readRemoteUserProfile = React.useCallback(async (uid: string): Promise<StoredProfile | null> => {
+    if (!isFirebaseConfigured) {
+      return null;
+    }
+    try {
+      const db = getFirestoreDb();
+      const userRef = doc(db, 'users', uid);
+      const snapshot = await getDoc(userRef);
+      if (!snapshot.exists()) {
+        return null;
+      }
+      const data = snapshot.data() as Record<string, unknown>;
+      return toRemoteStoredProfile(data);
     } catch {
       return null;
     }
@@ -276,20 +342,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setAccountEmail(firebaseUser.email || null);
 
-      await seedUserStorage(firebaseUser.uid, {
+      const fallbackProfile = {
         name: firebaseUser.displayName || '',
         avatar: firebaseUser.photoURL || null,
-      });
-      const [storedProfile, storedOnboarding] = await Promise.all([
+      };
+
+      await seedUserStorage(firebaseUser.uid, fallbackProfile);
+      const [storedProfile, storedOnboarding, remoteMeta, remoteProfile] = await Promise.all([
         readStorage<StoredProfile>(toProfileKey(firebaseUser.uid)),
         readStorage<StoredOnboarding>(toOnboardingKey(firebaseUser.uid)),
+        readRemoteUserMeta(firebaseUser.uid),
+        readRemoteUserProfile(firebaseUser.uid),
       ]);
-      const remoteMeta = await readRemoteUserMeta(firebaseUser.uid);
+
+      const mergedProfile = mergeStoredProfiles(storedProfile, remoteProfile, fallbackProfile);
+      if (hasProfileDiff(storedProfile, mergedProfile) && mergedProfile) {
+        await persistProfile(firebaseUser.uid, mergedProfile);
+      }
 
       if (!mounted) {
         return;
       }
-      const nextUser = toAppUser(firebaseUser, storedProfile);
+      const nextUser = toAppUser(firebaseUser, mergedProfile);
       const inferredProfileComplete = isProfileComplete(nextUser);
       const nextHasAcceptedTerms = Boolean(
         remoteMeta?.hasAcceptedTerms || storedOnboarding?.hasAcceptedTerms
@@ -328,7 +402,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false;
       unsubscribe();
     };
-  }, [persistRemoteUserMeta, readRemoteUserMeta, seedUserStorage]);
+  }, [
+    persistProfile,
+    persistRemoteUserMeta,
+    readRemoteUserMeta,
+    readRemoteUserProfile,
+    seedUserStorage,
+  ]);
 
   React.useEffect(() => {
     let mounted = true;

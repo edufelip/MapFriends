@@ -215,6 +215,26 @@ describe('AuthProvider', () => {
     expect(latest?.hasCompletedOnboarding).toBe(true);
   });
 
+  it('hydrates profile fields from remote users document on a new device', async () => {
+    mockFirestoreDocs.set('users/user-001', {
+      uid: 'user-001',
+      name: 'Remote Alex',
+      handle: 'remote_alex',
+      bio: 'Remote bio',
+      visibility: 'locked',
+      avatar: 'https://example.com/remote.jpg',
+    });
+
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+
+    expect(latest?.user?.name).toBe('Remote Alex');
+    expect(latest?.user?.handle).toBe('remote_alex');
+    expect(latest?.user?.bio).toBe('Remote bio');
+    expect(latest?.user?.visibility).toBe('locked');
+    expect(latest?.user?.avatar).toBe('https://example.com/remote.jpg');
+  });
+
   it('marks onboarding complete after profile completion', async () => {
     await renderProvider();
 

@@ -20,6 +20,7 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 ## Data Model / State
 - Auth state tracks: `hasCompletedProfile`.
 - User profile fields in auth state/storage: `name`, `handle`, `bio`, `visibility`, `avatar`.
+- On bootstrap, profile fields are hydrated from both local storage and remote `users/{uid}` (remote values win when present) to keep cross-device state consistent.
 - Server metadata in `userMeta/{uid}` tracks:
   - `hasAcceptedTerms`
   - `hasCompletedProfile`
