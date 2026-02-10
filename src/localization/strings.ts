@@ -186,6 +186,7 @@ const STRINGS = {
       title: 'Write Review',
       cancel: 'Cancel',
       post: 'Post',
+      save: 'Save',
       ratingLabel: 'Your Rating',
       placeholder: 'Share your experience with your followers... What made this place special?',
       photosLabel: 'Photos',
@@ -203,6 +204,8 @@ const STRINGS = {
       locationSuggestionsEmpty: 'No matching places found.',
       photosPermissionDenied: 'Allow photo access in Settings to add photos.',
       photosPickerError: 'Could not open photo library. Please try again.',
+      submitError: 'Could not save your review right now. Please try again.',
+      reviewLoadError: 'Could not open this review for editing.',
     },
     notifications: {
       title: 'Notifications',
@@ -403,6 +406,7 @@ const STRINGS = {
       title: 'Escrever avaliação',
       cancel: 'Cancelar',
       post: 'Publicar',
+      save: 'Salvar',
       ratingLabel: 'Sua nota',
       placeholder: 'Compartilhe sua experiência... O que tornou esse lugar especial?',
       photosLabel: 'Fotos',
@@ -420,6 +424,8 @@ const STRINGS = {
       locationSuggestionsEmpty: 'Nenhum lugar correspondente encontrado.',
       photosPermissionDenied: 'Permita acesso às fotos nos Ajustes para adicionar fotos.',
       photosPickerError: 'Não foi possível abrir a biblioteca de fotos. Tente novamente.',
+      submitError: 'Não foi possível salvar sua avaliação agora. Tente novamente.',
+      reviewLoadError: 'Não foi possível abrir esta avaliação para edição.',
     },
     notifications: {
       title: 'Notificações',

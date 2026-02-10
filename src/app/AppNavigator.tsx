@@ -28,7 +28,7 @@ type RootStackParamList = {
   [Routes.MapHome]: undefined;
   [Routes.Explore]: undefined;
   [Routes.PlaceDetail]: { placeId: string };
-  [Routes.ShareReview]: { placeId?: string } | undefined;
+  [Routes.ShareReview]: { placeId?: string; reviewId?: string } | undefined;
   [Routes.Notifications]: undefined;
   [Routes.Profile]: undefined;
   [Routes.EditProfile]: undefined;
