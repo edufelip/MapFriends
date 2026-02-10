@@ -10,16 +10,25 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
 
 ## UI Structure
 - Sticky header with back button and title.
-- Profile hero with avatar, handle, subtitle, and “Edit Profile”.
+- Profile hero with avatar, handle, user bio as subtitle, and “Edit Profile”.
 - Sections:
-  - Account Privacy: visibility toggle with subtitle.
   - Creator Hub: Creator Settings, Subscribers Management (badge).
   - Preferences: Manage Subscriptions, Blocked Users.
 - Logout button and version label.
 - Bottom navigation highlighting Profile.
 
+## Edit Profile Flow
+- Tapping **Edit Profile** opens a dedicated `EditProfile` screen (stack push).
+- Edit Profile screen includes:
+  - Avatar selector (library picker).
+  - Editable display name and bio.
+  - Read-only handle field.
+  - Profile visibility selector (Open/Locked).
+  - Save action that persists profile changes and returns to Profile tab.
+- Save updates local auth state/profile storage and attempts remote sync to Firestore `users/{uid}`.
+
 ## Data & Behavior
-- Visibility toggle updates `user.visibility` in auth state.
+- Visibility is updated from Edit Profile save flow and persisted in auth state.
 - The rest of the rows are visual-only placeholders.
 - Version label is static.
 
@@ -27,6 +36,7 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
 Strings live in `src/localization/strings.ts` under `profile` for `en-US` and `pt-BR`.
 
 ## Test Cases
-- Toggling visibility updates `user.visibility` to `locked` and `open`.
 - Screen renders all sections and row labels correctly.
 - Bottom nav highlights Profile tab.
+- Pressing **Edit Profile** navigates to `EditProfile`.
+- Saving on Edit Profile updates `name`, `bio`, and `visibility`, then navigates back.

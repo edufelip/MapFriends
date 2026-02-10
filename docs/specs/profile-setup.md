@@ -6,7 +6,7 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 ## Goals
 - Ensure incomplete accounts are prompted to finish profile details.
 - Provide a mobile-friendly setup flow with clear validation and accessibility support.
-- Persist profile data locally for subsequent sessions.
+- Persist completion state locally and in backend metadata for cross-device gating.
 
 ## Non-Goals
 - Backend/cloud media upload pipeline.
@@ -20,6 +20,11 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 ## Data Model / State
 - Auth state tracks: `hasCompletedProfile`.
 - User profile fields in auth state/storage: `name`, `handle`, `bio`, `visibility`, `avatar`.
+- Server metadata in `userMeta/{uid}` tracks:
+  - `hasAcceptedTerms`
+  - `hasCompletedProfile`
+  - `hasCompletedOnboarding`
+  - `onboardingVersion`
 
 ## UI/UX Notes
 - Hero section uses the same auth visual language as login/terms:
@@ -66,3 +71,4 @@ Profile Setup is shown after terms acceptance for users without a complete profi
 ## Use Cases
 - New user completes profile before onboarding.
 - Returning user with incomplete profile is prompted again.
+- User signs in on a second device and still sees Profile Setup until remote completion flags are true.

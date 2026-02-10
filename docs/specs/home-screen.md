@@ -26,8 +26,14 @@ Create a new Home screen with a top segmented control (Feed/Map) and a bottom na
 ## UI/UX Notes
 - Map tab uses Mapbox map as background and adapts to light/dark styles.
 - Map camera focuses on user location after location permission is granted (or if it was already granted).
-- Overlays: segmented control, filter chips, location FAB, context card, and bottom nav.
+- User location is rendered as a static map pin (`ShapeSource` + `CircleLayer`) at the captured coordinate; map pan/zoom does not move this pin.
+- A single segmented control (`Feed` | `Map`) is rendered once at Home shell level (fixed near top) and remains visible while switching tabs.
+- Segmented control selection uses a sliding animated indicator.
+- Tab content transition uses a pure opacity crossfade (`260ms`) between map and feed layers.
+- Map filter chips were removed from the map overlay.
+- Overlays: segmented control, location FAB, context card, and a persistent bottom nav shell.
 - Bottom nav is always visible on Home.
+- In shell mode, bottom nav background transitions to solid white when Home `Feed` is active, and returns to glass for Home `Map`.
 
 ## Edge Cases
 - Missing Mapbox token shows a fallback message.

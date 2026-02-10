@@ -37,3 +37,6 @@ Pull requests should note which docs were updated and link to them.
 - `docs/specs/ios-dev-launch-reliability.md` — defines a retry-safe iOS dev-client startup flow and native scheme parity without relying on prebuild.
 - `docs/specs/handle-uniqueness.md` — defines transactional handle claiming, reserved handles, and immutable handle policy.
 - `docs/specs/profile-setup.md` — documents profile completion gate behavior, avatar selection UX, and related validation rules.
+- `docs/specs/profile-settings.md` — defines profile tab settings layout plus Edit Profile navigation and save behavior.
+- `docs/specs/main-shell-navigation.md` — defines persistent bottom navigation shell behavior and in-canvas primary tab switching.
+- `docs/specs/review-composer.md` — documents review composer flow, including debounced location search and selected-location chip behavior.
