@@ -40,6 +40,7 @@ describe('MapTab', () => {
         isDark
         userCoordinate={[-46.633308, -23.55052]}
         locationResolved
+        reviewPins={[]}
         onPlacePress={jest.fn()}
       />
     );

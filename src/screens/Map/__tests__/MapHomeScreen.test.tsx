@@ -50,6 +50,12 @@ jest.mock('../../../services/feed', () => ({
   getFeedPosts: () => [],
 }));
 
+jest.mock('../../../state/reviews', () => ({
+  useHydrateReviewState: jest.fn(),
+  useReviewFeedPosts: () => [],
+  useReviewPins: () => [],
+}));
+
 jest.mock('../../../localization/strings', () => ({
   getStrings: () => ({
     home: {

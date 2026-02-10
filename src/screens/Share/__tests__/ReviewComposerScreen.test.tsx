@@ -6,8 +6,8 @@ import { getStrings } from '../../../localization/strings';
 
 const mockSearchPlaces = jest.fn();
 const mockPickReviewPhotosFromLibrary = jest.fn();
-const mockCreateReview = jest.fn();
-const mockUpdateReview = jest.fn();
+const mockCreateReviewAndStore = jest.fn();
+const mockUpdateReviewAndStore = jest.fn();
 const mockGetReviewById = jest.fn();
 const mockUseAuth = jest.fn();
 
@@ -24,8 +24,6 @@ jest.mock('../../../services/media/reviewPhotoPicker', () => ({
 }));
 
 jest.mock('../../../services/reviews', () => ({
-  createReview: (...args: unknown[]) => mockCreateReview(...args),
-  updateReview: (...args: unknown[]) => mockUpdateReview(...args),
   getReviewById: (...args: unknown[]) => mockGetReviewById(...args),
 }));
 
@@ -35,6 +33,17 @@ jest.mock('react-native-safe-area-context', () => ({
 
 jest.mock('../../../services/auth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('../../../state/reviews', () => ({
+  useReviewStore: (selector: (state: {
+    createReviewAndStore: (...args: unknown[]) => unknown;
+    updateReviewAndStore: (...args: unknown[]) => unknown;
+  }) => unknown) =>
+    selector({
+      createReviewAndStore: (...args: unknown[]) => mockCreateReviewAndStore(...args),
+      updateReviewAndStore: (...args: unknown[]) => mockUpdateReviewAndStore(...args),
+    }),
 }));
 
 describe('ReviewComposerScreen location picker flow', () => {
@@ -47,8 +56,8 @@ describe('ReviewComposerScreen location picker flow', () => {
     jest.useFakeTimers();
     mockSearchPlaces.mockReset();
     mockPickReviewPhotosFromLibrary.mockReset();
-    mockCreateReview.mockReset();
-    mockUpdateReview.mockReset();
+    mockCreateReviewAndStore.mockReset();
+    mockUpdateReviewAndStore.mockReset();
     mockGetReviewById.mockReset();
     mockUseAuth.mockReturnValue({
       user: {
@@ -262,7 +271,7 @@ describe('ReviewComposerScreen location picker flow', () => {
         coordinates: null,
       },
     ]);
-    mockCreateReview.mockResolvedValueOnce({
+    mockCreateReviewAndStore.mockResolvedValueOnce({
       id: 'review-001',
     });
 
@@ -287,7 +296,7 @@ describe('ReviewComposerScreen location picker flow', () => {
     fireEvent.press(screen.getByTestId('review-submit'));
 
     await waitFor(() => {
-      expect(mockCreateReview).toHaveBeenCalled();
+      expect(mockCreateReviewAndStore).toHaveBeenCalled();
       expect(navigation.goBack).toHaveBeenCalled();
     });
   });
@@ -299,6 +308,7 @@ describe('ReviewComposerScreen location picker flow', () => {
       id: 'review-001',
       placeId: 'place-002',
       placeTitle: 'Old Town Market',
+      placeCoordinates: null,
       title: 'Old Town Market',
       notes: 'Existing note',
       rating: 7,
@@ -312,7 +322,7 @@ describe('ReviewComposerScreen location picker flow', () => {
       photos: [],
       photoUrls: [],
     });
-    mockUpdateReview.mockResolvedValueOnce({
+    mockUpdateReviewAndStore.mockResolvedValueOnce({
       id: 'review-001',
     });
 
@@ -332,11 +342,11 @@ describe('ReviewComposerScreen location picker flow', () => {
     fireEvent.press(screen.getByTestId('review-submit'));
 
     await waitFor(() => {
-      expect(mockUpdateReview).toHaveBeenCalledWith(
+      expect(mockUpdateReviewAndStore).toHaveBeenCalledWith(
         expect.objectContaining({
           reviewId: 'review-001',
           notes: 'Updated note',
-          place: { id: 'place-002', title: 'Old Town Market' },
+          place: expect.objectContaining({ id: 'place-002', title: 'Old Town Market' }),
         })
       );
       expect(navigation.goBack).toHaveBeenCalled();
@@ -349,6 +359,7 @@ describe('ReviewComposerScreen location picker flow', () => {
       id: 'review-001',
       placeId: 'place-002',
       placeTitle: 'Old Town Market',
+      placeCoordinates: null,
       title: 'Old Town Market',
       notes: 'Existing note',
       rating: 7,
@@ -388,7 +399,7 @@ describe('ReviewComposerScreen location picker flow', () => {
         coordinates: null,
       },
     ]);
-    mockCreateReview.mockReturnValueOnce(pending);
+    mockCreateReviewAndStore.mockReturnValueOnce(pending);
 
     const screen = render(
       <ReviewComposerScreen
@@ -411,6 +422,6 @@ describe('ReviewComposerScreen location picker flow', () => {
     fireEvent.press(screen.getByTestId('review-submit'));
     fireEvent.press(screen.getByTestId('review-submit'));
 
-    expect(mockCreateReview).toHaveBeenCalledTimes(1);
+    expect(mockCreateReviewAndStore).toHaveBeenCalledTimes(1);
   });
 });
