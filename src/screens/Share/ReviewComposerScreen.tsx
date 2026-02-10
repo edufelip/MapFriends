@@ -56,6 +56,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   const [visibility, setVisibility] = React.useState<ReviewVisibility>('followers');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoadingReview, setIsLoadingReview] = React.useState(Boolean(reviewId));
+  const submitLockRef = React.useRef(false);
 
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
@@ -134,10 +135,11 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   const canSubmit = Boolean(selectedPlace?.id && notes.trim().length > 0 && user?.id);
 
   const handleSubmit = React.useCallback(async () => {
-    if (!canSubmit || !selectedPlace || !user) {
+    if (submitLockRef.current || !canSubmit || !selectedPlace || !user) {
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     const payload = {
       author: {
@@ -172,6 +174,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
         strings.reviewComposer.submitError
       );
     } finally {
+      submitLockRef.current = false;
       setIsSubmitting(false);
     }
   }, [
