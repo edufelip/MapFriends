@@ -502,6 +502,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw Object.assign(new Error('auth/delete-email-mismatch'), { code: 'auth/delete-email-mismatch' });
         }
 
+        if (isFirebaseConfigured) {
+          const db = getFirestoreDb();
+          const normalizedHandle = normalizeHandle(user?.handle || '');
+
+          try {
+            await Promise.all([
+              deleteDoc(doc(db, 'userMeta', uid)),
+              deleteDoc(doc(db, 'users', uid)),
+              normalizedHandle ? deleteDoc(doc(db, 'handles', normalizedHandle)) : Promise.resolve(),
+            ]);
+          } catch {
+            // Keep deletion flow resilient even if remote cleanup is partial.
+          }
+        }
+
         await deleteUser(currentUser);
 
         setUser(null);
@@ -514,23 +529,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           deleteStorage(toProfileKey(uid)),
           deleteStorage(toOnboardingKey(uid)),
         ]);
-
-        if (!isFirebaseConfigured) {
-          return;
-        }
-
-        const db = getFirestoreDb();
-        const normalizedHandle = normalizeHandle(user?.handle || '');
-
-        try {
-          await Promise.all([
-            deleteDoc(doc(db, 'userMeta', uid)),
-            deleteDoc(doc(db, 'users', uid)),
-            normalizedHandle ? deleteDoc(doc(db, 'handles', normalizedHandle)) : Promise.resolve(),
-          ]);
-        } catch {
-          // Keep deletion flow resilient even if remote cleanup is partial.
-        }
       });
     },
     [accountEmail, runAuthAction, user]

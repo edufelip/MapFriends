@@ -34,4 +34,5 @@ Guarantee globally unique user handles in production, block reserved handles, an
   - handle doc can only be created once
   - reserved handles are blocked in backend rules
   - `users/{uid}.handle` is immutable after first write
-  - handle updates/deletes are blocked
+  - handle updates are blocked
+  - handle/user/userMeta deletes are allowed only for the owning authenticated user (used by account deletion flow)

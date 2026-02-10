@@ -9,20 +9,26 @@ const mockSendPasswordResetEmail = jest.fn();
 const mockSignOut = jest.fn();
 const mockSignInWithCredential = jest.fn();
 const mockUpdateProfile = jest.fn();
+const mockDeleteUser = jest.fn();
 const mockClaimProfileHandle = jest.fn();
 const mockCheckHandleAvailability = jest.fn();
 const mockDoc = jest.fn();
 const mockGetDoc = jest.fn();
 const mockSetDoc = jest.fn();
+const mockDeleteDoc = jest.fn();
 const mockServerTimestamp = jest.fn(() => 'server-timestamp');
 let authStateListener: ((user: unknown) => void) | null = null;
 
 const mockStorage = new Map<string, string>();
 const mockFirestoreDocs = new Map<string, Record<string, unknown>>();
+const mockAuthInstance: { app: string; currentUser: { uid: string; email: string } | null } = {
+  app: 'mock-auth',
+  currentUser: null,
+};
 
 jest.mock('../firebase', () => ({
   isFirebaseConfigured: true,
-  getFirebaseAuth: () => ({ app: 'mock-auth' }),
+  getFirebaseAuth: () => mockAuthInstance,
   getFirestoreDb: () => ({ app: 'mock-firestore' }),
 }));
 
@@ -37,6 +43,9 @@ jest.mock('@react-native-async-storage/async-storage', () => ({
     getItem: jest.fn(async (key: string) => mockStorage.get(key) ?? null),
     setItem: jest.fn(async (key: string, value: string) => {
       mockStorage.set(key, value);
+    }),
+    removeItem: jest.fn(async (key: string) => {
+      mockStorage.delete(key);
     }),
   },
 }));
@@ -90,12 +99,14 @@ jest.mock('firebase/auth', () => ({
   signOut: (...args: unknown[]) => mockSignOut(...args),
   signInWithCredential: (...args: unknown[]) => mockSignInWithCredential(...args),
   updateProfile: (...args: unknown[]) => mockUpdateProfile(...args),
+  deleteUser: (...args: unknown[]) => mockDeleteUser(...args),
 }));
 
 jest.mock('firebase/firestore', () => ({
   doc: (...args: unknown[]) => mockDoc(...args),
   getDoc: (...args: unknown[]) => mockGetDoc(...args),
   setDoc: (...args: unknown[]) => mockSetDoc(...args),
+  deleteDoc: (...args: unknown[]) => mockDeleteDoc(...args),
   serverTimestamp: () => mockServerTimestamp(),
 }));
 
@@ -150,11 +161,14 @@ describe('AuthProvider', () => {
     mockSignOut.mockReset();
     mockSignInWithCredential.mockReset();
     mockUpdateProfile.mockReset();
+    mockDeleteUser.mockReset();
     mockClaimProfileHandle.mockReset();
     mockClaimProfileHandle.mockResolvedValue('alex');
     mockCheckHandleAvailability.mockReset();
     mockCheckHandleAvailability.mockResolvedValue('available');
+    mockDeleteDoc.mockReset();
     mockFirestoreDocs.clear();
+    mockAuthInstance.currentUser = null;
     mockDoc.mockReset();
     mockDoc.mockImplementation((_db: unknown, collection: string, uid: string) => ({
       path: `${collection}/${uid}`,
@@ -178,6 +192,9 @@ describe('AuthProvider', () => {
         mockFirestoreDocs.set(ref.path, options?.merge ? { ...current, ...value } : value);
       }
     );
+    mockDeleteDoc.mockImplementation(async (ref: { path: string }) => {
+      mockFirestoreDocs.delete(ref.path);
+    });
   });
 
   it('hydrates onboarding and profile flags from remote user meta on bootstrap', async () => {
@@ -341,5 +358,39 @@ describe('AuthProvider', () => {
 
     expect(latest?.isAuthActionLoading).toBe(false);
     expect(latest?.isBootstrappingAuth).toBe(bootstrapBefore);
+  });
+
+  it('cleans remote user documents before deleting firebase auth account', async () => {
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+    mockAuthInstance.currentUser = {
+      uid: firebaseUser.uid,
+      email: 'alex@test.com',
+    };
+
+    await act(async () => {
+      await latest?.deleteAccount('alex@test.com');
+    });
+
+    expect(mockDeleteDoc).toHaveBeenCalled();
+    expect(mockDeleteUser).toHaveBeenCalledWith(mockAuthInstance.currentUser);
+    const lastDeleteDocOrder = Math.max(...mockDeleteDoc.mock.invocationCallOrder);
+    expect(lastDeleteDocOrder).toBeLessThan(mockDeleteUser.mock.invocationCallOrder[0]);
+  });
+
+  it('blocks account deletion when confirmation email does not match', async () => {
+    await renderProvider();
+    await setFirebaseUser(firebaseUser);
+    mockAuthInstance.currentUser = {
+      uid: firebaseUser.uid,
+      email: 'alex@test.com',
+    };
+
+    await act(async () => {
+      await expect(latest?.deleteAccount('other@test.com')).rejects.toBeTruthy();
+    });
+
+    expect(mockDeleteDoc).not.toHaveBeenCalled();
+    expect(mockDeleteUser).not.toHaveBeenCalled();
   });
 });

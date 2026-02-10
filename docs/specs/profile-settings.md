@@ -26,6 +26,10 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
   - Profile visibility selector (Open/Locked).
   - Save action that persists profile changes and returns to Profile tab.
 - Save updates local auth state/profile storage and attempts remote sync to Firestore `users/{uid}`.
+- Delete Account requires typed email confirmation in the bottom sheet, then:
+  - clears `userMeta/{uid}`, `users/{uid}`, and `handles/{handle}` (if present) while user is authenticated.
+  - deletes Firebase Auth user.
+  - clears local auth/profile storage and returns to login stack.
 
 ## Data & Behavior
 - Visibility is updated from Edit Profile save flow and persisted in auth state.

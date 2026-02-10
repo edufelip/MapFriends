@@ -50,7 +50,8 @@ service cloud.firestore {
         && !isReservedHandle(handle)
         && request.resource.data.keys().hasOnly(['uid', 'createdAt'])
         && !exists(handlePath(handle));
-      allow update, delete: if false;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.uid == request.auth.uid;
     }
 
     match /users/{uid} {
@@ -61,7 +62,7 @@ service cloud.firestore {
         && !isReservedHandle(request.resource.data.handle)
         && isHandleImmutableOnUserWrite()
         && handleBelongsToUserAfter(request.resource.data.handle, uid);
-      allow delete: if false;
+      allow delete: if isOwner(uid);
     }
 
     match /userMeta/{uid} {
@@ -80,7 +81,7 @@ service cloud.firestore {
         && request.resource.data.hasCompletedProfile is bool
         && request.resource.data.hasCompletedOnboarding is bool
         && request.resource.data.onboardingVersion is int;
-      allow delete: if false;
+      allow delete: if isOwner(uid);
     }
   }
 }
