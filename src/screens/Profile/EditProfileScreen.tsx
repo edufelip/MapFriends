@@ -3,7 +3,6 @@ import {
   Alert,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -22,6 +21,7 @@ import { useAuth } from '../../services/auth';
 import { palette } from '../../theme/palette';
 import SettingsSection from './components/SettingsSection';
 import ToggleRow from './components/ToggleRow';
+import DeleteAccountSheet from './components/DeleteAccountSheet';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -266,57 +266,28 @@ export default function EditProfileScreen({ navigation }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal
-        transparent
-        animationType="slide"
+      <DeleteAccountSheet
         visible={deleteSheetVisible}
-        onRequestClose={() => setDeleteSheetVisible(false)}
-      >
-        <View style={styles.sheetBackdrop}>
-          <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setDeleteSheetVisible(false)} />
-          <View style={[styles.sheetCard, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <Text style={[styles.sheetTitle, { color: theme.textPrimary }]}>{strings.profile.deleteSheetTitle}</Text>
-            <Text style={[styles.sheetMessage, { color: theme.textMuted }]}>{strings.profile.deleteSheetMessage}</Text>
-            <Text style={[styles.fieldLabel, { color: theme.textPrimary }]}>{strings.profile.deleteSheetEmailLabel}</Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  borderColor: theme.border,
-                  backgroundColor: theme.surface,
-                  color: theme.textPrimary,
-                },
-              ]}
-              value={deleteConfirmationEmail}
-              onChangeText={setDeleteConfirmationEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              placeholder={strings.profile.deleteSheetEmailPlaceholder}
-              placeholderTextColor={theme.textMuted}
-            />
-            <View style={styles.sheetActions}>
-              <Pressable
-                style={[styles.sheetButton, { backgroundColor: theme.surface, borderColor: theme.border }]}
-                onPress={() => setDeleteSheetVisible(false)}
-              >
-                <Text style={[styles.sheetCancelText, { color: theme.textPrimary }]}>
-                  {strings.profile.deleteSheetCancel}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  styles.sheetButton,
-                  { backgroundColor: canConfirmDeletion ? theme.danger : theme.border, borderColor: theme.border },
-                ]}
-                disabled={!canConfirmDeletion}
-                onPress={handleDeleteAccount}
-              >
-                <Text style={styles.sheetConfirmText}>{strings.profile.deleteSheetConfirm}</Text>
-              </Pressable>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setDeleteSheetVisible(false)}
+        title={strings.profile.deleteSheetTitle}
+        message={strings.profile.deleteSheetMessage}
+        emailLabel={strings.profile.deleteSheetEmailLabel}
+        emailPlaceholder={strings.profile.deleteSheetEmailPlaceholder}
+        cancelLabel={strings.profile.deleteSheetCancel}
+        confirmLabel={strings.profile.deleteSheetConfirm}
+        emailValue={deleteConfirmationEmail}
+        onChangeEmail={setDeleteConfirmationEmail}
+        canConfirm={canConfirmDeletion}
+        onConfirm={handleDeleteAccount}
+        theme={{
+          background: theme.background,
+          border: theme.border,
+          surface: theme.surface,
+          textPrimary: theme.textPrimary,
+          textMuted: theme.textMuted,
+          danger: theme.danger,
+        }}
+      />
     </View>
   );
 }
@@ -444,51 +415,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   deleteButtonText: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Bold',
-  },
-  sheetBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  sheetCard: {
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 18,
-    borderWidth: 1,
-    borderBottomWidth: 0,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 30,
-    gap: 10,
-  },
-  sheetTitle: {
-    fontSize: 17,
-    fontFamily: 'BeVietnamPro-Bold',
-  },
-  sheetMessage: {
-    fontSize: 12,
-    lineHeight: 18,
-    fontFamily: 'NotoSans-Regular',
-  },
-  sheetActions: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 6,
-  },
-  sheetButton: {
-    flex: 1,
-    borderRadius: 10,
-    borderWidth: 1,
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  sheetCancelText: {
-    fontSize: 13,
-    fontFamily: 'NotoSans-Bold',
-  },
-  sheetConfirmText: {
-    color: '#ffffff',
     fontSize: 13,
     fontFamily: 'NotoSans-Bold',
   },
