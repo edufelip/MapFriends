@@ -55,4 +55,35 @@ describe('searchLocationHints', () => {
     expect(mockSearchPlaces).toHaveBeenCalledWith('market', 6);
     expect(hints[0].title).toBe('Old Town Market');
   });
+
+  it('falls back to local places when mapbox search endpoints fail', async () => {
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-2',
+        name: 'Fallback Ramen',
+        category: 'Food',
+        address: 'Downtown',
+      },
+    ]);
+
+    const fetchSpy = jest.spyOn(global, 'fetch' as any)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        text: async () => 'invalid searchbox request',
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 422,
+        text: async () => 'invalid geocode request',
+      } as Response);
+
+    const hints = await searchLocationHints('ramen', { token: 'pk.test' });
+
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(mockSearchPlaces).toHaveBeenCalledWith('ramen', 6);
+    expect(hints[0].title).toBe('Fallback Ramen');
+
+    fetchSpy.mockRestore();
+  });
 });
