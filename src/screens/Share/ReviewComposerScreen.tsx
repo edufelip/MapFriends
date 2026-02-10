@@ -44,7 +44,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   const [notes, setNotes] = React.useState('');
   const [rating, setRating] = React.useState(8);
   const [photos, setPhotos] = React.useState<string[]>(DEFAULT_PHOTOS);
-  const [visibility, setVisibility] = React.useState<'followers' | 'subscribers'>('subscribers');
+  const [visibility, setVisibility] = React.useState<'followers' | 'subscribers'>('followers');
 
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
