@@ -19,6 +19,7 @@ import {
 import { deleteDoc, doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 import { getStrings } from '../localization/strings';
 import { getFirebaseAuth, getFirestoreDb, isFirebaseConfigured } from './firebase';
+import { runFirestoreOperation } from './firebaseDbLogger';
 import { User } from './types';
 import { mapFirebaseAuthError } from './authErrors';
 import {
@@ -147,7 +148,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getFirestoreDb();
       const userMetaRef = doc(db, 'userMeta', uid);
-      const snapshot = await getDoc(userMetaRef);
+      const snapshot = await runFirestoreOperation(
+        'auth.readRemoteUserMeta',
+        {
+          uid,
+          path: userMetaRef.path,
+        },
+        () => getDoc(userMetaRef)
+      );
       if (!snapshot.exists()) {
         return null;
       }
@@ -172,7 +180,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getFirestoreDb();
       const userRef = doc(db, 'users', uid);
-      const snapshot = await getDoc(userRef);
+      const snapshot = await runFirestoreOperation(
+        'auth.readRemoteUserProfile',
+        {
+          uid,
+          path: userRef.path,
+        },
+        () => getDoc(userRef)
+      );
       if (!snapshot.exists()) {
         return null;
       }
@@ -190,17 +205,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const db = getFirestoreDb();
       const userMetaRef = doc(db, 'userMeta', meta.uid);
-      await setDoc(
-        userMetaRef,
+      await runFirestoreOperation(
+        'auth.persistRemoteUserMeta',
         {
           uid: meta.uid,
-          hasAcceptedTerms: meta.hasAcceptedTerms,
-          hasCompletedProfile: meta.hasCompletedProfile,
-          hasCompletedOnboarding: meta.hasCompletedOnboarding,
-          onboardingVersion: ONBOARDING_VERSION,
-          updatedAt: serverTimestamp(),
+          path: userMetaRef.path,
         },
-        { merge: true }
+        () =>
+          setDoc(
+            userMetaRef,
+            {
+              uid: meta.uid,
+              hasAcceptedTerms: meta.hasAcceptedTerms,
+              hasCompletedProfile: meta.hasCompletedProfile,
+              hasCompletedOnboarding: meta.hasCompletedOnboarding,
+              onboardingVersion: ONBOARDING_VERSION,
+              updatedAt: serverTimestamp(),
+            },
+            { merge: true }
+          )
       );
     } catch {
       // Keep local flow functional if remote sync fails.
@@ -543,11 +566,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           const normalizedHandle = normalizeHandle(user?.handle || '');
 
           try {
-            await Promise.all([
-              deleteDoc(doc(db, 'userMeta', uid)),
-              deleteDoc(doc(db, 'users', uid)),
-              normalizedHandle ? deleteDoc(doc(db, 'handles', normalizedHandle)) : Promise.resolve(),
-            ]);
+            const userMetaRef = doc(db, 'userMeta', uid);
+            const userRef = doc(db, 'users', uid);
+            const handleRef = normalizedHandle ? doc(db, 'handles', normalizedHandle) : null;
+
+            await runFirestoreOperation(
+              'auth.deleteAccountRemoteCleanup',
+              {
+                uid,
+                userMetaPath: userMetaRef.path,
+                userPath: userRef.path,
+                handlePath: handleRef?.path || null,
+              },
+              () =>
+                Promise.all([
+                  deleteDoc(userMetaRef),
+                  deleteDoc(userRef),
+                  handleRef ? deleteDoc(handleRef) : Promise.resolve(),
+                ]).then(() => undefined)
+            );
           } catch {
             // Keep deletion flow resilient even if remote cleanup is partial.
           }
@@ -699,17 +736,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const db = getFirestoreDb();
             const userRef = doc(db, 'users', uid);
-            await setDoc(
-              userRef,
+            await runFirestoreOperation(
+              'auth.updateProfileRemoteUser',
               {
                 uid,
-                name: nextUser.name,
-                bio: nextUser.bio,
-                avatar: nextUser.avatar,
-                visibility: nextUser.visibility,
-                updatedAt: serverTimestamp(),
+                path: userRef.path,
               },
-              { merge: true }
+              () =>
+                setDoc(
+                  userRef,
+                  {
+                    uid,
+                    name: nextUser.name,
+                    bio: nextUser.bio,
+                    avatar: nextUser.avatar,
+                    visibility: nextUser.visibility,
+                    updatedAt: serverTimestamp(),
+                  },
+                  { merge: true }
+                )
             );
           } catch {
             // Keep local profile update working when remote sync fails.

@@ -5,6 +5,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { getFirestoreDb } from './firebase';
+import { runFirestoreOperation } from './firebaseDbLogger';
 import { isHandleReserved, isHandleValidFormat, normalizeHandle } from './handlePolicy';
 
 type ClaimProfileInput = {
@@ -34,7 +35,15 @@ export const checkHandleAvailability = async (
 
   const db = getFirestoreDb();
   const handleRef = doc(db, 'handles', handle);
-  const snapshot = await getDoc(handleRef);
+  const snapshot = await runFirestoreOperation(
+    'handles.checkAvailability',
+    {
+      handle,
+      path: handleRef.path,
+      requesterUid: uid || null,
+    },
+    () => getDoc(handleRef)
+  );
   if (!snapshot.exists()) {
     return 'available' as const;
   }
@@ -65,40 +74,50 @@ export const claimProfileHandle = async ({
   const handleRef = doc(db, 'handles', handle);
   const userRef = doc(db, 'users', uid);
 
-  await runTransaction(db, async (transaction) => {
-    const userSnapshot = await transaction.get(userRef);
-    const existingUserHandle = normalizeHandle((userSnapshot.data() as { handle?: string })?.handle || '');
-    if (existingUserHandle && existingUserHandle !== handle) {
-      throw toErrorWithCode('profile/handle-immutable');
-    }
+  await runFirestoreOperation(
+    'handles.claimTransaction',
+    {
+      uid,
+      handle,
+      handlePath: handleRef.path,
+      userPath: userRef.path,
+    },
+    () =>
+      runTransaction(db, async (transaction) => {
+        const userSnapshot = await transaction.get(userRef);
+        const existingUserHandle = normalizeHandle((userSnapshot.data() as { handle?: string })?.handle || '');
+        if (existingUserHandle && existingUserHandle !== handle) {
+          throw toErrorWithCode('profile/handle-immutable');
+        }
 
-    const handleSnapshot = await transaction.get(handleRef);
-    if (handleSnapshot.exists()) {
-      const ownerUid = (handleSnapshot.data() as { uid?: string }).uid;
-      if (ownerUid !== uid) {
-        throw toErrorWithCode('profile/handle-taken');
-      }
-    } else {
-      transaction.set(handleRef, {
-        uid,
-        createdAt: serverTimestamp(),
-      });
-    }
+        const handleSnapshot = await transaction.get(handleRef);
+        if (handleSnapshot.exists()) {
+          const ownerUid = (handleSnapshot.data() as { uid?: string }).uid;
+          if (ownerUid !== uid) {
+            throw toErrorWithCode('profile/handle-taken');
+          }
+        } else {
+          transaction.set(handleRef, {
+            uid,
+            createdAt: serverTimestamp(),
+          });
+        }
 
-    transaction.set(
-      userRef,
-      {
-        uid,
-        name,
-        handle,
-        bio,
-        visibility,
-        avatar: avatar ?? null,
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-  });
+        transaction.set(
+          userRef,
+          {
+            uid,
+            name,
+            handle,
+            bio,
+            visibility,
+            avatar: avatar ?? null,
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      })
+  );
 
   return handle;
 };
