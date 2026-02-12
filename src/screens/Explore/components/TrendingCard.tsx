@@ -21,12 +21,17 @@ type Props = {
 
 export default function TrendingCard({ person, labels, theme }: Props) {
   const isFollowing = person.isFollowing;
+  const hasAvatar = Boolean(person.avatar);
 
   return (
     <View style={styles.card}>
       <View style={[styles.avatarShell, { backgroundColor: person.isPro ? theme.primary : theme.surface }]}> 
         <View style={[styles.avatarInner, { backgroundColor: theme.background }]}> 
-          <Image source={{ uri: person.avatar }} style={styles.avatar} />
+          {hasAvatar ? (
+            <Image source={{ uri: person.avatar }} style={styles.avatar} />
+          ) : (
+            <View style={[styles.avatar, styles.avatarFallback]} />
+          )}
         </View>
         {person.isPro ? (
           <View style={[styles.proBadge, { backgroundColor: theme.accentGold }]}>
@@ -81,6 +86,9 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 14,
+  },
+  avatarFallback: {
+    backgroundColor: '#dbe4ee',
   },
   proBadge: {
     position: 'absolute',

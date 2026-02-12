@@ -14,10 +14,16 @@ type Props = {
 };
 
 export default function RecentRow({ person, onRemove, theme }: Props) {
+  const hasAvatar = Boolean(person.avatar);
+
   return (
     <View style={styles.row}>
       <View style={[styles.avatarWrap, { backgroundColor: theme.surface }]}> 
-        <Image source={{ uri: person.avatar }} style={styles.avatar} />
+        {hasAvatar ? (
+          <Image source={{ uri: person.avatar }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]} />
+        )}
       </View>
       <View style={styles.meta}>
         <Text style={[styles.name, { color: theme.textPrimary }]}>{person.name}</Text>
@@ -46,6 +52,9 @@ const styles = StyleSheet.create({
   avatar: {
     width: '100%',
     height: '100%',
+  },
+  avatarFallback: {
+    backgroundColor: '#dbe4ee',
   },
   meta: {
     flex: 1,

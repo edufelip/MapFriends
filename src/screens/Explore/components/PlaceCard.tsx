@@ -16,10 +16,16 @@ type Props = {
 };
 
 export default function PlaceCard({ place, theme }: Props) {
+  const hasImage = Boolean(place.image);
+
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}>
       <View style={styles.imageWrap}>
-        <Image source={{ uri: place.image }} style={styles.image} />
+        {hasImage ? (
+          <Image source={{ uri: place.image }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.imageFallback]} />
+        )}
         {place.isPremium ? (
           <View style={[styles.premiumBadge, { backgroundColor: theme.accentGold }]}>
             <MaterialIcons name="star" size={12} color="#0f172a" />
@@ -51,6 +57,9 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  imageFallback: {
+    backgroundColor: '#dbe4ee',
   },
   premiumBadge: {
     position: 'absolute',

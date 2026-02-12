@@ -14,9 +14,15 @@ type Props = {
 };
 
 export default function NotificationPreviewCard({ preview, theme }: Props) {
+  const hasImage = Boolean(preview.image);
+
   return (
     <View style={[styles.card, { backgroundColor: theme.surfaceMuted, borderColor: theme.border }]}> 
-      <Image source={{ uri: preview.image }} style={styles.image} />
+      {hasImage ? (
+        <Image source={{ uri: preview.image }} style={styles.image} />
+      ) : (
+        <View style={[styles.image, styles.imageFallback]} />
+      )}
       <View style={styles.content}>
         <Text style={[styles.title, { color: theme.textPrimary }]}>{preview.title}</Text>
         <View style={styles.location}>
@@ -42,6 +48,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 10,
+  },
+  imageFallback: {
+    backgroundColor: '#dbe4ee',
   },
   content: {
     flex: 1,

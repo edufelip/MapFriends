@@ -4,15 +4,22 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { NotificationBadge } from '../../../services/notifications';
 
 type Props = {
-  avatar: string;
+  avatar?: string | null;
   badge?: NotificationBadge | null;
   background: string;
 };
 
 export default function AvatarWithBadge({ avatar, badge, background }: Props) {
+  const avatarUri = avatar || undefined;
+  const hasAvatar = Boolean(avatarUri);
+
   return (
     <View style={styles.wrapper}>
-      <Image source={{ uri: avatar }} style={styles.avatar} />
+      {hasAvatar ? (
+        <Image source={{ uri: avatarUri }} style={styles.avatar} />
+      ) : (
+        <View style={[styles.avatar, styles.avatarFallback]} />
+      )}
       {badge ? (
         <View style={[styles.badge, { backgroundColor: badge.color, borderColor: background }]}> 
           <MaterialIcons name={badge.icon as any} size={10} color="#ffffff" />
@@ -31,6 +38,9 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
     borderRadius: 24,
+  },
+  avatarFallback: {
+    backgroundColor: '#e2e8f0',
   },
   badge: {
     position: 'absolute',

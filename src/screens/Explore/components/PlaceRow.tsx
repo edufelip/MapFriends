@@ -15,10 +15,16 @@ type Props = {
 };
 
 export default function PlaceRow({ place, theme }: Props) {
+  const hasImage = Boolean(place.image);
+
   return (
     <View style={styles.row}>
       <View style={[styles.imageWrap, { backgroundColor: theme.surface }]}> 
-        <Image source={{ uri: place.image }} style={styles.image} />
+        {hasImage ? (
+          <Image source={{ uri: place.image }} style={styles.image} />
+        ) : (
+          <View style={[styles.image, styles.imageFallback]} />
+        )}
       </View>
       <View style={styles.meta}>
         <View style={styles.titleRow}>
@@ -55,6 +61,9 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  imageFallback: {
+    backgroundColor: '#dbe4ee',
   },
   meta: {
     flex: 1,

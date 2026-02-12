@@ -25,6 +25,14 @@ export default function PhotoStrip({
   countLabel,
   theme,
 }: Props) {
+  const photoEntries = React.useMemo(
+    () =>
+      photos
+        .map((uri, index) => ({ uri, index }))
+        .filter((entry) => Boolean(entry.uri)),
+    [photos]
+  );
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -43,7 +51,7 @@ export default function PhotoStrip({
             <MaterialIcons name="add-a-photo" size={20} color={theme.primary} />
           </View>
         </Pressable>
-        {photos.map((uri, index) => (
+        {photoEntries.map(({ uri, index }) => (
           <View key={`${uri}-${index}`} style={styles.photoTile}>
             <Image source={{ uri }} style={styles.photo} />
             <Pressable style={styles.removeButton} onPress={() => onRemove(index)}>
