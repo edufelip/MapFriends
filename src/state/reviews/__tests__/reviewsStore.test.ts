@@ -198,4 +198,51 @@ describe('reviewsStore', () => {
 
     expect(useReviewStore.getState().reviewsById['review-1']?.notes).toBe('Updated');
   });
+
+  it('refreshes persisted reviews when explicitly requested', async () => {
+    useReviewStore.getState().upsertReview({
+      id: 'review-1',
+      placeId: 'place-1',
+      placeTitle: 'A',
+      placeCoordinates: null,
+      title: 'A',
+      notes: 'Stale',
+      rating: 8,
+      visibility: 'followers',
+      userId: 'user-1',
+      userName: 'A',
+      userHandle: 'a',
+      userAvatar: null,
+      photos: [],
+      photoUrls: [],
+      createdAt: '2026-02-10T10:00:00.000Z',
+      updatedAt: '2026-02-10T10:00:00.000Z',
+    });
+
+    mockGetRecentReviews.mockResolvedValueOnce([
+      {
+        id: 'review-1',
+        placeId: 'place-1',
+        placeTitle: 'A',
+        placeCoordinates: null,
+        title: 'A',
+        notes: 'Fresh',
+        rating: 9,
+        visibility: 'followers',
+        userId: 'user-1',
+        userName: 'A',
+        userHandle: 'a',
+        userAvatar: null,
+        photos: [],
+        photoUrls: [],
+        createdAt: '2026-02-10T10:00:00.000Z',
+        updatedAt: '2026-02-10T12:00:00.000Z',
+      },
+    ] as any);
+
+    await useReviewStore.getState().refreshReviews();
+
+    expect(mockGetRecentReviews).toHaveBeenCalled();
+    expect(useReviewStore.getState().reviewsById['review-1']?.notes).toBe('Fresh');
+  });
 });

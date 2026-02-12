@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import MapHomeScreen from '../MapHomeScreen';
 
 const mockMapTab = jest.fn(() => null);
@@ -12,6 +12,7 @@ const mockGetForegroundPermissionsAsync = jest.fn();
 const mockRequestForegroundPermissionsAsync = jest.fn();
 const mockGetLastKnownPositionAsync = jest.fn();
 const mockGetCurrentPositionAsync = jest.fn();
+const mockRefreshReviews = jest.fn();
 
 jest.mock('@rnmapbox/maps', () => ({
   setAccessToken: jest.fn(),
@@ -46,12 +47,10 @@ jest.mock('../../../services/auth', () => ({
   }),
 }));
 
-jest.mock('../../../services/feed', () => ({
-  getFeedPosts: () => [],
-}));
-
 jest.mock('../../../state/reviews', () => ({
   useHydrateReviewState: jest.fn(),
+  useRefreshReviews: () => mockRefreshReviews,
+  useReviewHydrating: () => false,
   useReviewFeedPosts: () => [],
   useReviewPins: () => [],
 }));
@@ -97,6 +96,7 @@ describe('MapHomeScreen', () => {
     mockRequestForegroundPermissionsAsync.mockResolvedValue({ status: 'granted' });
     mockGetLastKnownPositionAsync.mockResolvedValue(null);
     mockGetCurrentPositionAsync.mockResolvedValue(null);
+    mockRefreshReviews.mockResolvedValue(undefined);
   });
 
   it('shows a location explanation before requesting Android permission when not granted', async () => {
@@ -152,5 +152,23 @@ describe('MapHomeScreen', () => {
     expect(mockFeedTab).toHaveBeenCalled();
     fireEvent.press(screen.getByText('Map'));
     expect(onHomeModeChange).toHaveBeenCalledWith('map');
+  });
+
+  it('re-triggers map fit after feed refresh', async () => {
+    render(<MapHomeScreen navigation={navigation} route={{ key: 'MapHome', name: 'MapHome' }} />);
+
+    const feedProps = mockFeedTab.mock.calls.at(-1)?.[0];
+    expect(feedProps).toBeTruthy();
+
+    await act(async () => {
+      await feedProps.onRefresh();
+    });
+
+    expect(mockRefreshReviews).toHaveBeenCalled();
+    expect(mockMapTab).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        fitTrigger: 1,
+      })
+    );
   });
 });

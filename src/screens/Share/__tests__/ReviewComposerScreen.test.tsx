@@ -5,6 +5,7 @@ import ReviewComposerScreen from '../ReviewComposerScreen';
 import { getStrings } from '../../../localization/strings';
 
 const mockSearchPlaces = jest.fn();
+const mockResolveLocationHintCoordinates = jest.fn();
 const mockPickReviewPhotosFromLibrary = jest.fn();
 const mockCreateReviewAndStore = jest.fn();
 const mockUpdateReviewAndStore = jest.fn();
@@ -17,6 +18,7 @@ jest.mock('../../../services/map', () => ({
 
 jest.mock('../../../services/locationSearch', () => ({
   searchLocationHints: (...args: unknown[]) => mockSearchPlaces(...args),
+  resolveLocationHintCoordinates: (...args: unknown[]) => mockResolveLocationHintCoordinates(...args),
 }));
 
 jest.mock('../../../services/media/reviewPhotoPicker', () => ({
@@ -55,6 +57,7 @@ describe('ReviewComposerScreen location picker flow', () => {
   beforeEach(() => {
     jest.useFakeTimers();
     mockSearchPlaces.mockReset();
+    mockResolveLocationHintCoordinates.mockReset();
     mockPickReviewPhotosFromLibrary.mockReset();
     mockCreateReviewAndStore.mockReset();
     mockUpdateReviewAndStore.mockReset();
@@ -67,6 +70,15 @@ describe('ReviewComposerScreen location picker flow', () => {
         avatar: null,
       },
     });
+    mockResolveLocationHintCoordinates.mockImplementation(async (hint: {
+      id: string;
+      title: string;
+      subtitle: string;
+      coordinates: [number, number] | null;
+    }) => ({
+      ...hint,
+      coordinates: hint.coordinates || [-46.633308, -23.55052],
+    }));
     alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
   });
 
@@ -297,7 +309,55 @@ describe('ReviewComposerScreen location picker flow', () => {
 
     await waitFor(() => {
       expect(mockCreateReviewAndStore).toHaveBeenCalled();
+      expect(mockResolveLocationHintCoordinates).toHaveBeenCalled();
       expect(navigation.goBack).toHaveBeenCalled();
+    });
+  });
+
+  it('blocks submit when location coordinates cannot be resolved', async () => {
+    const strings = getStrings();
+    const navigation = { goBack: jest.fn() };
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+    mockResolveLocationHintCoordinates.mockResolvedValueOnce({
+      id: 'place-002',
+      title: 'Old Town Market',
+      subtitle: 'Food · Old Town',
+      coordinates: null,
+    });
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={navigation as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Loved this place');
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    await waitFor(() => {
+      expect(mockCreateReviewAndStore).not.toHaveBeenCalled();
+      expect(navigation.goBack).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        strings.reviewComposer.post,
+        strings.reviewComposer.locationResolveError
+      );
     });
   });
 
@@ -422,6 +482,8 @@ describe('ReviewComposerScreen location picker flow', () => {
     fireEvent.press(screen.getByTestId('review-submit'));
     fireEvent.press(screen.getByTestId('review-submit'));
 
-    expect(mockCreateReviewAndStore).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(mockCreateReviewAndStore).toHaveBeenCalledTimes(1);
+    });
   });
 });

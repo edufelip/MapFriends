@@ -1,4 +1,4 @@
-import { searchLocationHints } from '../locationSearch';
+import { resolveLocationHintCoordinates, searchLocationHints } from '../locationSearch';
 
 const mockSearchPlaces = jest.fn();
 
@@ -84,6 +84,54 @@ describe('searchLocationHints', () => {
     expect(mockSearchPlaces).toHaveBeenCalledWith('ramen', 6);
     expect(hints[0].title).toBe('Fallback Ramen');
 
+    fetchSpy.mockRestore();
+  });
+});
+
+describe('resolveLocationHintCoordinates', () => {
+  it('resolves coordinates from Mapbox searchbox retrieve when missing', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch' as any).mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        features: [
+          {
+            geometry: {
+              coordinates: [-73.99, 40.73],
+            },
+          },
+        ],
+      }),
+    } as Response);
+
+    const resolved = await resolveLocationHintCoordinates(
+      {
+        id: 'urn:mbxpoi:123',
+        title: 'Blue Bottle Coffee',
+        subtitle: 'Brooklyn',
+        coordinates: null,
+      },
+      { token: 'pk.test' }
+    );
+
+    expect(resolved.coordinates).toEqual([-73.99, 40.73]);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    fetchSpy.mockRestore();
+  });
+
+  it('returns same hint when token is missing', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch' as any);
+    const hint = {
+      id: 'urn:mbxpoi:123',
+      title: 'Blue Bottle Coffee',
+      subtitle: 'Brooklyn',
+      coordinates: null as [number, number] | null,
+    };
+
+    const resolved = await resolveLocationHintCoordinates(hint, { token: '' });
+
+    expect(resolved).toEqual(hint);
+    expect(fetchSpy).not.toHaveBeenCalled();
     fetchSpy.mockRestore();
   });
 });
