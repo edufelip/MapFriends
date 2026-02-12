@@ -113,6 +113,16 @@ const randomNonce = (length = 32) => {
   return result;
 };
 
+const getErrorCode = (error: unknown) => {
+  if (!error || typeof error !== 'object' || !('code' in error)) {
+    return null;
+  }
+  const code = (error as { code?: unknown }).code;
+  return typeof code === 'string' ? code : null;
+};
+
+const isPermissionDeniedError = (error: unknown) => getErrorCode(error) === 'permission-denied';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<User | null>(null);
   const [hasAcceptedTerms, setHasAcceptedTerms] = React.useState(false);
@@ -123,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthActionLoading, setIsAuthActionLoading] = React.useState(false);
   const [authError, setAuthError] = React.useState<string | null>(null);
   const [appleAvailable, setAppleAvailable] = React.useState(false);
+  const blockedRemoteMetaUidRef = React.useRef<string | null>(null);
 
   const [googleRequest, , promptGoogleAuth] = Google.useIdTokenAuthRequest(
     {
@@ -139,6 +150,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const clearAuthError = React.useCallback(() => {
     setAuthError(null);
+  }, []);
+
+  const isRemoteMetaSyncBlocked = React.useCallback(
+    (uid: string) => blockedRemoteMetaUidRef.current === uid,
+    []
+  );
+
+  const blockRemoteMetaSync = React.useCallback((uid: string) => {
+    blockedRemoteMetaUidRef.current = uid;
   }, []);
 
   const readRemoteUserMeta = React.useCallback(async (uid: string): Promise<RemoteUserMeta | null> => {
@@ -168,10 +188,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         onboardingVersion:
           typeof data.onboardingVersion === 'number' ? data.onboardingVersion : ONBOARDING_VERSION,
       };
-    } catch {
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        blockRemoteMetaSync(uid);
+      }
       return null;
     }
-  }, []);
+  }, [blockRemoteMetaSync]);
 
   const readRemoteUserProfile = React.useCallback(async (uid: string): Promise<StoredProfile | null> => {
     if (!isFirebaseConfigured) {
@@ -202,6 +225,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isFirebaseConfigured) {
       return;
     }
+    if (isRemoteMetaSyncBlocked(meta.uid)) {
+      return;
+    }
     try {
       const db = getFirestoreDb();
       const userMetaRef = doc(db, 'userMeta', meta.uid);
@@ -225,10 +251,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             { merge: true }
           )
       );
-    } catch {
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        blockRemoteMetaSync(meta.uid);
+      }
       // Keep local flow functional if remote sync fails.
     }
-  }, []);
+  }, [blockRemoteMetaSync, isRemoteMetaSyncBlocked]);
 
   const persistOnboarding = React.useCallback(
     async (uid: string, next: Partial<StoredOnboarding>) => {
@@ -316,6 +345,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setHasAcceptedTerms(false);
         setHasCompletedProfile(false);
         setHasCompletedOnboarding(false);
+        blockedRemoteMetaUidRef.current = null;
         setIsBootstrappingAuth(false);
         return;
       }
@@ -361,10 +391,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsBootstrappingAuth(false);
 
       const shouldBackfillRemoteMeta =
-        !remoteMeta ||
-        remoteMeta.hasAcceptedTerms !== nextHasAcceptedTerms ||
-        remoteMeta.hasCompletedProfile !== nextHasCompletedProfile ||
-        remoteMeta.hasCompletedOnboarding !== nextHasCompletedOnboarding;
+        !isRemoteMetaSyncBlocked(firebaseUser.uid) &&
+        (
+          !remoteMeta ||
+          remoteMeta.hasAcceptedTerms !== nextHasAcceptedTerms ||
+          remoteMeta.hasCompletedProfile !== nextHasCompletedProfile ||
+          remoteMeta.hasCompletedOnboarding !== nextHasCompletedOnboarding
+        );
 
       if (shouldBackfillRemoteMeta) {
         void persistRemoteUserMeta({
@@ -387,6 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     readRemoteUserMeta,
     readRemoteUserProfile,
     seedUserStorage,
+    isRemoteMetaSyncBlocked,
   ]);
 
   React.useEffect(() => {

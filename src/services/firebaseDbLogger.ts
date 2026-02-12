@@ -23,10 +23,15 @@ const sanitizeDetails = (details: JsonLike) => {
 
 const toErrorMetadata = (error: unknown) => {
   if (error instanceof Error) {
-    return {
+    const metadata: JsonLike = {
       name: error.name,
       message: error.message,
     };
+    const code = (error as { code?: unknown }).code;
+    if (typeof code === 'string') {
+      metadata.code = code;
+    }
+    return metadata;
   }
   return {
     message: String(error),
