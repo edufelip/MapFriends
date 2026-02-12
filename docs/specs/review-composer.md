@@ -40,6 +40,8 @@ The Review Composer lets users create and edit reviews from the middle action in
 - New photos are compressed before upload and then sent to Firebase Storage.
 - If any write step fails after upload, uploaded files from that attempt are deleted (rollback).
 - Visibility is persisted.
+- On submit, if selected place coordinates are missing, app resolves coordinates before persistence.
+- If coordinate resolution fails, submit is blocked and user is asked to pick another location.
 
 ## Persistence Model
 - Firestore source of truth:
@@ -49,6 +51,10 @@ The Review Composer lets users create and edit reviews from the middle action in
 - Storage paths for review photos:
   - `reviews/{uid}/{reviewId}/photo-<timestamp>-<index>.jpg`
 - Each review persists `placeCoordinates` (when available) so map pins can be rendered from persisted data.
+- Coordinate backfill script exists for historical records with `placeCoordinates: null`:
+  - `scripts/backfill_review_coordinates.js`
+- Backfill script also supports a repair mode (`--repair`) to recompute coordinates from `placeId`
+  when prior fallback geocoding stored inaccurate coordinates.
 - Review writes use a Firestore batch to keep `reviews` and `userReviews` in sync atomically.
 - Review updates:
   - keep retained photos
@@ -72,3 +78,6 @@ Strings are defined under `reviewComposer` in `src/localization/strings.ts` for 
   - rollback deletes uploaded photos when write fails
   - update keeps retained photos and deletes removed assets
   - delete removes doc pair and cleans storage assets
+- Coordinate resolution:
+  - submit path resolves missing coordinates before create/update
+  - unresolved coordinates block submit with user feedback

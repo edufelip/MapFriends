@@ -29,6 +29,7 @@ Runtime behavior:
 - Builds running as `*.dev` use `*_DEV` IDs.
 - Non-dev builds use `*_PROD` IDs.
 - If an env-specific key is missing, the app falls back to the legacy key.
+- Storage bucket accepts either `mapfriends-92e3c.firebasestorage.app` or `gs://mapfriends-92e3c.firebasestorage.app` (both normalized internally).
 
 Notes:
 
@@ -38,4 +39,19 @@ Notes:
 ## Firestore Rules Deploy
 
 - Deploy Firestore rules with: `yarn firebase`
+- The script deploys both Firestore and Storage rules.
 - Requires Firebase CLI authentication (`firebase login`) and project selection (`firebase use <project-id>`).
+
+## Review Coordinates Backfill
+
+- Script: `yarn backfill:review-coordinates -- --dry-run`
+- Applies Mapbox coordinate resolution to reviews where `placeCoordinates` is `null`.
+- Update mode: `yarn backfill:review-coordinates`
+- Repair mode (recompute coordinates for all reviews from `placeId`): `yarn backfill:review-coordinates -- --repair`
+- Optional flags:
+  - `--limit <n>` or `--limit=<n>` to cap processed records.
+  - `--batch <n>` or `--batch=<n>` to control query batch size.
+- Required env for script execution:
+  - `FIREBASE_PROJECT_ID` (or `EXPO_PUBLIC_FIREBASE_PROJECT_ID`)
+  - `MAPBOX_TOKEN` (or `EXPO_PUBLIC_MAPBOX_TOKEN`)
+  - Admin credentials via `GOOGLE_APPLICATION_CREDENTIALS` (or equivalent ADC).
