@@ -12,15 +12,25 @@ type Props = {
     border: string;
     surface: string;
   };
-  moreLabel: string;
 };
 
-function FeedCard({ post, theme, moreLabel }: Props) {
+function FeedCard({ post, theme }: Props) {
+  const avatarUri = post.avatar || undefined;
+  const imageUri = post.image || undefined;
+  const hasAvatar = Boolean(avatarUri);
+  const hasImage = Boolean(imageUri);
+
   return (
     <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
       <View style={styles.header}>
         <View style={styles.authorRow}>
-          <Image source={{ uri: post.avatar }} style={styles.avatar} />
+          {hasAvatar ? (
+            <Image
+              source={{ uri: avatarUri }}
+              style={styles.avatar}
+              testID="feed-card-avatar"
+            />
+          ) : null}
           <View>
             <Text style={[styles.author, { color: theme.textPrimary }]}>{post.author}</Text>
             <Text style={[styles.time, { color: theme.textMuted }]}>{post.time}</Text>
@@ -28,19 +38,19 @@ function FeedCard({ post, theme, moreLabel }: Props) {
         </View>
         <MaterialIcons name="more-horiz" size={20} color={theme.textMuted} />
       </View>
-      <View style={styles.heroWrapper}>
-        <Image source={{ uri: post.image }} style={styles.hero} />
-        {post.rating ? (
-          <View style={[styles.ratingBadge, { backgroundColor: theme.primary }]}> 
-            <Text style={styles.ratingText}>{post.rating}</Text>
-          </View>
-        ) : null}
-      </View>
+      {hasImage ? (
+        <View style={styles.heroWrapper}>
+          <Image source={{ uri: imageUri }} style={styles.hero} testID="feed-card-image" />
+          {post.rating ? (
+            <View style={[styles.ratingBadge, { backgroundColor: theme.primary }]}> 
+              <Text style={styles.ratingText}>{post.rating}</Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.body}>
         <Text style={[styles.title, { color: theme.textPrimary }]}>{post.title}</Text>
-        <Text style={[styles.bodyText, { color: theme.textMuted }]}>
-          {post.body} <Text style={{ color: theme.primary }}>{moreLabel}</Text>
-        </Text>
+        <Text style={[styles.bodyText, { color: theme.textMuted }]}>{post.body}</Text>
       </View>
       <View style={[styles.actions, { borderTopColor: theme.border }]}>
         <View style={styles.actionGroup}>

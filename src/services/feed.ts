@@ -4,8 +4,8 @@ export type FeedPost = {
   id: string;
   author: string;
   time: string;
-  avatar: string;
-  image: string;
+  avatar: string | null;
+  image: string | null;
   rating?: string;
   title: string;
   body: string;

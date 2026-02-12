@@ -11,7 +11,6 @@ import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useAuth } from '../../services/auth';
-import { getFeedPosts } from '../../services/feed';
 import { getStrings } from '../../localization/strings';
 import { palette } from '../../theme/palette';
 import FeedTab from './components/FeedTab';
@@ -21,7 +20,13 @@ import SegmentedControl from './components/SegmentedControl';
 import { Routes } from '../../app/routes';
 import { createLocationPermissionStrategy } from '../../services/locationPermission/createLocationPermissionStrategy';
 import { ensureLocationPermission } from '../../services/locationPermission/ensureLocationPermission';
-import { useHydrateReviewState, useReviewFeedPosts, useReviewPins } from '../../state/reviews';
+import {
+  useHydrateReviewState,
+  useRefreshReviews,
+  useReviewFeedPosts,
+  useReviewHydrating,
+  useReviewPins,
+} from '../../state/reviews';
 
 type Props = NativeStackScreenProps<any> & {
   hideBottomNav?: boolean;
@@ -35,16 +40,20 @@ export default function MapHomeScreen({
   homeMode,
   onHomeModeChange,
 }: Props) {
+  const MIN_FEED_REFRESH_VISIBILITY_MS = 550;
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const { user } = useAuth();
-  useHydrateReviewState();
+  useHydrateReviewState(120, Boolean(user?.id));
   const reviewFeedPosts = useReviewFeedPosts();
   const reviewPins = useReviewPins();
-  const seededPosts = React.useMemo(() => getFeedPosts(), []);
-  const posts = React.useMemo(() => [...reviewFeedPosts, ...seededPosts], [reviewFeedPosts, seededPosts]);
+  const isReviewHydrating = useReviewHydrating();
+  const refreshReviews = useRefreshReviews();
+  const posts = reviewFeedPosts;
   const [activeTab, setActiveTab] = React.useState<'feed' | 'map'>(homeMode || 'map');
+  const [mapFitTrigger, setMapFitTrigger] = React.useState(0);
+  const [isFeedPullRefreshing, setIsFeedPullRefreshing] = React.useState(false);
   const [userCoordinate, setUserCoordinate] = React.useState<[number, number] | null>(null);
   const [locationResolved, setLocationResolved] = React.useState(false);
   const currentTab = homeMode ?? activeTab;
@@ -183,6 +192,31 @@ export default function MapHomeScreen({
     [homeMode, onHomeModeChange]
   );
 
+  const handleFeedRefresh = React.useCallback(async () => {
+    if (!user?.id) {
+      return;
+    }
+
+    if (isFeedPullRefreshing) {
+      return;
+    }
+
+    setIsFeedPullRefreshing(true);
+    const startedAt = Date.now();
+
+    try {
+      await refreshReviews();
+      setMapFitTrigger((prev) => prev + 1);
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remaining = MIN_FEED_REFRESH_VISIBILITY_MS - elapsed;
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+      setIsFeedPullRefreshing(false);
+    }
+  }, [isFeedPullRefreshing, refreshReviews, user?.id]);
+
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}> 
       <Animated.View
@@ -200,7 +234,6 @@ export default function MapHomeScreen({
             glass: theme.glass || 'rgba(16,22,34,0.8)',
           }}
           strings={{
-            sampleQuote: strings.home.sampleQuote,
             mapTokenMissing: strings.home.mapTokenMissing,
           }}
           hasToken={hasToken}
@@ -208,7 +241,7 @@ export default function MapHomeScreen({
           userCoordinate={userCoordinate}
           locationResolved={locationResolved}
           reviewPins={reviewPins}
-          onPlacePress={() => navigation.navigate(Routes.PlaceDetail, { placeId: 'place-001' })}
+          fitTrigger={mapFitTrigger}
         />
       </Animated.View>
 
@@ -224,6 +257,8 @@ export default function MapHomeScreen({
         <FeedTab
           posts={posts}
           onCreate={() => navigation.navigate(Routes.ShareReview)}
+          onRefresh={handleFeedRefresh}
+          refreshing={currentTab === 'feed' && (isReviewHydrating || isFeedPullRefreshing)}
           theme={{
             background: theme.background,
             surface: theme.surface,
@@ -235,11 +270,14 @@ export default function MapHomeScreen({
           }}
           strings={{
             title: strings.home.feedTitle,
-            more: strings.home.feedMore,
             premiumLabel: strings.home.feedPremiumLabel,
             premiumTitle: strings.home.feedPremiumTitle,
             premiumDesc: strings.home.feedPremiumDesc,
             premiumCta: strings.home.feedPremiumCta,
+            emptyTitle: strings.home.feedEmptyTitle,
+            emptySubtitle: strings.home.feedEmptySubtitle,
+            emptyCta: strings.home.feedEmptyCta,
+            emptyFootnote: strings.home.feedEmptyFootnote,
           }}
           topInset={insets.top}
           bottomInset={insets.bottom}

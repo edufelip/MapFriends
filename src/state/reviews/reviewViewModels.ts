@@ -1,6 +1,6 @@
 import { FeedPost } from '../../services/feed';
 import { getPlaceById } from '../../services/map';
-import { ReviewRecord } from '../../services/reviews';
+import { ReviewRecord, ReviewVisibility } from '../../services/reviews';
 
 export type ReviewMapPin = {
   id: string;
@@ -9,13 +9,16 @@ export type ReviewMapPin = {
   title: string;
   rating: number;
   coordinates: [number, number];
+  notes?: string;
+  userName?: string;
+  userHandle?: string;
+  visibility?: ReviewVisibility;
 };
 
-const DEFAULT_AVATAR =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuCyce5iNs54aPcVWL6IwovROAZizITVhbasawFGEGmLnyFfxYUNUjG9BPxSE_SYKxKC-o5Dj8hKrGJgNNvgqSmlXOIpedAZi3cz07KLSDYw3y4KSHm3HRlh1z9rAhmqVFJUB1LWLPUNwS5JfQp7q39BTBjhmExzvKQeL8s1avF-Zf0dIJfDqr7hbfPByggfYoROYoHEL_Ug5djjL8mrLOAX4opcLe-sLFmF5FvlbX1LowS9b1xb-8nHE83XziVmp7B6WQrl4ASWyOQ';
-
-const DEFAULT_IMAGE =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuBiHZql1FJihO-yZVmDa2uGJFQhUCujZqt9pBJ2NQYILrjw48I9_04a9gp7EqNskjGgygZv2guEMk2FokbnscNZDtprrGMNTwdopIbz1Y-Q4hUi8dMbfaAjAXJDATh_mKzlUBqf6qOkXrunRCHk3AMf0DLTG0JXq8RFq8v2S-vXvYUKmR4Azzg3NruWS7IekfKVLaLhvOKAwk-SEfWARuNIsXFt6ljSYpzm3kBQQD76HZgZBXgbaQZPq6gl4MB4BSQNYm037PBOVgI';
+export type ReviewCoordinateResolution = {
+  coordinates: [number, number] | null;
+  source: 'review' | 'seed' | 'none';
+};
 
 const isCoordinate = (value: unknown): value is [number, number] => {
   if (!Array.isArray(value) || value.length < 2) {
@@ -50,17 +53,26 @@ function toRelativeTime(dateIso: string) {
   return `${diffDays}d ago`;
 }
 
-function resolveCoordinates(review: ReviewRecord): [number, number] | null {
+export function resolveReviewCoordinates(review: ReviewRecord): ReviewCoordinateResolution {
   if (isCoordinate(review.placeCoordinates)) {
-    return review.placeCoordinates;
+    return {
+      coordinates: review.placeCoordinates,
+      source: 'review',
+    };
   }
 
   const place = getPlaceById(review.placeId);
   if (isCoordinate(place?.coordinates)) {
-    return place.coordinates;
+    return {
+      coordinates: place.coordinates,
+      source: 'seed',
+    };
   }
 
-  return null;
+  return {
+    coordinates: null,
+    source: 'none',
+  };
 }
 
 export function toFeedPost(review: ReviewRecord): FeedPost {
@@ -68,8 +80,8 @@ export function toFeedPost(review: ReviewRecord): FeedPost {
     id: `review-${review.id}`,
     author: review.userName,
     time: toRelativeTime(review.createdAt),
-    avatar: review.userAvatar || DEFAULT_AVATAR,
-    image: review.photoUrls[0] || DEFAULT_IMAGE,
+    avatar: review.userAvatar ?? null,
+    image: review.photoUrls[0] ?? null,
     rating: review.rating.toFixed(1),
     title: review.placeTitle,
     body: review.notes,
@@ -80,7 +92,7 @@ export function toFeedPost(review: ReviewRecord): FeedPost {
 }
 
 export function toReviewPin(review: ReviewRecord): ReviewMapPin | null {
-  const coordinates = resolveCoordinates(review);
+  const { coordinates } = resolveReviewCoordinates(review);
   if (!coordinates) {
     return null;
   }
@@ -92,5 +104,9 @@ export function toReviewPin(review: ReviewRecord): ReviewMapPin | null {
     title: review.placeTitle,
     rating: review.rating,
     coordinates,
+    notes: review.notes,
+    userName: review.userName,
+    userHandle: review.userHandle,
+    visibility: review.visibility,
   };
 }

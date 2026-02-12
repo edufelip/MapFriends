@@ -21,13 +21,24 @@ type Props = {
 };
 
 function PremiumFeedCard({ post, theme, labels }: Props) {
+  const avatarUri = post.avatar || undefined;
+  const imageUri = post.image || undefined;
+  const hasAvatar = Boolean(avatarUri);
+  const hasImage = Boolean(imageUri);
+
   return (
     <View style={styles.card}>
       <View style={styles.glow} />
       <View style={[styles.inner, { backgroundColor: theme.surface }]}> 
         <View style={styles.header}>
           <View style={styles.authorRow}>
-            <Image source={{ uri: post.avatar }} style={styles.avatar} />
+            {hasAvatar ? (
+              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarFallback}>
+                <MaterialIcons name="person" size={18} color={theme.textMuted} />
+              </View>
+            )}
             <View>
               <View style={styles.nameRow}>
                 <Text style={[styles.author, { color: theme.textPrimary }]}>{post.author}</Text>
@@ -43,7 +54,11 @@ function PremiumFeedCard({ post, theme, labels }: Props) {
         </View>
 
         <View style={styles.media}>
-          <Image source={{ uri: post.image }} style={styles.hero} />
+          {hasImage ? (
+            <Image source={{ uri: imageUri }} style={styles.hero} />
+          ) : (
+            <View style={[styles.hero, styles.heroFallback]} />
+          )}
           <View style={styles.overlay}>
             <View style={styles.iconWrap}>
               <MaterialIcons name="lock-open" size={26} color={theme.accentGold} />
@@ -99,6 +114,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: '#e2e8f0',
   },
+  avatarFallback: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   nameRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -138,6 +161,9 @@ const styles = StyleSheet.create({
   hero: {
     width: '100%',
     height: 180,
+  },
+  heroFallback: {
+    backgroundColor: '#1f2937',
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
