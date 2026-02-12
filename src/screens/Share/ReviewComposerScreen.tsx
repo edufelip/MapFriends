@@ -18,7 +18,7 @@ import {
   ReviewVisibility,
 } from '../../services/reviews';
 import { getPlaceById } from '../../services/map';
-import { LocationHint } from '../../services/locationSearch';
+import { LocationHint, resolveLocationHintCoordinates } from '../../services/locationSearch';
 import { getStrings } from '../../localization/strings';
 import { palette } from '../../theme/palette';
 import { pickReviewPhotosFromLibrary } from '../../services/media/reviewPhotoPicker';
@@ -142,6 +142,22 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
 
     submitLockRef.current = true;
     setIsSubmitting(true);
+
+    let resolvedPlace = selectedPlace;
+    if (!resolvedPlace.coordinates) {
+      resolvedPlace = await resolveLocationHintCoordinates(resolvedPlace);
+    }
+
+    if (!resolvedPlace.coordinates) {
+      Alert.alert(
+        strings.reviewComposer.post,
+        strings.reviewComposer.locationResolveError
+      );
+      submitLockRef.current = false;
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       author: {
         id: user.id,
@@ -150,9 +166,9 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
         avatar: user.avatar || null,
       },
       place: {
-        id: selectedPlace.id,
-        title: selectedPlace.title || strings.reviewComposer.defaultTitle,
-        coordinates: selectedPlace.coordinates,
+        id: resolvedPlace.id,
+        title: resolvedPlace.title || strings.reviewComposer.defaultTitle,
+        coordinates: resolvedPlace.coordinates,
       },
       notes: notes.trim(),
       rating,
@@ -189,6 +205,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
     selectedPlace,
     createReviewAndStore,
     strings.reviewComposer.defaultTitle,
+    strings.reviewComposer.locationResolveError,
     strings.reviewComposer.post,
     strings.reviewComposer.submitError,
     updateReviewAndStore,

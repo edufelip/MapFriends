@@ -14,6 +14,7 @@ type Options = {
 
 const MAPBOX_FORWARD_ENDPOINT = 'https://api.mapbox.com/search/geocode/v6/forward';
 const MAPBOX_SEARCHBOX_SUGGEST_ENDPOINT = 'https://api.mapbox.com/search/searchbox/v1/suggest';
+const MAPBOX_SEARCHBOX_RETRIEVE_ENDPOINT = 'https://api.mapbox.com/search/searchbox/v1/retrieve';
 const SHOULD_DEBUG_LOG = process.env.EXPO_PUBLIC_DEBUG_LOCATION_HINTS === '1';
 let requestSeq = 0;
 const SEARCHBOX_SESSION_TOKEN = Math.random().toString(36).slice(2, 14);
@@ -77,6 +78,21 @@ const toHintFromSearchboxSuggestion = (suggestion: any): LocationHint | null => 
     subtitle: String(subtitle),
     coordinates,
   };
+};
+
+const toFeatureCoordinates = (feature: any): [number, number] | null => {
+  if (!Array.isArray(feature?.geometry?.coordinates) || feature.geometry.coordinates.length < 2) {
+    return null;
+  }
+
+  const longitude = Number(feature.geometry.coordinates[0]);
+  const latitude = Number(feature.geometry.coordinates[1]);
+
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return null;
+  }
+
+  return [longitude, latitude];
 };
 
 const toHintFromLocalPlace = (place: any): LocationHint => ({
@@ -247,5 +263,119 @@ export async function searchLocationHints(
       error: error instanceof Error ? error.message : 'unknown',
     });
     return fallbackLocal(requestId, 'fallback-local-after-error', normalized, limit);
+  }
+}
+
+export async function resolveLocationHintCoordinates(
+  hint: LocationHint,
+  options: Options = {}
+): Promise<LocationHint> {
+  if (hint.coordinates) {
+    return hint;
+  }
+
+  const token = options.token || process.env.EXPO_PUBLIC_MAPBOX_TOKEN || '';
+  if (!token) {
+    return hint;
+  }
+
+  const requestId = ++requestSeq;
+
+  try {
+    const retrieveParams = new URLSearchParams({
+      access_token: token,
+      session_token: SEARCHBOX_SESSION_TOKEN,
+      language: 'en',
+    });
+    const retrieveUrl = `${MAPBOX_SEARCHBOX_RETRIEVE_ENDPOINT}/${encodeURIComponent(hint.id)}?${retrieveParams.toString()}`;
+
+    debugLog('searchbox-retrieve-request', {
+      requestId,
+      hintId: hint.id,
+      title: hint.title,
+      url: `${MAPBOX_SEARCHBOX_RETRIEVE_ENDPOINT}/${encodeURIComponent(hint.id)}?${new URLSearchParams({
+        access_token: '[redacted]',
+        session_token: SEARCHBOX_SESSION_TOKEN,
+        language: 'en',
+      }).toString()}`,
+    });
+
+    const retrieveResponse = await fetch(retrieveUrl);
+    debugLog('searchbox-retrieve-response', {
+      requestId,
+      hintId: hint.id,
+      status: retrieveResponse.status,
+      ok: retrieveResponse.ok,
+    });
+
+    if (retrieveResponse.ok) {
+      const retrieveData = await retrieveResponse.json();
+      const retrieveFeatures = Array.isArray(retrieveData?.features) ? retrieveData.features : [];
+      const coordinates = retrieveFeatures.map(toFeatureCoordinates).find(Boolean) || null;
+      if (coordinates) {
+        return {
+          ...hint,
+          coordinates,
+        };
+      }
+    } else {
+      const errorBody = await readResponseErrorBody(retrieveResponse);
+      debugLog('searchbox-retrieve-error', {
+        requestId,
+        hintId: hint.id,
+        status: retrieveResponse.status,
+        body: errorBody,
+      });
+    }
+
+    const geocodeParams = new URLSearchParams({
+      q: hint.title,
+      access_token: token,
+      autocomplete: 'false',
+      types: 'address,street,place,locality,neighborhood',
+      limit: '1',
+      language: 'en',
+    });
+    const geocodeUrl = `${MAPBOX_FORWARD_ENDPOINT}?${geocodeParams.toString()}`;
+
+    debugLog('mapbox-resolve-request', {
+      requestId,
+      hintId: hint.id,
+      title: hint.title,
+      url: `${MAPBOX_FORWARD_ENDPOINT}?${new URLSearchParams({
+        q: hint.title,
+        access_token: '[redacted]',
+        autocomplete: 'false',
+        types: 'address,street,place,locality,neighborhood',
+        limit: '1',
+        language: 'en',
+      }).toString()}`,
+    });
+
+    const geocodeResponse = await fetch(geocodeUrl);
+    debugLog('mapbox-resolve-response', {
+      requestId,
+      hintId: hint.id,
+      status: geocodeResponse.status,
+      ok: geocodeResponse.ok,
+    });
+
+    if (!geocodeResponse.ok) {
+      return hint;
+    }
+
+    const geocodeData = await geocodeResponse.json();
+    const geocodeFeatures = Array.isArray(geocodeData?.features) ? geocodeData.features : [];
+    const coordinates = geocodeFeatures.map(toFeatureCoordinates).find(Boolean) || null;
+    if (!coordinates) {
+      return hint;
+    }
+
+    return {
+      ...hint,
+      coordinates,
+    };
+  } catch {
+    return hint;
   }
 }
