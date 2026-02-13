@@ -2,7 +2,9 @@ import { createEngagementRepository } from './engagementRepository';
 import {
   CreateReviewCommentInput,
   ListReviewCommentsResult,
+  ReviewCommentCountState,
   ReviewCommentRecord,
+  ReviewLikeCountState,
   ReviewLikeState,
 } from './types';
 
@@ -11,7 +13,9 @@ const repository = createEngagementRepository();
 export type {
   CreateReviewCommentInput,
   ListReviewCommentsResult,
+  ReviewCommentCountState,
   ReviewCommentRecord,
+  ReviewLikeCountState,
   ReviewLikeState,
 };
 
@@ -28,6 +32,18 @@ export async function setReviewLiked(input: {
   liked: boolean;
 }): Promise<void> {
   return repository.setLiked(input);
+}
+
+export async function getReviewLikeCount(input: {
+  reviewId: string;
+}): Promise<ReviewLikeCountState> {
+  return repository.getLikeCount(input);
+}
+
+export async function getReviewCommentCount(input: {
+  reviewId: string;
+}): Promise<ReviewCommentCountState> {
+  return repository.getCommentCount(input);
 }
 
 export async function listReviewComments(input: {

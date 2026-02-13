@@ -102,6 +102,8 @@ export default function FeedTab({
   );
 
   const hydrateLikeState = useEngagementStore((state) => state.hydrateLikeState);
+  const hydrateLikeCount = useEngagementStore((state) => state.hydrateLikeCount);
+  const hydrateCommentCount = useEngagementStore((state) => state.hydrateCommentCount);
   const likedByReviewId = useEngagementStore((state) => state.likedByReviewId);
   const likeHydratingByReviewId = useEngagementStore((state) => state.likeHydratingByReviewId);
   const toggleLike = useToggleReviewLike();
@@ -140,6 +142,26 @@ export default function FeedTab({
       void hydrateLikeState({ reviewId, userId: viewer.id });
     });
   }, [hydrateLikeState, reviewIds, viewer?.id]);
+
+  React.useEffect(() => {
+    if (viewer?.id || reviewIds.length === 0) {
+      return;
+    }
+
+    reviewIds.forEach((reviewId) => {
+      void hydrateLikeCount({ reviewId });
+    });
+  }, [hydrateLikeCount, reviewIds, viewer?.id]);
+
+  React.useEffect(() => {
+    if (reviewIds.length === 0) {
+      return;
+    }
+
+    reviewIds.forEach((reviewId) => {
+      void hydrateCommentCount({ reviewId });
+    });
+  }, [hydrateCommentCount, reviewIds]);
 
   const contentContainerStyle = React.useMemo(
     () => [

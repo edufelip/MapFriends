@@ -5,6 +5,11 @@ export type ReviewLikeState = {
   likeCount: number;
 };
 
+export type ReviewLikeCountState = {
+  reviewId: string;
+  likeCount: number;
+};
+
 export type ReviewCommentRecord = {
   id: string;
   reviewId: string;
@@ -15,6 +20,11 @@ export type ReviewCommentRecord = {
   text: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ReviewCommentCountState = {
+  reviewId: string;
+  commentCount: number;
 };
 
 export type ListReviewCommentsResult = {

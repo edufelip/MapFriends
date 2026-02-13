@@ -29,12 +29,14 @@ export function useReviewRecords(): ReviewRecord[] {
 export function useReviewFeedPosts(): FeedPost[] {
   const reviewRecords = useReviewRecords();
   const likeCountByReviewId = useEngagementStore((state) => state.likeCountByReviewId);
+  const commentCountByReviewId = useEngagementStore((state) => state.commentCountByReviewId);
   const commentsByReviewId = useEngagementStore((state) => state.commentsByReviewId);
 
   return React.useMemo(
     () =>
       reviewRecords.map((review) => {
-        const commentCount = commentsByReviewId[review.id]?.items.length ?? 0;
+        const hydratedCommentCount = commentsByReviewId[review.id]?.items.length ?? 0;
+        const commentCount = commentCountByReviewId[review.id] ?? hydratedCommentCount;
         const likeCount = likeCountByReviewId[review.id] ?? 0;
 
         return toFeedPost(review, {
@@ -42,7 +44,7 @@ export function useReviewFeedPosts(): FeedPost[] {
           commentCount,
         });
       }),
-    [commentsByReviewId, likeCountByReviewId, reviewRecords]
+    [commentCountByReviewId, commentsByReviewId, likeCountByReviewId, reviewRecords]
   );
 }
 

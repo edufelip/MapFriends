@@ -3,6 +3,8 @@ import {
   createReviewComment,
   deleteReviewComment,
   getLikeState,
+  getReviewLikeCount,
+  getReviewCommentCount,
   listReviewComments,
   setReviewLiked,
   ReviewCommentRecord,
@@ -22,9 +24,14 @@ type EngagementState = {
   likedByReviewId: Record<string, boolean>;
   likeCountByReviewId: Record<string, number>;
   likeHydratingByReviewId: Record<string, boolean>;
+  likeCountHydratingByReviewId: Record<string, boolean>;
+  commentCountByReviewId: Record<string, number>;
+  commentCountHydratingByReviewId: Record<string, boolean>;
   commentsByReviewId: Record<string, CommentState>;
   hydrateLikeState: (input: { reviewId: string; userId: string; force?: boolean }) => Promise<void>;
   toggleLike: (input: { reviewId: string; userId: string }) => Promise<boolean>;
+  hydrateLikeCount: (input: { reviewId: string; force?: boolean }) => Promise<void>;
+  hydrateCommentCount: (input: { reviewId: string; force?: boolean }) => Promise<void>;
   hydrateComments: (input: { reviewId: string; limit?: number; force?: boolean }) => Promise<void>;
   postComment: (input: {
     reviewId: string;
@@ -69,6 +76,9 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
   likedByReviewId: {},
   likeCountByReviewId: {},
   likeHydratingByReviewId: {},
+  likeCountHydratingByReviewId: {},
+  commentCountByReviewId: {},
+  commentCountHydratingByReviewId: {},
   commentsByReviewId: {},
   hydrateLikeState: async ({ reviewId, userId, force = false }) => {
     if (!reviewId || !userId) {
@@ -153,6 +163,88 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
       throw error;
     }
   },
+  hydrateLikeCount: async ({ reviewId, force = false }) => {
+    if (!reviewId) {
+      return;
+    }
+
+    const currentHydrating = get().likeCountHydratingByReviewId[reviewId];
+    const alreadyLoaded = Object.prototype.hasOwnProperty.call(get().likeCountByReviewId, reviewId);
+
+    if (currentHydrating || (!force && alreadyLoaded)) {
+      return;
+    }
+
+    set((state) => ({
+      likeCountHydratingByReviewId: {
+        ...state.likeCountHydratingByReviewId,
+        [reviewId]: true,
+      },
+    }));
+
+    try {
+      const result = await getReviewLikeCount({ reviewId });
+      set((state) => ({
+        likeCountByReviewId: {
+          ...state.likeCountByReviewId,
+          [reviewId]: Math.max(0, result.likeCount),
+        },
+        likeCountHydratingByReviewId: {
+          ...state.likeCountHydratingByReviewId,
+          [reviewId]: false,
+        },
+      }));
+    } catch (error) {
+      set((state) => ({
+        likeCountHydratingByReviewId: {
+          ...state.likeCountHydratingByReviewId,
+          [reviewId]: false,
+        },
+      }));
+      throw error;
+    }
+  },
+  hydrateCommentCount: async ({ reviewId, force = false }) => {
+    if (!reviewId) {
+      return;
+    }
+
+    const currentHydrating = get().commentCountHydratingByReviewId[reviewId];
+    const alreadyLoaded = Object.prototype.hasOwnProperty.call(get().commentCountByReviewId, reviewId);
+
+    if (currentHydrating || (!force && alreadyLoaded)) {
+      return;
+    }
+
+    set((state) => ({
+      commentCountHydratingByReviewId: {
+        ...state.commentCountHydratingByReviewId,
+        [reviewId]: true,
+      },
+    }));
+
+    try {
+      const result = await getReviewCommentCount({ reviewId });
+      set((state) => ({
+        commentCountByReviewId: {
+          ...state.commentCountByReviewId,
+          [reviewId]: Math.max(0, result.commentCount),
+        },
+        commentCountHydratingByReviewId: {
+          ...state.commentCountHydratingByReviewId,
+          [reviewId]: false,
+        },
+      }));
+    } catch (error) {
+      set((state) => ({
+        commentCountHydratingByReviewId: {
+          ...state.commentCountHydratingByReviewId,
+          [reviewId]: false,
+        },
+      }));
+      throw error;
+    }
+  },
   hydrateComments: async ({ reviewId, limit = 50, force = false }) => {
     if (!reviewId) {
       return;
@@ -172,15 +264,27 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
 
     try {
       const result = await listReviewComments({ reviewId, limit });
-      set((state) => ({
-        commentsByReviewId: toNextCommentsState(state, reviewId, {
-          items: result.items.sort(byNewestComment),
-          isHydrating: false,
-          hydrated: true,
-          hasMore: result.hasMore,
-          error: null,
-        }),
-      }));
+      set((state) => {
+        const currentCount = state.commentCountByReviewId[reviewId] ?? 0;
+        const loadedCount = result.items.length;
+        const nextCount = result.hasMore
+          ? Math.max(currentCount, loadedCount)
+          : loadedCount;
+
+        return {
+          commentsByReviewId: toNextCommentsState(state, reviewId, {
+            items: result.items.sort(byNewestComment),
+            isHydrating: false,
+            hydrated: true,
+            hasMore: result.hasMore,
+            error: null,
+          }),
+          commentCountByReviewId: {
+            ...state.commentCountByReviewId,
+            [reviewId]: nextCount,
+          },
+        };
+      });
     } catch (error) {
       set((state) => ({
         commentsByReviewId: toNextCommentsState(state, reviewId, {
@@ -223,6 +327,7 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
 
       set((state) => {
         const current = state.commentsByReviewId[reviewId] || DEFAULT_COMMENT_STATE;
+        const prevCount = state.commentCountByReviewId[reviewId] ?? current.items.length;
         return {
           commentsByReviewId: toNextCommentsState(state, reviewId, {
             items: [created, ...current.items].sort(byNewestComment),
@@ -230,6 +335,10 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
             hydrated: true,
             error: null,
           }),
+          commentCountByReviewId: {
+            ...state.commentCountByReviewId,
+            [reviewId]: Math.max(0, prevCount + 1),
+          },
         };
       });
     } catch (error) {
@@ -271,6 +380,7 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
       set((state) => {
         const current = state.commentsByReviewId[reviewId] || DEFAULT_COMMENT_STATE;
         const nextDeleting = { ...current.deletingById };
+        const prevCount = state.commentCountByReviewId[reviewId] ?? current.items.length;
         delete nextDeleting[commentId];
         return {
           commentsByReviewId: toNextCommentsState(state, reviewId, {
@@ -278,6 +388,10 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
             deletingById: nextDeleting,
             error: null,
           }),
+          commentCountByReviewId: {
+            ...state.commentCountByReviewId,
+            [reviewId]: Math.max(0, prevCount - 1),
+          },
         };
       });
     } catch (error) {
@@ -300,6 +414,9 @@ export const useEngagementStore = create<EngagementState>((set, get) => ({
       likedByReviewId: {},
       likeCountByReviewId: {},
       likeHydratingByReviewId: {},
+      likeCountHydratingByReviewId: {},
+      commentCountByReviewId: {},
+      commentCountHydratingByReviewId: {},
       commentsByReviewId: {},
     });
   },

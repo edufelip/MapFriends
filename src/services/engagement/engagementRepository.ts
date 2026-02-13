@@ -3,13 +3,17 @@ import { runFirestoreOperation } from '../firebaseDbLogger';
 import {
   CreateReviewCommentInput,
   ListReviewCommentsResult,
+  ReviewCommentCountState,
   ReviewCommentRecord,
+  ReviewLikeCountState,
   ReviewLikeState,
 } from './types';
 
 type EngagementRepository = {
   getLikeState: (input: { reviewId: string; userId: string }) => Promise<ReviewLikeState>;
   setLiked: (input: { reviewId: string; userId: string; liked: boolean }) => Promise<void>;
+  getLikeCount: (input: { reviewId: string }) => Promise<ReviewLikeCountState>;
+  getCommentCount: (input: { reviewId: string }) => Promise<ReviewCommentCountState>;
   listComments: (input: { reviewId: string; limit: number }) => Promise<ListReviewCommentsResult>;
   createComment: (input: CreateReviewCommentInput) => Promise<ReviewCommentRecord>;
   deleteComment: (input: { reviewId: string; commentId: string; userId: string }) => Promise<void>;
@@ -91,6 +95,14 @@ function createLocalEngagementRepository(): EngagementRepository {
       }
       localLikesByReviewId[reviewId] = users;
     },
+    getLikeCount: async ({ reviewId }) => ({
+      reviewId,
+      likeCount: (localLikesByReviewId[reviewId] || new Set<string>()).size,
+    }),
+    getCommentCount: async ({ reviewId }) => ({
+      reviewId,
+      commentCount: Object.keys(localCommentsByReviewId[reviewId] || {}).length,
+    }),
     listComments: async ({ reviewId, limit }) => {
       const boundedLimit = Math.max(1, limit);
       const items = Object.values(localCommentsByReviewId[reviewId] || {})
@@ -193,6 +205,38 @@ function createFirestoreEngagementRepository(): EngagementRepository {
         { reviewId, userId, path: likeRef.path },
         () => deleteDoc(likeRef)
       );
+    },
+    getLikeCount: async ({ reviewId }) => {
+      const { collection, getCountFromServer } = await import('firebase/firestore');
+      const db = getFirestoreDb();
+      const likesRef = collection(db, 'reviewLikes', reviewId, 'users');
+
+      const countSnapshot = await runFirestoreOperation(
+        'engagement.getLikeCount',
+        { reviewId, path: likesRef.path },
+        () => getCountFromServer(likesRef)
+      );
+
+      return {
+        reviewId,
+        likeCount: countSnapshot.data().count,
+      };
+    },
+    getCommentCount: async ({ reviewId }) => {
+      const { collection, getCountFromServer } = await import('firebase/firestore');
+      const db = getFirestoreDb();
+      const commentsRef = collection(db, 'reviewComments', reviewId, 'items');
+
+      const countSnapshot = await runFirestoreOperation(
+        'engagement.getCommentCount',
+        { reviewId, path: commentsRef.path },
+        () => getCountFromServer(commentsRef)
+      );
+
+      return {
+        reviewId,
+        commentCount: countSnapshot.data().count,
+      };
     },
     listComments: async ({ reviewId, limit }) => {
       const { collection, getDocs, limit: limitFn, orderBy, query } = await import('firebase/firestore');
