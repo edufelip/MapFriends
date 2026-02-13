@@ -1,6 +1,7 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { LinkingOptions, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import * as ExpoLinking from 'expo-linking';
 import { useAuth } from '../services/auth';
 import { Routes } from './routes';
 import LoginScreen from '../screens/Auth/LoginScreen';
@@ -38,6 +39,15 @@ type RootStackParamList = {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+const linking: LinkingOptions<RootStackParamList> = {
+  prefixes: [ExpoLinking.createURL('/'), 'com.eduardo880.mapfriends://'],
+  config: {
+    screens: {
+      [Routes.ReviewDetail]: 'review/:reviewId',
+    },
+  },
+};
 
 function AuthStack() {
   return (
@@ -134,7 +144,7 @@ export default function AppNavigator() {
   } = useAuth();
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       {!isAuthenticated ? (
         <AuthStack />
       ) : !hasAcceptedTerms ? (

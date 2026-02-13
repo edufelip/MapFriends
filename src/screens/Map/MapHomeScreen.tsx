@@ -261,6 +261,7 @@ export default function MapHomeScreen({
           onRefresh={handleFeedRefresh}
           onOpenReview={(reviewId) => navigation.navigate(Routes.ReviewDetail, { reviewId })}
           refreshing={currentTab === 'feed' && (isReviewHydrating || isFeedPullRefreshing)}
+          viewer={user ? { id: user.id } : null}
           theme={{
             background: theme.background,
             surface: theme.surface,
@@ -280,6 +281,23 @@ export default function MapHomeScreen({
             emptySubtitle: strings.home.feedEmptySubtitle,
             emptyCta: strings.home.feedEmptyCta,
             emptyFootnote: strings.home.feedEmptyFootnote,
+            feedActionAuthTitle: strings.home.feedActionAuthTitle,
+            feedActionAuthMessage: strings.home.feedActionAuthMessage,
+            feedShareTitle: strings.home.feedShareTitle,
+            feedShareSubtitlePrefix: strings.home.feedShareSubtitlePrefix,
+            feedShareSystem: strings.home.feedShareSystem,
+            feedShareCopyLink: strings.home.feedShareCopyLink,
+            feedShareCopySuccessTitle: strings.home.feedShareCopySuccessTitle,
+            feedShareCopySuccessMessage: strings.home.feedShareCopySuccessMessage,
+            feedShareCopyErrorTitle: strings.home.feedShareCopyErrorTitle,
+            feedShareCopyErrorMessage: strings.home.feedShareCopyErrorMessage,
+            feedShareCancel: strings.home.feedShareCancel,
+            likeErrorTitle: strings.home.feedLikeErrorTitle,
+            likeErrorMessage: strings.home.feedLikeErrorMessage,
+            favoriteErrorTitle: strings.home.feedFavoriteErrorTitle,
+            favoriteErrorMessage: strings.home.feedFavoriteErrorMessage,
+            shareErrorTitle: strings.home.feedShareErrorTitle,
+            shareErrorMessage: strings.home.feedShareErrorMessage,
           }}
           topInset={insets.top}
           bottomInset={insets.bottom}
