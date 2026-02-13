@@ -75,9 +75,10 @@ export function resolveReviewCoordinates(review: ReviewRecord): ReviewCoordinate
   };
 }
 
-export function toFeedPost(review: ReviewRecord): FeedPost {
+export function toFeedPost(review: ReviewRecord, counts?: { likeCount?: number; commentCount?: number }): FeedPost {
   return {
     id: `review-${review.id}`,
+    reviewId: review.id,
     author: review.userName,
     time: toRelativeTime(review.createdAt),
     avatar: review.userAvatar ?? null,
@@ -85,8 +86,8 @@ export function toFeedPost(review: ReviewRecord): FeedPost {
     rating: review.rating.toFixed(1),
     title: review.placeTitle,
     body: review.notes,
-    likes: '0',
-    comments: '0',
+    likes: String(Math.max(0, counts?.likeCount ?? 0)),
+    comments: String(Math.max(0, counts?.commentCount ?? 0)),
     premium: false,
   };
 }

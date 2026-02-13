@@ -2,6 +2,7 @@ import React from 'react';
 import { FeedPost } from '../../services/feed';
 import { ReviewRecord } from '../../services/reviews';
 import { useShallow } from 'zustand/react/shallow';
+import { useEngagementStore } from '../engagement';
 import { logReviewPinDebug } from './reviewPinLogger';
 import { ReviewMapPin, resolveReviewCoordinates, toFeedPost } from './reviewViewModels';
 import { useReviewStore } from './reviewsStore';
@@ -12,13 +13,13 @@ const selectReviewRecords = (state: {
 }) => state.reviewIds.map((id) => state.reviewsById[id]).filter(Boolean);
 
 const selectHydrationGate = (state: {
-  hydrated: boolean;
   isHydrating: boolean;
   hydrateError: string | null;
+  lastHydratedAt: number | null;
 }) => ({
-  hydrated: state.hydrated,
   isHydrating: state.isHydrating,
   hydrateError: state.hydrateError,
+  lastHydratedAt: state.lastHydratedAt,
 });
 
 export function useReviewRecords(): ReviewRecord[] {
@@ -27,8 +28,22 @@ export function useReviewRecords(): ReviewRecord[] {
 
 export function useReviewFeedPosts(): FeedPost[] {
   const reviewRecords = useReviewRecords();
+  const likeCountByReviewId = useEngagementStore((state) => state.likeCountByReviewId);
+  const commentsByReviewId = useEngagementStore((state) => state.commentsByReviewId);
 
-  return React.useMemo(() => reviewRecords.map(toFeedPost), [reviewRecords]);
+  return React.useMemo(
+    () =>
+      reviewRecords.map((review) => {
+        const commentCount = commentsByReviewId[review.id]?.items.length ?? 0;
+        const likeCount = likeCountByReviewId[review.id] ?? 0;
+
+        return toFeedPost(review, {
+          likeCount,
+          commentCount,
+        });
+      }),
+    [commentsByReviewId, likeCountByReviewId, reviewRecords]
+  );
 }
 
 export function useReviewPins(): ReviewMapPin[] {
@@ -90,17 +105,25 @@ export function useReviewPins(): ReviewMapPin[] {
   return computation.pins;
 }
 
-export function useHydrateReviewState(limit = 120, enabled = true) {
-  const { hydrated, isHydrating, hydrateError } = useReviewStore(useShallow(selectHydrationGate));
+export function useHydrateReviewState(limit = 120, enabled = true, staleMs = 2 * 60 * 1000) {
+  const { isHydrating, hydrateError, lastHydratedAt } = useReviewStore(useShallow(selectHydrationGate));
   const hydrateReviews = useReviewStore((state) => state.hydrateReviews);
 
   React.useEffect(() => {
-    if (!enabled || hydrated || isHydrating || hydrateError) {
+    if (!enabled || isHydrating || hydrateError) {
       return;
     }
 
-    void hydrateReviews(limit);
-  }, [enabled, hydrateError, hydrateReviews, hydrated, isHydrating, limit]);
+    const hasFreshData =
+      typeof lastHydratedAt === 'number' &&
+      Date.now() - lastHydratedAt < staleMs;
+
+    if (hasFreshData) {
+      return;
+    }
+
+    void hydrateReviews(limit, { staleMs });
+  }, [enabled, hydrateError, hydrateReviews, isHydrating, lastHydratedAt, limit, staleMs]);
 }
 
 export function useReviewHydrating() {

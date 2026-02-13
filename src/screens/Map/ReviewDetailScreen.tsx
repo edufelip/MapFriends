@@ -26,7 +26,17 @@ import {
   useIsReviewFavorited,
   useToggleFavoriteReview,
 } from '../../state/favorites';
+import {
+  useDeleteReviewComment,
+  useHydrateReviewComments,
+  useHydrateReviewLikeState,
+  usePostReviewComment,
+  useReviewComments,
+  useReviewLikeState,
+  useToggleReviewLike,
+} from '../../state/engagement';
 import ReviewDetailBottomActionBar from './components/review-detail/ReviewDetailBottomActionBar';
+import ReviewDetailCommentsSection from './components/review-detail/ReviewDetailCommentsSection';
 import ReviewDetailExperienceSection from './components/review-detail/ReviewDetailExperienceSection';
 import ReviewDetailGallery from './components/review-detail/ReviewDetailGallery';
 import ReviewDetailHeaderOverlay from './components/review-detail/ReviewDetailHeaderOverlay';
@@ -56,13 +66,22 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
   const deleteReviewAndStore = useReviewStore((state) => state.deleteReviewAndStore);
 
   useHydrateFavoriteState(user?.id, Boolean(user?.id), 120);
+  useHydrateReviewLikeState(reviewId, user?.id);
+  useHydrateReviewComments(reviewId, 50);
+
   const isFavorited = useIsReviewFavorited(reviewId);
   const toggleFavorite = useToggleFavoriteReview();
+  const { liked, likeCount } = useReviewLikeState(reviewId);
+  const toggleLike = useToggleReviewLike();
+  const commentsState = useReviewComments(reviewId);
+  const postComment = usePostReviewComment();
+  const deleteComment = useDeleteReviewComment();
 
   const [review, setReview] = React.useState(cachedReview);
   const [isLoading, setIsLoading] = React.useState(true);
   const [isDeleting, setIsDeleting] = React.useState(false);
   const [isSavingFavorite, setIsSavingFavorite] = React.useState(false);
+  const [isTogglingLike, setIsTogglingLike] = React.useState(false);
 
   React.useEffect(() => {
     if (cachedReview) {
@@ -214,6 +233,21 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
     strings.reviewDetail.title,
   ]);
 
+  const handleToggleLike = React.useCallback(async () => {
+    if (!reviewId || !user?.id || isTogglingLike) {
+      return;
+    }
+
+    setIsTogglingLike(true);
+    try {
+      await toggleLike({ reviewId, userId: user.id });
+    } catch {
+      Alert.alert(strings.reviewDetail.likeErrorTitle, strings.reviewDetail.likeErrorMessage);
+    } finally {
+      setIsTogglingLike(false);
+    }
+  }, [isTogglingLike, reviewId, strings.reviewDetail.likeErrorMessage, strings.reviewDetail.likeErrorTitle, toggleLike, user?.id]);
+
   const handleToggleFavorite = React.useCallback(async () => {
     if (!review || !user?.id || isSavingFavorite) {
       return;
@@ -238,6 +272,39 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
     toggleFavorite,
     user?.id,
   ]);
+
+  const handleSubmitComment = React.useCallback(
+    async (text: string) => {
+      if (!reviewId || !user?.id) {
+        return;
+      }
+
+      await postComment({
+        reviewId,
+        userId: user.id,
+        userName: user.name || user.handle || 'User',
+        userHandle: user.handle || 'user',
+        userAvatar: user.avatar || null,
+        text,
+      });
+    },
+    [postComment, reviewId, user?.avatar, user?.handle, user?.id, user?.name]
+  );
+
+  const handleDeleteComment = React.useCallback(
+    async (commentId: string) => {
+      if (!reviewId || !user?.id) {
+        return;
+      }
+
+      await deleteComment({
+        reviewId,
+        commentId,
+        userId: user.id,
+      });
+    },
+    [deleteComment, reviewId, user?.id]
+  );
 
   const handleShare = React.useCallback(async () => {
     if (!review) {
@@ -311,7 +378,7 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}> 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 114 + insets.bottom }}
@@ -379,6 +446,38 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
               background: theme.background,
             }}
           />
+
+          <ReviewDetailCommentsSection
+            userId={user?.id}
+            comments={commentsState.items}
+            isHydrating={commentsState.isHydrating}
+            isPosting={commentsState.isPosting}
+            deletingById={commentsState.deletingById}
+            onSubmit={handleSubmitComment}
+            onDelete={handleDeleteComment}
+            labels={{
+              title: strings.reviewDetail.commentsTitle,
+              empty: strings.reviewDetail.commentsEmpty,
+              placeholder: strings.reviewDetail.commentsPlaceholder,
+              submit: strings.reviewDetail.commentsSubmit,
+              submitting: strings.reviewDetail.commentsSubmitting,
+              delete: strings.reviewDetail.delete,
+              deleteTitle: strings.reviewDetail.commentDeleteTitle,
+              deleteMessage: strings.reviewDetail.commentDeleteMessage,
+              deleteErrorTitle: strings.reviewDetail.commentDeleteErrorTitle,
+              deleteErrorMessage: strings.reviewDetail.commentDeleteErrorMessage,
+              cancel: strings.reviewDetail.cancel,
+            }}
+            theme={{
+              textPrimary: theme.textPrimary,
+              textMuted: theme.textMuted,
+              border: theme.border,
+              surface: theme.surface,
+              primary: theme.primary,
+              danger: theme.danger,
+              background: theme.background,
+            }}
+          />
         </View>
       </ScrollView>
 
@@ -395,11 +494,16 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
 
       <ReviewDetailBottomActionBar
         bottomInset={insets.bottom}
+        isLiked={liked}
+        likeCount={likeCount}
+        isTogglingLike={isTogglingLike}
+        onToggleLike={handleToggleLike}
         isFavorited={isFavorited}
         isSavingFavorite={isSavingFavorite}
         onToggleFavorite={handleToggleFavorite}
         onShare={handleShare}
         labels={{
+          like: strings.reviewDetail.like,
           save: strings.reviewDetail.saveToFavorites,
           saved: strings.reviewDetail.savedToFavorites,
         }}
@@ -408,6 +512,8 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
           surface: theme.surface,
           border: theme.border,
           textPrimary: theme.textPrimary,
+          textMuted: theme.textMuted,
+          danger: theme.danger,
           glass: theme.glass,
         }}
       />

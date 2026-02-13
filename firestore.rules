@@ -197,5 +197,85 @@ service cloud.firestore {
       allow delete: if isOwner(uid)
         && !existsAfter(reviewPath(reviewId));
     }
+
+    match /userFavorites/{uid}/items/{reviewId} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'reviewId',
+          'createdAt',
+          'snapshot',
+        ])
+        && request.resource.data.userId == uid
+        && request.resource.data.reviewId == reviewId
+        && request.resource.data.createdAt is string
+        && request.resource.data.snapshot is map
+        && request.resource.data.snapshot.keys().hasOnly([
+          'placeId',
+          'placeTitle',
+          'reviewTitle',
+          'reviewNotes',
+          'reviewRating',
+          'reviewPhotoUrl',
+          'reviewAuthorId',
+          'reviewAuthorName',
+          'reviewAuthorHandle',
+          'reviewAuthorAvatar',
+        ])
+        && request.resource.data.snapshot.placeId is string
+        && request.resource.data.snapshot.placeTitle is string
+        && request.resource.data.snapshot.reviewTitle is string
+        && request.resource.data.snapshot.reviewNotes is string
+        && request.resource.data.snapshot.reviewRating is number
+        && (request.resource.data.snapshot.reviewPhotoUrl == null || request.resource.data.snapshot.reviewPhotoUrl is string)
+        && request.resource.data.snapshot.reviewAuthorId is string
+        && request.resource.data.snapshot.reviewAuthorName is string
+        && request.resource.data.snapshot.reviewAuthorHandle is string
+        && (request.resource.data.snapshot.reviewAuthorAvatar == null || request.resource.data.snapshot.reviewAuthorAvatar is string);
+      allow delete: if isOwner(uid);
+    }
+
+
+    match /reviewLikes/{reviewId}/users/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'reviewId',
+          'userId',
+          'createdAt',
+        ])
+        && request.resource.data.reviewId == reviewId
+        && request.resource.data.userId == uid
+        && request.resource.data.createdAt is string;
+      allow delete: if isOwner(uid);
+    }
+
+    match /reviewComments/{reviewId}/items/{commentId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'reviewId',
+          'userId',
+          'userName',
+          'userHandle',
+          'userAvatar',
+          'text',
+          'createdAt',
+          'updatedAt',
+        ])
+        && request.resource.data.reviewId == reviewId
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.userName is string
+        && request.resource.data.userHandle is string
+        && (request.resource.data.userAvatar == null || request.resource.data.userAvatar is string)
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 200
+        && request.resource.data.createdAt is string
+        && request.resource.data.updatedAt is string;
+      allow update: if false;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
   }
 }
