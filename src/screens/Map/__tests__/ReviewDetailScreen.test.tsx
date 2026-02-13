@@ -11,6 +11,11 @@ const mockGetPlaceById = jest.fn();
 const mockServiceGetReviewById = jest.fn();
 const mockReviewDetailHeaderOverlay = jest.fn();
 const mockPrefetchReviewImages = jest.fn();
+const mockUseReviewLikeState = jest.fn();
+const mockUseReviewComments = jest.fn();
+const mockToggleReviewLike = jest.fn();
+const mockPostReviewComment = jest.fn();
+const mockDeleteReviewComment = jest.fn();
 
 let mockReviewStoreState: any;
 let mockAuthUserId = 'user-1';
@@ -61,8 +66,18 @@ jest.mock('../../../state/favorites', () => ({
   useToggleFavoriteReview: () => mockToggleFavoriteReview,
 }));
 
+jest.mock('../../../state/engagement', () => ({
+  useHydrateReviewLikeState: jest.fn(),
+  useHydrateReviewComments: jest.fn(),
+  useReviewLikeState: () => mockUseReviewLikeState(),
+  useReviewComments: () => mockUseReviewComments(),
+  useToggleReviewLike: () => mockToggleReviewLike,
+  usePostReviewComment: () => mockPostReviewComment,
+  useDeleteReviewComment: () => mockDeleteReviewComment,
+}));
+
 jest.mock('../../../services/auth', () => ({
-  useAuth: () => ({ user: { id: mockAuthUserId } }),
+  useAuth: () => ({ user: { id: mockAuthUserId, name: 'Alex', handle: 'alex', avatar: null } }),
 }));
 
 jest.mock('../../../services/map', () => ({
@@ -101,6 +116,18 @@ jest.mock('../../../localization/strings', () => ({
       edit: 'Edit',
       saveToFavorites: 'Save',
       savedToFavorites: 'Saved',
+      like: 'Like',
+      likeErrorTitle: 'Like error',
+      likeErrorMessage: 'Like failed',
+      commentsTitle: 'Comments',
+      commentsEmpty: 'No comments',
+      commentsPlaceholder: 'Write...',
+      commentsSubmit: 'Post',
+      commentsSubmitting: 'Posting...',
+      commentDeleteTitle: 'Delete comment',
+      commentDeleteMessage: 'Delete?',
+      commentDeleteErrorTitle: 'Delete error',
+      commentDeleteErrorMessage: 'Delete failed',
     },
   }),
 }));
@@ -135,6 +162,7 @@ jest.mock('../components/review-detail/ReviewDetailReviewerRow', () => () => nul
 jest.mock('../components/review-detail/ReviewDetailPlaceSection', () => () => null);
 jest.mock('../components/review-detail/ReviewDetailExperienceSection', () => () => null);
 jest.mock('../components/review-detail/ReviewDetailSocialProofSection', () => () => null);
+jest.mock('../components/review-detail/ReviewDetailCommentsSection', () => () => null);
 jest.mock('../components/review-detail/ReviewDetailBottomActionBar', () => () => null);
 
 describe('ReviewDetailScreen', () => {
@@ -147,6 +175,11 @@ describe('ReviewDetailScreen', () => {
     mockServiceGetReviewById.mockReset();
     mockReviewDetailHeaderOverlay.mockReset();
     mockPrefetchReviewImages.mockReset();
+    mockUseReviewLikeState.mockReset();
+    mockUseReviewComments.mockReset();
+    mockToggleReviewLike.mockReset();
+    mockPostReviewComment.mockReset();
+    mockDeleteReviewComment.mockReset();
     mockAuthUserId = 'user-1';
 
     mockUseReviewRecords.mockReturnValue([]);
@@ -155,6 +188,16 @@ describe('ReviewDetailScreen', () => {
       category: 'Cafe',
       rating: 9.1,
       address: 'Main Street',
+    });
+    mockUseReviewLikeState.mockReturnValue({ liked: false, likeCount: 0, isHydrating: false });
+    mockUseReviewComments.mockReturnValue({
+      items: [],
+      isHydrating: false,
+      isPosting: false,
+      hydrated: true,
+      hasMore: false,
+      error: null,
+      deletingById: {},
     });
 
     mockReviewStoreState = {
