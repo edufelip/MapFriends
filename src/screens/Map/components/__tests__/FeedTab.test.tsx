@@ -4,6 +4,8 @@ import * as Clipboard from 'expo-clipboard';
 import { Share } from 'react-native';
 
 const mockHydrateLikeState = jest.fn();
+const mockHydrateLikeCount = jest.fn();
+const mockHydrateCommentCount = jest.fn();
 const mockToggleLike = jest.fn(async () => true);
 const mockToggleFavorite = jest.fn(async () => true);
 
@@ -12,7 +14,10 @@ jest.mock('../../../../state/engagement', () => ({
     selector({
       likedByReviewId: { 'review-1': false },
       likeHydratingByReviewId: {},
+      commentCountByReviewId: { 'review-1': 0 },
       hydrateLikeState: mockHydrateLikeState,
+      hydrateLikeCount: mockHydrateLikeCount,
+      hydrateCommentCount: mockHydrateCommentCount,
     }),
   useToggleReviewLike: () => mockToggleLike,
 }));
@@ -243,6 +248,61 @@ describe('FeedTab', () => {
 
     expect(screen.getByTestId('feed-share-sheet-system-share')).toBeTruthy();
     expect(screen.getByTestId('feed-share-sheet-copy-link')).toBeTruthy();
+  });
+
+  it('hydrates like state and comment count for signed-in viewer', () => {
+    render(
+      <FeedTab
+        {...baseProps}
+        posts={[
+          {
+            id: 'review-review-1',
+            reviewId: 'review-1',
+            author: 'Edu',
+            time: 'now',
+            avatar: null,
+            image: null,
+            title: 'Guacamole',
+            body: 'Great place',
+            premium: false,
+            likes: '0',
+            comments: '0',
+          },
+        ]}
+      />
+    );
+
+    expect(mockHydrateLikeState).toHaveBeenCalledWith({ reviewId: 'review-1', userId: 'user-1' });
+    expect(mockHydrateCommentCount).toHaveBeenCalledWith({ reviewId: 'review-1' });
+    expect(mockHydrateLikeCount).not.toHaveBeenCalled();
+  });
+
+  it('hydrates like count and comment count for signed-out viewer', () => {
+    render(
+      <FeedTab
+        {...baseProps}
+        viewer={null}
+        posts={[
+          {
+            id: 'review-review-1',
+            reviewId: 'review-1',
+            author: 'Edu',
+            time: 'now',
+            avatar: null,
+            image: null,
+            title: 'Guacamole',
+            body: 'Great place',
+            premium: false,
+            likes: '0',
+            comments: '0',
+          },
+        ]}
+      />
+    );
+
+    expect(mockHydrateLikeCount).toHaveBeenCalledWith({ reviewId: 'review-1' });
+    expect(mockHydrateCommentCount).toHaveBeenCalledWith({ reviewId: 'review-1' });
+    expect(mockHydrateLikeState).not.toHaveBeenCalled();
   });
 
 

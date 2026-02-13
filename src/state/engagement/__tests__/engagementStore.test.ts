@@ -2,6 +2,8 @@ import {
   createReviewComment,
   deleteReviewComment,
   getLikeState,
+  getReviewLikeCount,
+  getReviewCommentCount,
   listReviewComments,
   setReviewLiked,
 } from '../../../services/engagement';
@@ -10,6 +12,8 @@ import { useEngagementStore } from '../engagementStore';
 jest.mock('../../../services/engagement', () => ({
   getLikeState: jest.fn(),
   setReviewLiked: jest.fn(),
+  getReviewLikeCount: jest.fn(),
+  getReviewCommentCount: jest.fn(),
   listReviewComments: jest.fn(),
   createReviewComment: jest.fn(),
   deleteReviewComment: jest.fn(),
@@ -17,6 +21,8 @@ jest.mock('../../../services/engagement', () => ({
 
 const mockGetLikeState = getLikeState as jest.MockedFunction<typeof getLikeState>;
 const mockSetReviewLiked = setReviewLiked as jest.MockedFunction<typeof setReviewLiked>;
+const mockGetReviewLikeCount = getReviewLikeCount as jest.MockedFunction<typeof getReviewLikeCount>;
+const mockGetReviewCommentCount = getReviewCommentCount as jest.MockedFunction<typeof getReviewCommentCount>;
 const mockListReviewComments = listReviewComments as jest.MockedFunction<typeof listReviewComments>;
 const mockCreateReviewComment = createReviewComment as jest.MockedFunction<typeof createReviewComment>;
 const mockDeleteReviewComment = deleteReviewComment as jest.MockedFunction<typeof deleteReviewComment>;
@@ -26,6 +32,8 @@ describe('engagementStore', () => {
     useEngagementStore.getState().clearEngagement();
     mockGetLikeState.mockReset();
     mockSetReviewLiked.mockReset();
+    mockGetReviewLikeCount.mockReset();
+    mockGetReviewCommentCount.mockReset();
     mockListReviewComments.mockReset();
     mockCreateReviewComment.mockReset();
     mockDeleteReviewComment.mockReset();
@@ -60,6 +68,28 @@ describe('engagementStore', () => {
     expect(useEngagementStore.getState().likeCountByReviewId['review-1']).toBe(3);
   });
 
+  it('hydrates like count for feed cards', async () => {
+    mockGetReviewLikeCount.mockResolvedValue({
+      reviewId: 'review-1',
+      likeCount: 12,
+    });
+
+    await useEngagementStore.getState().hydrateLikeCount({ reviewId: 'review-1' });
+
+    expect(useEngagementStore.getState().likeCountByReviewId['review-1']).toBe(12);
+  });
+
+  it('hydrates comment count for feed cards', async () => {
+    mockGetReviewCommentCount.mockResolvedValue({
+      reviewId: 'review-1',
+      commentCount: 7,
+    });
+
+    await useEngagementStore.getState().hydrateCommentCount({ reviewId: 'review-1' });
+
+    expect(useEngagementStore.getState().commentCountByReviewId['review-1']).toBe(7);
+  });
+
   it('hydrates comments and supports create/delete lifecycle', async () => {
     mockListReviewComments.mockResolvedValue({
       items: [
@@ -79,6 +109,7 @@ describe('engagementStore', () => {
     });
 
     await useEngagementStore.getState().hydrateComments({ reviewId: 'review-1' });
+    expect(useEngagementStore.getState().commentCountByReviewId['review-1']).toBe(1);
 
     mockCreateReviewComment.mockResolvedValue({
       id: 'c2',
@@ -102,6 +133,7 @@ describe('engagementStore', () => {
     });
 
     expect(useEngagementStore.getState().commentsByReviewId['review-1']?.items[0]?.id).toBe('c2');
+    expect(useEngagementStore.getState().commentCountByReviewId['review-1']).toBe(2);
 
     mockDeleteReviewComment.mockResolvedValue(undefined as never);
     await useEngagementStore.getState().deleteCommentAndStore({
@@ -115,5 +147,6 @@ describe('engagementStore', () => {
         .getState()
         .commentsByReviewId['review-1']?.items.some((comment) => comment.id === 'c2')
     ).toBe(false);
+    expect(useEngagementStore.getState().commentCountByReviewId['review-1']).toBe(1);
   });
 });

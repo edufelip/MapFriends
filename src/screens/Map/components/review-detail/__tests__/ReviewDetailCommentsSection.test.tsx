@@ -58,13 +58,37 @@ describe('ReviewDetailCommentsSection', () => {
     expect(screen.getByTestId('comment-avatar-fallback-comment-1')).toBeTruthy();
   });
 
-  it('shows image branch when avatar is present', () => {
+  it('treats placeholder avatar urls as missing', () => {
     const screen = render(
       <ReviewDetailCommentsSection
         {...baseProps}
         comments={[
           {
             id: 'comment-2',
+            reviewId: 'review-1',
+            userId: 'user-2',
+            userName: 'Alex',
+            userHandle: 'alex',
+            userAvatar: 'https://cdn.example.com/default-user/avatar.png',
+            text: 'Another one',
+            createdAt: '2026-02-13T12:00:00.000Z',
+            updatedAt: '2026-02-13T12:00:00.000Z',
+          },
+        ]}
+      />
+    );
+
+    expect(screen.queryByTestId('comment-avatar-image-comment-2')).toBeNull();
+    expect(screen.getByTestId('comment-avatar-fallback-comment-2')).toBeTruthy();
+  });
+
+  it('renders image branch when avatar is present', () => {
+    const screen = render(
+      <ReviewDetailCommentsSection
+        {...baseProps}
+        comments={[
+          {
+            id: 'comment-3',
             reviewId: 'review-1',
             userId: 'user-2',
             userName: 'Alex',
@@ -78,7 +102,7 @@ describe('ReviewDetailCommentsSection', () => {
       />
     );
 
-    expect(screen.getByTestId('comment-avatar-image-comment-2')).toBeTruthy();
-    expect(screen.queryByTestId('comment-avatar-fallback-comment-2')).toBeNull();
+    expect(screen.getByTestId('comment-avatar-fallback-comment-3')).toBeTruthy();
+    expect(screen.getByTestId('comment-avatar-image-comment-3')).toBeTruthy();
   });
 });
