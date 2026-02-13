@@ -5,6 +5,7 @@ import { FeedPost } from '../../../services/feed';
 
 type Props = {
   post: FeedPost;
+  onPress?: () => void;
   theme: {
     textPrimary: string;
     textMuted: string;
@@ -20,20 +21,25 @@ type Props = {
   };
 };
 
-function PremiumFeedCard({ post, theme, labels }: Props) {
+function PremiumFeedCard({ post, onPress, theme, labels }: Props) {
   const avatarUri = post.avatar || undefined;
   const imageUri = post.image || undefined;
   const hasAvatar = Boolean(avatarUri);
   const hasImage = Boolean(imageUri);
 
   return (
-    <View style={styles.card}>
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      testID={`premium-feed-card-${post.id}`}
+      style={styles.card}
+    >
       <View style={styles.glow} />
       <View style={[styles.inner, { backgroundColor: theme.surface }]}> 
         <View style={styles.header}>
           <View style={styles.authorRow}>
             {hasAvatar ? (
-              <Image source={{ uri: avatarUri }} style={styles.avatar} />
+              <Image source={{ uri: avatarUri, cache: 'force-cache' }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarFallback}>
                 <MaterialIcons name="person" size={18} color={theme.textMuted} />
@@ -55,7 +61,7 @@ function PremiumFeedCard({ post, theme, labels }: Props) {
 
         <View style={styles.media}>
           {hasImage ? (
-            <Image source={{ uri: imageUri }} style={styles.hero} />
+            <Image source={{ uri: imageUri, cache: 'force-cache' }} style={styles.hero} />
           ) : (
             <View style={[styles.hero, styles.heroFallback]} />
           )}
@@ -76,7 +82,7 @@ function PremiumFeedCard({ post, theme, labels }: Props) {
           <MaterialIcons name="chat-bubble" size={18} color={theme.textMuted} />
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 

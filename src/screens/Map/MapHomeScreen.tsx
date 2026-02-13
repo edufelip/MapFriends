@@ -45,7 +45,7 @@ export default function MapHomeScreen({
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const { user } = useAuth();
-  useHydrateReviewState(120, Boolean(user?.id));
+  useHydrateReviewState(120, Boolean(user?.id), 2 * 60 * 1000);
   const reviewFeedPosts = useReviewFeedPosts();
   const reviewPins = useReviewPins();
   const isReviewHydrating = useReviewHydrating();
@@ -242,6 +242,7 @@ export default function MapHomeScreen({
           locationResolved={locationResolved}
           reviewPins={reviewPins}
           fitTrigger={mapFitTrigger}
+          onOpenReview={(reviewId) => navigation.navigate(Routes.ReviewDetail, { reviewId })}
         />
       </Animated.View>
 
@@ -258,6 +259,7 @@ export default function MapHomeScreen({
           posts={posts}
           onCreate={() => navigation.navigate(Routes.ShareReview)}
           onRefresh={handleFeedRefresh}
+          onOpenReview={(reviewId) => navigation.navigate(Routes.ReviewDetail, { reviewId })}
           refreshing={currentTab === 'feed' && (isReviewHydrating || isFeedPullRefreshing)}
           theme={{
             background: theme.background,

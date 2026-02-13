@@ -44,6 +44,10 @@ jest.mock('../../screens/Map/PlaceDetailScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>place-detail-screen</Text>;
 });
+jest.mock('../../screens/Map/ReviewDetailScreen', () => {
+  const { Text } = require('react-native');
+  return () => <Text>review-detail-screen</Text>;
+});
 jest.mock('../../screens/Share/ReviewComposerScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>review-composer-screen</Text>;

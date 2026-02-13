@@ -5,6 +5,7 @@ import { FeedPost } from '../../../services/feed';
 
 type Props = {
   post: FeedPost;
+  onPress?: () => void;
   theme: {
     textPrimary: string;
     textMuted: string;
@@ -14,19 +15,24 @@ type Props = {
   };
 };
 
-function FeedCard({ post, theme }: Props) {
+function FeedCard({ post, onPress, theme }: Props) {
   const avatarUri = post.avatar || undefined;
   const imageUri = post.image || undefined;
   const hasAvatar = Boolean(avatarUri);
   const hasImage = Boolean(imageUri);
 
   return (
-    <View style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}> 
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      testID={`feed-card-${post.id}`}
+      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+    >
       <View style={styles.header}>
         <View style={styles.authorRow}>
           {hasAvatar ? (
             <Image
-              source={{ uri: avatarUri }}
+              source={{ uri: avatarUri, cache: 'force-cache' }}
               style={styles.avatar}
               testID="feed-card-avatar"
             />
@@ -40,7 +46,7 @@ function FeedCard({ post, theme }: Props) {
       </View>
       {hasImage ? (
         <View style={styles.heroWrapper}>
-          <Image source={{ uri: imageUri }} style={styles.hero} testID="feed-card-image" />
+          <Image source={{ uri: imageUri, cache: 'force-cache' }} style={styles.hero} testID="feed-card-image" />
           {post.rating ? (
             <View style={[styles.ratingBadge, { backgroundColor: theme.primary }]}> 
               <Text style={styles.ratingText}>{post.rating}</Text>
@@ -66,7 +72,7 @@ function FeedCard({ post, theme }: Props) {
         </View>
         <MaterialIcons name="bookmark-border" size={20} color={theme.textMuted} />
       </View>
-    </View>
+    </Pressable>
   );
 }
 

@@ -115,6 +115,7 @@ describe('MapTab', () => {
 
   it('shows context card only when a review pin is selected and hides on close', () => {
     jest.useFakeTimers();
+    const onOpenReview = jest.fn();
     const screen = render(
       <MapTab
         theme={{
@@ -147,6 +148,7 @@ describe('MapTab', () => {
             visibility: 'followers',
           },
         ]}
+        onOpenReview={onOpenReview}
       />
     );
 
@@ -163,6 +165,9 @@ describe('MapTab', () => {
     expect(screen.getByTestId('map-review-context-card')).toBeTruthy();
     expect(screen.getByText('Guacamole Taqueria')).toBeTruthy();
     expect(screen.getByText('Excellent tacos and vibe')).toBeTruthy();
+
+    fireEvent.press(screen.getByTestId('map-review-context-card-open'));
+    expect(onOpenReview).toHaveBeenCalledWith('review-1');
 
     fireEvent.press(screen.getByTestId('map-review-context-card-close'));
     act(() => {

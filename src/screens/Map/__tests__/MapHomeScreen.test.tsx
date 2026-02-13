@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, PermissionsAndroid, Platform } from 'react-native';
 import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import MapHomeScreen from '../MapHomeScreen';
+import { Routes } from '../../../app/routes';
 
 const mockMapTab = jest.fn(() => null);
 const mockFeedTab = jest.fn(() => null);
@@ -170,5 +171,16 @@ describe('MapHomeScreen', () => {
         fitTrigger: 1,
       })
     );
+  });
+
+  it('navigates to review detail when map context card opens a review', () => {
+    render(<MapHomeScreen navigation={navigation} route={{ key: 'MapHome', name: 'MapHome' }} />);
+
+    const mapProps = mockMapTab.mock.calls.at(-1)?.[0];
+    expect(mapProps).toBeTruthy();
+
+    mapProps.onOpenReview('review-123');
+
+    expect(navigation.navigate).toHaveBeenCalledWith(Routes.ReviewDetail, { reviewId: 'review-123' });
   });
 });

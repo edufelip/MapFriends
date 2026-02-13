@@ -10,13 +10,14 @@ type Props = {
     textMuted: string;
   };
   review: ReviewMapPin;
+  onPress: () => void;
   onClose: () => void;
 };
 
 const toVisibilityLabel = (visibility?: string) =>
   visibility === 'subscribers' ? 'Subscribers' : 'Followers';
 
-export default function MapReviewContextCard({ theme, review, onClose }: Props) {
+export default function MapReviewContextCard({ theme, review, onPress, onClose }: Props) {
   const metadata = React.useMemo(() => {
     const parts: string[] = [];
     if (review.userName) {
@@ -35,6 +36,31 @@ export default function MapReviewContextCard({ theme, review, onClose }: Props) 
       style={[styles.contextCard, { backgroundColor: theme.glass }]}
     >
       <Pressable
+        testID="map-review-context-card-open"
+        accessibilityRole="button"
+        style={styles.tapArea}
+        onPress={onPress}
+      >
+        <View style={styles.contextContent}>
+          <View style={styles.contextRow}>
+            <Text style={[styles.contextTitle, { color: theme.textPrimary }]} numberOfLines={1}>
+              {review.title}
+            </Text>
+            <View style={styles.ratingBadge}>
+              <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
+            </View>
+          </View>
+          <Text style={[styles.contextMeta, { color: theme.textMuted }]} numberOfLines={1}>
+            {metadata}
+          </Text>
+          {review.notes ? (
+            <Text style={[styles.contextQuote, { color: theme.textMuted }]} numberOfLines={2}>
+              {review.notes}
+            </Text>
+          ) : null}
+        </View>
+      </Pressable>
+      <Pressable
         testID="map-review-context-card-close"
         accessibilityRole="button"
         style={styles.closeAction}
@@ -42,24 +68,6 @@ export default function MapReviewContextCard({ theme, review, onClose }: Props) 
       >
         <MaterialIcons name="close" size={18} color={theme.textPrimary} />
       </Pressable>
-      <View style={styles.contextContent}>
-        <View style={styles.contextRow}>
-          <Text style={[styles.contextTitle, { color: theme.textPrimary }]} numberOfLines={1}>
-            {review.title}
-          </Text>
-          <View style={styles.ratingBadge}>
-            <Text style={styles.ratingText}>{review.rating.toFixed(1)}</Text>
-          </View>
-        </View>
-        <Text style={[styles.contextMeta, { color: theme.textMuted }]} numberOfLines={1}>
-          {metadata}
-        </Text>
-        {review.notes ? (
-          <Text style={[styles.contextQuote, { color: theme.textMuted }]} numberOfLines={2}>
-            {review.notes}
-          </Text>
-        ) : null}
-      </View>
     </View>
   );
 }
@@ -67,9 +75,14 @@ export default function MapReviewContextCard({ theme, review, onClose }: Props) 
 const styles = StyleSheet.create({
   contextCard: {
     borderRadius: 16,
-    padding: 14,
+    padding: 0,
     paddingRight: 44,
     minHeight: 98,
+    overflow: 'hidden',
+  },
+  tapArea: {
+    flex: 1,
+    padding: 14,
   },
   closeAction: {
     position: 'absolute',

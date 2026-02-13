@@ -8,6 +8,7 @@ export const Routes = {
   MapHome: 'MapHome',
   Explore: 'Explore',
   PlaceDetail: 'PlaceDetail',
+  ReviewDetail: 'ReviewDetail',
   ShareReview: 'ShareReview',
   Notifications: 'Notifications',
   Profile: 'Profile',

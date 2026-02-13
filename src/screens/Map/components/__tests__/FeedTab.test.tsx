@@ -6,6 +6,7 @@ describe('FeedTab', () => {
   const baseProps = {
     onCreate: jest.fn(),
     onRefresh: jest.fn(),
+    onOpenReview: jest.fn(),
     refreshing: false,
     theme: {
       background: '#000',
@@ -84,5 +85,34 @@ describe('FeedTab', () => {
     );
 
     expect(screen.getByTestId('feed-refresh-indicator')).toBeTruthy();
+  });
+
+  it('opens review detail when feed card is pressed', () => {
+    const onOpenReview = jest.fn();
+    const screen = render(
+      <FeedTab
+        {...baseProps}
+        onOpenReview={onOpenReview}
+        posts={[
+          {
+            id: 'review-review-1',
+            reviewId: 'review-1',
+            author: 'Edu',
+            time: 'now',
+            avatar: null,
+            image: null,
+            title: 'Guacamole',
+            body: 'Great place',
+            premium: false,
+            likes: '0',
+            comments: '0',
+          },
+        ]}
+      />
+    );
+
+    fireEvent.press(screen.getByTestId('feed-card-review-review-1'));
+
+    expect(onOpenReview).toHaveBeenCalledWith('review-1');
   });
 });

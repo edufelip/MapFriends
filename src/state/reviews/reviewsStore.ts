@@ -4,6 +4,8 @@ import {
   createReview,
   deleteReview,
   getRecentReviews,
+  getReviewById,
+  ReviewMutationProgress,
   ReviewRecord,
   UpdateReviewInput,
   updateReview,
@@ -12,11 +14,33 @@ import { logReviewPinDebug, logReviewPinError } from './reviewPinLogger';
 
 type ReviewsById = Record<string, ReviewRecord>;
 
+type ReviewHydrateOptions = {
+  staleMs?: number;
+  force?: boolean;
+};
+
+type ReviewDetailFetchOptions = {
+  staleMs?: number;
+  force?: boolean;
+};
+
+const DEFAULT_HYDRATION_STALE_MS = 2 * 60 * 1000;
+const DEFAULT_REVIEW_DETAIL_STALE_MS = 2 * 60 * 1000;
+const detailReviewInFlightRequests = new Map<string, Promise<ReviewRecord | null>>();
+
 const byNewestCreatedAt = (a: ReviewRecord, b: ReviewRecord) =>
   b.createdAt.localeCompare(a.createdAt);
 
 const toSortedIds = (reviewsById: ReviewsById) =>
   Object.values(reviewsById).sort(byNewestCreatedAt).map((review) => review.id);
+
+const isFreshTimestamp = (timestamp: number | null | undefined, staleMs: number) => {
+  if (typeof timestamp !== 'number') {
+    return false;
+  }
+
+  return Date.now() - timestamp < staleMs;
+};
 
 type ReviewState = {
   reviewsById: ReviewsById;
@@ -24,13 +48,25 @@ type ReviewState = {
   hydrated: boolean;
   isHydrating: boolean;
   hydrateError: string | null;
-  hydrateReviews: (limit?: number) => Promise<void>;
+  lastHydratedAt: number | null;
+  reviewFetchedAtById: Record<string, number>;
+  hydrateReviews: (limit?: number, options?: ReviewHydrateOptions) => Promise<void>;
   refreshReviews: (limit?: number) => Promise<void>;
+  fetchReviewByIdCached: (
+    reviewId: string,
+    options?: ReviewDetailFetchOptions
+  ) => Promise<ReviewRecord | null>;
   upsertReview: (review: ReviewRecord) => void;
   upsertReviews: (reviews: ReviewRecord[]) => void;
   removeReview: (reviewId: string) => void;
-  createReviewAndStore: (input: CreateReviewInput) => Promise<ReviewRecord>;
-  updateReviewAndStore: (input: UpdateReviewInput) => Promise<ReviewRecord>;
+  createReviewAndStore: (
+    input: CreateReviewInput,
+    options?: { onProgress?: (progress: ReviewMutationProgress) => void }
+  ) => Promise<ReviewRecord>;
+  updateReviewAndStore: (
+    input: UpdateReviewInput,
+    options?: { onProgress?: (progress: ReviewMutationProgress) => void }
+  ) => Promise<ReviewRecord>;
   deleteReviewAndStore: (input: { reviewId: string; authorId: string }) => Promise<void>;
   clearReviews: () => void;
 };
@@ -41,19 +77,34 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   hydrated: false,
   isHydrating: false,
   hydrateError: null,
-  hydrateReviews: async (limit = 120) => {
+  lastHydratedAt: null,
+  reviewFetchedAtById: {},
+  hydrateReviews: async (limit = 120, options: ReviewHydrateOptions = {}) => {
+    const staleMs = Math.max(0, options.staleMs ?? DEFAULT_HYDRATION_STALE_MS);
+    const force = options.force === true;
+    const stateAtStart = get();
+    const fresh = isFreshTimestamp(stateAtStart.lastHydratedAt, staleMs);
+
     logReviewPinDebug('step8-hydrate-requested', {
       limit,
-      hydrated: get().hydrated,
-      isHydrating: get().isHydrating,
-      existingReviewCount: get().reviewIds.length,
+      staleMs,
+      force,
+      hydrated: stateAtStart.hydrated,
+      isHydrating: stateAtStart.isHydrating,
+      lastHydratedAt: stateAtStart.lastHydratedAt,
+      isFresh: fresh,
+      existingReviewCount: stateAtStart.reviewIds.length,
     });
 
-    if (get().isHydrating || get().hydrated) {
+    if (stateAtStart.isHydrating || (!force && fresh)) {
       logReviewPinDebug('step8-hydrate-skipped', {
         limit,
-        hydrated: get().hydrated,
-        isHydrating: get().isHydrating,
+        staleMs,
+        force,
+        hydrated: stateAtStart.hydrated,
+        isHydrating: stateAtStart.isHydrating,
+        lastHydratedAt: stateAtStart.lastHydratedAt,
+        isFresh: fresh,
       });
       return;
     }
@@ -61,18 +112,24 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     set({ isHydrating: true, hydrateError: null });
     logReviewPinDebug('step8-hydrate-started', {
       limit,
+      staleMs,
+      force,
     });
 
     try {
       const reviews = await getRecentReviews(limit);
+      const fetchedAt = Date.now();
 
       set((state) => {
         const nextById = { ...state.reviewsById };
+        const nextFetchedAtById = { ...state.reviewFetchedAtById };
+
         reviews.forEach((review) => {
           const existing = nextById[review.id];
           if (!existing || existing.updatedAt.localeCompare(review.updatedAt) <= 0) {
             nextById[review.id] = review;
           }
+          nextFetchedAtById[review.id] = fetchedAt;
         });
 
         return {
@@ -81,12 +138,17 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
           hydrated: true,
           isHydrating: false,
           hydrateError: null,
+          lastHydratedAt: fetchedAt,
+          reviewFetchedAtById: nextFetchedAtById,
         };
       });
       logReviewPinDebug('step8-hydrate-success', {
         limit,
+        staleMs,
+        force,
         fetchedReviews: reviews.length,
         totalReviewsAfterHydrate: get().reviewIds.length,
+        lastHydratedAt: get().lastHydratedAt,
       });
     } catch (error) {
       set({
@@ -95,6 +157,8 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       });
       logReviewPinError('step8-hydrate-error', error, {
         limit,
+        staleMs,
+        force,
       });
     }
   },
@@ -120,14 +184,18 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
 
     try {
       const reviews = await getRecentReviews(limit);
+      const fetchedAt = Date.now();
 
       set((state) => {
         const nextById = { ...state.reviewsById };
+        const nextFetchedAtById = { ...state.reviewFetchedAtById };
+
         reviews.forEach((review) => {
           const existing = nextById[review.id];
           if (!existing || existing.updatedAt.localeCompare(review.updatedAt) <= 0) {
             nextById[review.id] = review;
           }
+          nextFetchedAtById[review.id] = fetchedAt;
         });
 
         return {
@@ -136,12 +204,15 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
           hydrated: true,
           isHydrating: false,
           hydrateError: null,
+          lastHydratedAt: fetchedAt,
+          reviewFetchedAtById: nextFetchedAtById,
         };
       });
       logReviewPinDebug('step8-refresh-success', {
         limit,
         fetchedReviews: reviews.length,
         totalReviewsAfterRefresh: get().reviewIds.length,
+        lastHydratedAt: get().lastHydratedAt,
       });
     } catch (error) {
       set({
@@ -153,7 +224,96 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       });
     }
   },
+  fetchReviewByIdCached: async (reviewId, options: ReviewDetailFetchOptions = {}) => {
+    if (!reviewId) {
+      return null;
+    }
+
+    const staleMs = Math.max(0, options.staleMs ?? DEFAULT_REVIEW_DETAIL_STALE_MS);
+    const force = options.force === true;
+    const stateAtStart = get();
+    const cached = stateAtStart.reviewsById[reviewId] || null;
+    const lastFetchedAt = stateAtStart.reviewFetchedAtById[reviewId];
+    const isFresh = isFreshTimestamp(lastFetchedAt, staleMs);
+
+    logReviewPinDebug('step8-review-detail-requested', {
+      reviewId,
+      staleMs,
+      force,
+      hasCached: Boolean(cached),
+      lastFetchedAt,
+      isFresh,
+    });
+
+    if (!force && cached && isFresh) {
+      logReviewPinDebug('step8-review-detail-cache-hit', {
+        reviewId,
+        staleMs,
+        lastFetchedAt,
+      });
+      return cached;
+    }
+
+    const inFlightRequest = detailReviewInFlightRequests.get(reviewId);
+    if (inFlightRequest) {
+      logReviewPinDebug('step8-review-detail-join-inflight', {
+        reviewId,
+      });
+      return inFlightRequest;
+    }
+
+    const request = (async () => {
+      try {
+        const remote = await getReviewById(reviewId);
+        const fetchedAt = Date.now();
+
+        set((state) => {
+          const nextById = { ...state.reviewsById };
+          if (remote) {
+            const existing = nextById[reviewId];
+            if (!existing || existing.updatedAt.localeCompare(remote.updatedAt) <= 0) {
+              nextById[reviewId] = remote;
+            }
+          } else {
+            delete nextById[reviewId];
+          }
+
+          return {
+            reviewsById: nextById,
+            reviewIds: toSortedIds(nextById),
+            reviewFetchedAtById: {
+              ...state.reviewFetchedAtById,
+              [reviewId]: fetchedAt,
+            },
+          };
+        });
+
+        const resolved = get().reviewsById[reviewId] || null;
+
+        logReviewPinDebug('step8-review-detail-success', {
+          reviewId,
+          fromRemote: true,
+          found: Boolean(remote),
+          hasResolved: Boolean(resolved),
+        });
+
+        return resolved;
+      } catch (error) {
+        logReviewPinError('step8-review-detail-error', error, {
+          reviewId,
+        });
+        throw error;
+      } finally {
+        detailReviewInFlightRequests.delete(reviewId);
+      }
+    })();
+
+    detailReviewInFlightRequests.set(reviewId, request);
+    return request;
+  },
   upsertReview: (review) => {
+    const fetchedAt = Date.now();
+
     set((state) => {
       const nextById = {
         ...state.reviewsById,
@@ -162,6 +322,10 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       return {
         reviewsById: nextById,
         reviewIds: toSortedIds(nextById),
+        reviewFetchedAtById: {
+          ...state.reviewFetchedAtById,
+          [review.id]: fetchedAt,
+        },
       };
     });
     logReviewPinDebug('step8-upsert-review', {
@@ -171,18 +335,24 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     });
   },
   upsertReviews: (reviews) => {
+    const fetchedAt = Date.now();
+
     set((state) => {
       const nextById = { ...state.reviewsById };
+      const nextFetchedAtById = { ...state.reviewFetchedAtById };
+
       reviews.forEach((review) => {
         const existing = nextById[review.id];
         if (!existing || existing.updatedAt.localeCompare(review.updatedAt) <= 0) {
           nextById[review.id] = review;
         }
+        nextFetchedAtById[review.id] = fetchedAt;
       });
 
       return {
         reviewsById: nextById,
         reviewIds: toSortedIds(nextById),
+        reviewFetchedAtById: nextFetchedAtById,
       };
     });
     logReviewPinDebug('step8-upsert-reviews-batch', {
@@ -199,9 +369,13 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       const nextById = { ...state.reviewsById };
       delete nextById[reviewId];
 
+      const nextFetchedAtById = { ...state.reviewFetchedAtById };
+      delete nextFetchedAtById[reviewId];
+
       return {
         reviewsById: nextById,
         reviewIds: state.reviewIds.filter((id) => id !== reviewId),
+        reviewFetchedAtById: nextFetchedAtById,
       };
     });
     logReviewPinDebug('step8-remove-review', {
@@ -209,13 +383,13 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       totalReviews: get().reviewIds.length,
     });
   },
-  createReviewAndStore: async (input) => {
+  createReviewAndStore: async (input, options) => {
     logReviewPinDebug('step8-create-review-start', {
       placeId: input.place.id,
       hasCoordinates: Array.isArray(input.place.coordinates),
     });
     try {
-      const created = await createReview(input);
+      const created = await createReview(input, options);
       get().upsertReview(created);
       logReviewPinDebug('step8-create-review-success', {
         reviewId: created.id,
@@ -231,14 +405,14 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       throw error;
     }
   },
-  updateReviewAndStore: async (input) => {
+  updateReviewAndStore: async (input, options) => {
     logReviewPinDebug('step8-update-review-start', {
       reviewId: input.reviewId,
       placeId: input.place.id,
       hasCoordinates: Array.isArray(input.place.coordinates),
     });
     try {
-      const updated = await updateReview(input);
+      const updated = await updateReview(input, options);
       get().upsertReview(updated);
       logReviewPinDebug('step8-update-review-success', {
         reviewId: updated.id,
@@ -274,12 +448,15 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     }
   },
   clearReviews: () => {
+    detailReviewInFlightRequests.clear();
     set({
       reviewsById: {},
       reviewIds: [],
       hydrated: false,
       isHydrating: false,
       hydrateError: null,
+      lastHydratedAt: null,
+      reviewFetchedAtById: {},
     });
     logReviewPinDebug('step8-clear-reviews', {
       totalReviews: 0,

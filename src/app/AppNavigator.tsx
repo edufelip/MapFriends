@@ -12,6 +12,7 @@ import MainShellScreen from '../screens/Main/MainShellScreen';
 import MapHomeScreen from '../screens/Map/MapHomeScreen';
 import ExploreScreen from '../screens/Explore/ExploreScreen';
 import PlaceDetailScreen from '../screens/Map/PlaceDetailScreen';
+import ReviewDetailScreen from '../screens/Map/ReviewDetailScreen';
 import ReviewComposerScreen from '../screens/Share/ReviewComposerScreen';
 import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
@@ -28,6 +29,7 @@ type RootStackParamList = {
   [Routes.MapHome]: undefined;
   [Routes.Explore]: undefined;
   [Routes.PlaceDetail]: { placeId: string };
+  [Routes.ReviewDetail]: { reviewId: string };
   [Routes.ShareReview]: { placeId?: string; reviewId?: string } | undefined;
   [Routes.Notifications]: undefined;
   [Routes.Profile]: undefined;
@@ -101,6 +103,11 @@ function MainStack() {
       />
       <Stack.Screen name={Routes.Explore} component={ExploreScreen} options={{ title: 'Explore' }} />
       <Stack.Screen name={Routes.PlaceDetail} component={PlaceDetailScreen} options={{ title: 'Place' }} />
+      <Stack.Screen
+        name={Routes.ReviewDetail}
+        component={ReviewDetailScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name={Routes.ShareReview}
         component={ReviewComposerScreen}

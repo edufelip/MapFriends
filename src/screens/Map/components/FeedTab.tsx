@@ -1,16 +1,34 @@
 import React from 'react';
-import { ActivityIndicator, FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, RefreshControl, StyleSheet, View } from 'react-native';
 import { FeedPost } from '../../../services/feed';
 import FeedCard from './FeedCard';
 import FeedEmptyState from './FeedEmptyState';
 import PremiumFeedCard from './PremiumFeedCard';
 
 const keyExtractor = (item: FeedPost) => item.id;
+const FEED_MEDIA_PREFETCH_LIMIT = 12;
+
+const toPrefetchUrls = (posts: FeedPost[]) => {
+  const unique = new Set<string>();
+
+  posts.forEach((post) => {
+    if (post.avatar) {
+      unique.add(post.avatar);
+    }
+
+    if (post.image) {
+      unique.add(post.image);
+    }
+  });
+
+  return Array.from(unique).slice(0, FEED_MEDIA_PREFETCH_LIMIT);
+};
 
 type Props = {
   posts: FeedPost[];
   onCreate: () => void;
   onRefresh: () => void;
+  onOpenReview: (reviewId: string) => void;
   refreshing: boolean;
   theme: {
     background: string;
@@ -40,6 +58,7 @@ export default function FeedTab({
   posts,
   onCreate,
   onRefresh,
+  onOpenReview,
   refreshing,
   theme,
   strings,
@@ -50,6 +69,19 @@ export default function FeedTab({
   const isEmpty = posts.length === 0;
   const refreshOffset = modeSwitcherBandHeight + 24 + topInset;
   const refreshIndicatorTop = modeSwitcherBandHeight + 10 + topInset;
+
+  React.useEffect(() => {
+    if (typeof Image.prefetch !== 'function') {
+      return;
+    }
+
+    const urls = toPrefetchUrls(posts);
+    if (urls.length === 0) {
+      return;
+    }
+
+    void Promise.allSettled(urls.map((url) => Image.prefetch(url)));
+  }, [posts]);
 
   const contentContainerStyle = React.useMemo(
     () => [
@@ -110,10 +142,15 @@ export default function FeedTab({
     [onRefresh, refreshOffset, refreshing, theme.primary]
   );
 
-  const renderItem = ({ item }: { item: FeedPost }) =>
-    item.premium ? (
+  const renderItem = ({ item }: { item: FeedPost }) => {
+    const handleOpenReview = item.reviewId
+      ? () => onOpenReview(item.reviewId)
+      : undefined;
+
+    return item.premium ? (
       <PremiumFeedCard
         post={item}
+        onPress={handleOpenReview}
         theme={{
           textPrimary: theme.textPrimary,
           textMuted: theme.textMuted,
@@ -131,6 +168,7 @@ export default function FeedTab({
     ) : (
       <FeedCard
         post={item}
+        onPress={handleOpenReview}
         theme={{
           textPrimary: theme.textPrimary,
           textMuted: theme.textMuted,
@@ -140,6 +178,7 @@ export default function FeedTab({
         }}
       />
     );
+  };
 
   return (
     <View style={styles.container}>

@@ -2,6 +2,7 @@ import seed from '../mocks/feed.json';
 
 export type FeedPost = {
   id: string;
+  reviewId?: string;
   author: string;
   time: string;
   avatar: string | null;

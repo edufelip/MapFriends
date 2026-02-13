@@ -30,6 +30,7 @@ type Props = {
   locationResolved: boolean;
   reviewPins: ReviewMapPin[];
   fitTrigger?: number;
+  onOpenReview?: (reviewId: string) => void;
 };
 
 export default function MapTab({
@@ -41,6 +42,7 @@ export default function MapTab({
   locationResolved,
   reviewPins,
   fitTrigger = 0,
+  onOpenReview,
 }: Props) {
   const [mapLayout, setMapLayout] = React.useState<{ width: number; height: number } | null>(null);
   const cameraRef = React.useRef<{
@@ -319,6 +321,13 @@ export default function MapTab({
     setSelectedReviewId(null);
   }, []);
 
+  const handleOpenSelectedReview = React.useCallback(() => {
+    if (!selectedReview) {
+      return;
+    }
+    onOpenReview?.(selectedReview.reviewId);
+  }, [onOpenReview, selectedReview]);
+
   const contextCardAnimatedStyle = React.useMemo(
     () => ({
       opacity: contextCardAnimation,
@@ -462,6 +471,7 @@ export default function MapTab({
                   textMuted: theme.textMuted,
                 }}
                 review={contextReview}
+                onPress={handleOpenSelectedReview}
                 onClose={handleCloseReviewCard}
               />
             </Animated.View>
