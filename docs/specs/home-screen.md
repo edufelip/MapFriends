@@ -24,6 +24,8 @@ Create a Home screen with a top segmented control (Feed/Map) and a bottom naviga
 - Optional user coordinate state (`[longitude, latitude] | null`) to center the map camera when permission is granted.
 - Location permission flow uses a strategy adapter (`LocationPermissionStrategy`) selected by platform factory, so platform-specific behavior can be extended without modifying `MapHomeScreen`.
 - Centralized review state uses Zustand (`src/state/reviews/`) and hydrates recent persisted reviews.
+- Review store now includes per-review detail fetch metadata and a cached detail read API (`fetchReviewByIdCached`) with a default 120s freshness window.
+- Review hydration uses a short freshness window (2 minutes) to avoid redundant Firebase fetches during rapid tab switches and short returns to Home.
 - Feed list is built from review feed view models derived from centralized review state.
 - Map custom review pins are derived from persisted review coordinates (`placeCoordinates`) and rendered from centralized state.
 
@@ -47,9 +49,17 @@ Create a Home screen with a top segmented control (Feed/Map) and a bottom naviga
 - Overlays: segmented control, location FAB, selection-based review context card, and a persistent bottom nav shell.
 - Review context card is hidden by default and appears only after tapping a review pin.
 - Review context card close action is an `X` button at the top-right of the card.
+- Tapping the review context card body opens `ReviewDetail` for the selected review.
+- `ReviewDetail` uses a full-page immersive layout with hero gallery, reviewer metadata, place/location block, and long-form experience text.
+- `ReviewDetail` top-right `more_horiz` action is shown only to the review owner and opens owner actions (`Edit`, `Delete`).
+- `ReviewDetail` sticky bottom actions include `Save to favorites` (persistent) and `Share`.
+- `ReviewDetail` prefetches its gallery image URLs once on detail load and renders hero media with `force-cache` to reduce warm re-open latency.
+- `Save to favorites` persists per-user favorites in Firestore under `userFavorites/{uid}/items/{reviewId}`.
+- Profile screen now includes a `Favorites` tab that lists saved reviews and allows quick unsave.
 - Review context card visibility transitions use smooth fade/slide animations.
 - Bottom nav is always visible on Home.
 - In shell mode, bottom nav background transitions to solid white when Home `Feed` is active, and returns to glass for Home `Map`.
+- Main-shell tab panels are kept alive after first visit; returning to Home preserves feed list/render tree instead of remounting it.
 
 ## Edge Cases
 - Missing Mapbox token shows a fallback message.
