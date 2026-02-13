@@ -407,6 +407,9 @@ describe('ReviewComposerScreen location picker flow', () => {
           reviewId: 'review-001',
           notes: 'Updated note',
           place: expect.objectContaining({ id: 'place-002', title: 'Old Town Market' }),
+        }),
+        expect.objectContaining({
+          onProgress: expect.any(Function),
         })
       );
       expect(navigation.goBack).toHaveBeenCalled();
@@ -484,6 +487,98 @@ describe('ReviewComposerScreen location picker flow', () => {
 
     await waitFor(() => {
       expect(mockCreateReviewAndStore).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('shows timeout-specific error when submit stage exceeds timeout', async () => {
+    const strings = getStrings();
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+    mockCreateReviewAndStore.mockRejectedValueOnce(new Error('reviews.uploadPhoto-timeout'));
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={{ goBack: jest.fn() } as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Great food');
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    await waitFor(() => {
+      expect(alertSpy).toHaveBeenCalledWith(
+        strings.reviewComposer.post,
+        strings.reviewComposer.submitTimeoutError
+      );
+    });
+  });
+
+  it('renders submit progress banner while upload is in-flight', async () => {
+    const strings = getStrings();
+    const pending = new Promise(() => {
+      // keep submit open while we assert progress UI
+    });
+    mockSearchPlaces.mockResolvedValueOnce([
+      {
+        id: 'place-002',
+        title: 'Old Town Market',
+        subtitle: 'Food · Old Town',
+        coordinates: null,
+      },
+    ]);
+    mockCreateReviewAndStore.mockImplementationOnce((_payload, options) => {
+      options?.onProgress?.({
+        operation: 'create',
+        stage: 'uploading',
+        completed: 1,
+        total: 3,
+        reviewId: 'review-001',
+      });
+      return pending;
+    });
+
+    const screen = render(
+      <ReviewComposerScreen
+        navigation={{ goBack: jest.fn() } as never}
+        route={{ key: 'review', name: 'ShareReview', params: {} } as never}
+      />
+    );
+
+    fireEvent.changeText(
+      screen.getByLabelText(strings.reviewComposer.locationSearchPlaceholder),
+      'market'
+    );
+    jest.advanceTimersByTime(280);
+    await waitFor(() => {
+      expect(screen.getByText('Old Town Market')).toBeTruthy();
+    });
+    fireEvent.press(screen.getByText('Old Town Market'));
+    fireEvent.changeText(screen.getByPlaceholderText(strings.reviewComposer.placeholder), 'Great food');
+    fireEvent.press(screen.getByTestId('review-submit'));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('review-submit-progress')).toBeTruthy();
+      expect(
+        screen.getByText(
+          strings.reviewComposer.progressUploading.replace('{current}', '1').replace('{total}', '3')
+        )
+      ).toBeTruthy();
     });
   });
 });

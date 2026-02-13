@@ -3,6 +3,8 @@ import { compressReviewPhoto, deleteReviewPhoto, uploadReviewPhoto } from './rev
 import { createReviewRepository } from './reviews/reviewRepository';
 import {
   CreateReviewInput,
+  ReviewMutationOptions,
+  ReviewMutationProgress,
   ReviewPhotoDraft,
   ReviewRecord,
   ReviewVisibility,
@@ -22,14 +24,28 @@ const mutations = createReviewMutations({
   deletePhoto: deleteReviewPhoto,
 });
 
-export type { ReviewVisibility, ReviewPhotoDraft, ReviewRecord };
+export type {
+  CreateReviewInput,
+  ReviewMutationOptions,
+  ReviewVisibility,
+  ReviewPhotoDraft,
+  ReviewRecord,
+  ReviewMutationProgress,
+  UpdateReviewInput,
+};
 
-export async function createReview(input: CreateReviewInput): Promise<ReviewRecord> {
-  return mutations.createReview(input);
+export async function createReview(
+  input: CreateReviewInput,
+  options?: ReviewMutationOptions
+): Promise<ReviewRecord> {
+  return mutations.createReview(input, options);
 }
 
-export async function updateReview(input: UpdateReviewInput): Promise<ReviewRecord> {
-  return mutations.updateReview(input);
+export async function updateReview(
+  input: UpdateReviewInput,
+  options?: ReviewMutationOptions
+): Promise<ReviewRecord> {
+  return mutations.updateReview(input, options);
 }
 
 export async function deleteReview({

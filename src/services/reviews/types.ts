@@ -1,5 +1,17 @@
 export type ReviewVisibility = 'followers' | 'subscribers';
 
+export type ReviewMutationOperation = 'create' | 'update';
+
+export type ReviewMutationProgressStage = 'compressing' | 'uploading' | 'saving';
+
+export type ReviewMutationProgress = {
+  operation: ReviewMutationOperation;
+  stage: ReviewMutationProgressStage;
+  completed: number;
+  total: number;
+  reviewId: string;
+};
+
 export type ReviewAuthor = {
   id: string;
   name: string;
@@ -53,4 +65,8 @@ export type CreateReviewInput = {
 
 export type UpdateReviewInput = CreateReviewInput & {
   reviewId: string;
+};
+
+export type ReviewMutationOptions = {
+  onProgress?: (progress: ReviewMutationProgress) => void;
 };

@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/auth';
 import {
   getReviewById,
+  ReviewMutationProgress,
   ReviewPhotoDraft,
   ReviewVisibility,
 } from '../../services/reviews';
@@ -28,10 +29,19 @@ import PhotoStrip from './components/PhotoStrip';
 import VisibilitySelector from './components/VisibilitySelector';
 import LocationPicker from './components/LocationPicker';
 import ComposerTopBar from './components/ComposerTopBar';
+import SubmissionProgressBanner from './components/SubmissionProgressBanner';
 
 const DEFAULT_PHOTOS: ReviewPhotoDraft[] = [];
 const MAX_NOTES_LENGTH = 400;
 const MAX_REVIEW_PHOTOS = 10;
+
+const formatProgressTemplate = (template: string, current: number, total: number) =>
+  template.replace('{current}', String(current)).replace('{total}', String(total));
+
+const isTimeoutError = (error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes('timeout');
+};
 
 export default function ReviewComposerScreen({ route, navigation }: NativeStackScreenProps<any>) {
   const reviewId = route.params?.reviewId as string | undefined;
@@ -55,6 +65,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   const [visibility, setVisibility] = React.useState<ReviewVisibility>('followers');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isLoadingReview, setIsLoadingReview] = React.useState(Boolean(reviewId));
+  const [submitProgress, setSubmitProgress] = React.useState<ReviewMutationProgress | null>(null);
   const submitLockRef = React.useRef(false);
 
   const colorScheme = useColorScheme();
@@ -134,6 +145,29 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
   }, [navigation, reviewId, strings.reviewComposer.post, strings.reviewComposer.reviewLoadError, user?.id]);
 
   const canSubmit = Boolean(selectedPlace?.id && notes.trim().length > 0 && user?.id);
+  const submitProgressLabel = React.useMemo(() => {
+    if (!submitProgress) {
+      return null;
+    }
+
+    const safeTotal = Math.max(submitProgress.total, 1);
+    const current = Math.max(1, Math.min(submitProgress.completed || 1, safeTotal));
+
+    if (submitProgress.stage === 'compressing') {
+      return formatProgressTemplate(strings.reviewComposer.progressCompressing, current, safeTotal);
+    }
+
+    if (submitProgress.stage === 'uploading') {
+      return formatProgressTemplate(strings.reviewComposer.progressUploading, current, safeTotal);
+    }
+
+    return strings.reviewComposer.progressSaving;
+  }, [
+    submitProgress,
+    strings.reviewComposer.progressCompressing,
+    strings.reviewComposer.progressSaving,
+    strings.reviewComposer.progressUploading,
+  ]);
 
   const handleSubmit = React.useCallback(async () => {
     if (submitLockRef.current || !canSubmit || !selectedPlace || !user) {
@@ -142,6 +176,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
 
     submitLockRef.current = true;
     setIsSubmitting(true);
+    setSubmitProgress(null);
 
     let resolvedPlace = selectedPlace;
     if (!resolvedPlace.coordinates) {
@@ -181,19 +216,26 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
         await updateReviewAndStore({
           reviewId,
           ...payload,
+        }, {
+          onProgress: setSubmitProgress,
         });
       } else {
-        await createReviewAndStore(payload);
+        await createReviewAndStore(payload, {
+          onProgress: setSubmitProgress,
+        });
       }
       navigation.goBack();
-    } catch {
+    } catch (error) {
       Alert.alert(
         strings.reviewComposer.post,
-        strings.reviewComposer.submitError
+        isTimeoutError(error)
+          ? strings.reviewComposer.submitTimeoutError
+          : strings.reviewComposer.submitError
       );
     } finally {
       submitLockRef.current = false;
       setIsSubmitting(false);
+      setSubmitProgress(null);
     }
   }, [
     canSubmit,
@@ -208,6 +250,7 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
     strings.reviewComposer.locationResolveError,
     strings.reviewComposer.post,
     strings.reviewComposer.submitError,
+    strings.reviewComposer.submitTimeoutError,
     updateReviewAndStore,
     user,
     visibility,
@@ -283,6 +326,21 @@ export default function ReviewComposerScreen({ route, navigation }: NativeStackS
           <View style={styles.loadingWrap}>
             <ActivityIndicator size="small" color={theme.primary} />
           </View>
+        ) : null}
+
+        {isSubmitting && submitProgress && submitProgressLabel ? (
+          <SubmissionProgressBanner
+            label={submitProgressLabel}
+            current={Math.max(1, submitProgress.completed || 1)}
+            total={Math.max(submitProgress.total, 1)}
+            theme={{
+              primary: theme.primary,
+              surface: theme.surface,
+              border: theme.border,
+              textPrimary: theme.textPrimary,
+              textMuted: theme.textMuted,
+            }}
+          />
         ) : null}
 
         <LocationPicker

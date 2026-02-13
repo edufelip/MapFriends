@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FirebaseApp, getApp, getApps, initializeApp } from 'firebase/app';
-import { Auth, getAuth, getReactNativePersistence, initializeAuth } from 'firebase/auth';
+import { Auth, Persistence, getAuth, initializeAuth } from 'firebase/auth';
+import * as FirebaseAuth from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 import { FirebaseStorage, getStorage } from 'firebase/storage';
 import { normalizeStorageBucket } from './firebaseStorageBucket';
@@ -39,10 +40,19 @@ if (isFirebaseConfigured) {
   storageInstance = normalizedStorageBucket
     ? getStorage(appInstance, `gs://${normalizedStorageBucket}`)
     : getStorage(appInstance);
+
   try {
-    authInstance = initializeAuth(appInstance, {
-      persistence: getReactNativePersistence(AsyncStorage),
-    });
+    const persistenceFactory = (FirebaseAuth as unknown as {
+      getReactNativePersistence?: (storage: typeof AsyncStorage) => Persistence;
+    }).getReactNativePersistence;
+
+    if (typeof persistenceFactory === 'function') {
+      authInstance = initializeAuth(appInstance, {
+        persistence: persistenceFactory(AsyncStorage),
+      });
+    } else {
+      authInstance = getAuth(appInstance);
+    }
   } catch {
     authInstance = getAuth(appInstance);
   }

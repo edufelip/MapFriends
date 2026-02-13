@@ -38,7 +38,10 @@ The Review Composer lets users create and edit reviews from the middle action in
 - Review notes are capped at 400 characters.
 - Photos are optional (0..10).
 - New photos are compressed before upload and then sent to Firebase Storage.
+- Native iOS/Android uploads use `@react-native-firebase/storage` (`putFile`) for reliability; web keeps Firebase JS SDK fallback.
 - If any write step fails after upload, uploaded files from that attempt are deleted (rollback).
+- While submitting, composer shows live progress states for compressing, uploading, and final save.
+- Long-running photo stages have timeout guards; timeout failures show a specific retry message instead of a generic error.
 - Visibility is persisted.
 - On submit, if selected place coordinates are missing, app resolves coordinates before persistence.
 - If coordinate resolution fails, submit is blocked and user is asked to pick another location.

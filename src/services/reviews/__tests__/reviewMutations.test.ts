@@ -8,6 +8,51 @@ const author = {
 };
 
 describe('reviewMutations', () => {
+  it('emits mutation progress while creating with photos', async () => {
+    const writeReviewPair = jest.fn().mockResolvedValue(undefined);
+    const onProgress = jest.fn();
+
+    const mutations = createReviewMutations({
+      nowIso: () => '2026-02-10T10:00:00.000Z',
+      createReviewId: () => 'review-001',
+      loadReview: jest.fn(),
+      writeReviewPair,
+      deleteReviewPair: jest.fn(),
+      compressPhoto: jest.fn(async (uri: string) => ({ uri: `${uri}-compressed`, contentType: 'image/jpeg' })),
+      uploadPhoto: jest
+        .fn()
+        .mockResolvedValueOnce({ path: 'reviews/user-001/review-001/photo-1.jpg', url: 'https://cdn/1.jpg' })
+        .mockResolvedValueOnce({ path: 'reviews/user-001/review-001/photo-2.jpg', url: 'https://cdn/2.jpg' }),
+      deletePhoto: jest.fn(),
+    });
+
+    await mutations.createReview(
+      {
+        author,
+        place: {
+          id: 'place-001',
+          title: 'Midnight Ramen',
+        },
+        notes: 'Great noodles and broth',
+        rating: 9,
+        visibility: 'followers',
+        photos: [{ uri: 'file://one.jpg' }, { uri: 'file://two.jpg' }],
+      },
+      { onProgress }
+    );
+
+    const stages = onProgress.mock.calls.map(([progress]) => progress.stage);
+    expect(stages).toContain('compressing');
+    expect(stages).toContain('uploading');
+    expect(stages[stages.length - 1]).toBe('saving');
+    expect(onProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'create',
+        reviewId: 'review-001',
+      })
+    );
+  });
+
   it('creates review, uploads new photos, and writes review + projection', async () => {
     const writeReviewPair = jest.fn().mockResolvedValue(undefined);
     const uploadPhoto = jest
@@ -187,5 +232,65 @@ describe('reviewMutations', () => {
 
     expect(deleteReviewPair).toHaveBeenCalledTimes(1);
     expect(deletePhoto).toHaveBeenCalledTimes(2);
+  });
+
+  it('times out update upload and rolls back newly uploaded photos', async () => {
+    const deletePhoto = jest.fn().mockResolvedValue(undefined);
+    const writeReviewPair = jest.fn().mockResolvedValue(undefined);
+
+    const mutations = createReviewMutations({
+      nowIso: () => '2026-02-10T11:00:00.000Z',
+      createReviewId: () => 'review-unused',
+      loadReview: jest.fn().mockResolvedValue({
+        id: 'review-001',
+        placeId: 'place-001',
+        placeTitle: 'Midnight Ramen',
+        placeCoordinates: null,
+        title: 'Midnight Ramen',
+        notes: 'Old notes',
+        rating: 7,
+        visibility: 'followers',
+        userId: 'user-001',
+        userName: 'Alex',
+        userHandle: 'alex',
+        userAvatar: null,
+        createdAt: '2026-02-10T09:00:00.000Z',
+        updatedAt: '2026-02-10T09:00:00.000Z',
+        photos: [],
+        photoUrls: [],
+      }),
+      writeReviewPair,
+      deleteReviewPair: jest.fn(),
+      compressPhoto: jest.fn(async (uri: string) => ({ uri: `${uri}-compressed`, contentType: 'image/jpeg' })),
+      uploadPhoto: jest
+        .fn()
+        .mockResolvedValueOnce({ path: 'reviews/user-001/review-001/photo-1.jpg', url: 'https://cdn/1.jpg' })
+        .mockImplementationOnce(
+          () =>
+            new Promise(() => {
+              // Intentionally unresolved to simulate native/upload hang.
+            })
+        ),
+      deletePhoto,
+      stepTimeoutMs: 5,
+    });
+
+    await expect(
+      mutations.updateReview({
+        reviewId: 'review-001',
+        author,
+        place: {
+          id: 'place-001',
+          title: 'Midnight Ramen',
+        },
+        notes: 'Updated',
+        rating: 9,
+        visibility: 'followers',
+        photos: [{ uri: 'file://one.jpg' }, { uri: 'file://two.jpg' }],
+      })
+    ).rejects.toThrow('reviews.uploadPhoto-timeout');
+
+    expect(deletePhoto).toHaveBeenCalledWith('reviews/user-001/review-001/photo-1.jpg');
+    expect(writeReviewPair).not.toHaveBeenCalled();
   });
 });
