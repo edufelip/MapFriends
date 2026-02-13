@@ -11,7 +11,15 @@ import ProfileHero from './components/ProfileHero';
 import SettingsSection from './components/SettingsSection';
 import SettingsRow from './components/SettingsRow';
 import LogoutRow from './components/LogoutRow';
+import FavoritesSection from './components/FavoritesSection';
+import ProfileSectionTabs from './components/ProfileSectionTabs';
 import { Routes } from '../../app/routes';
+import {
+  useFavoriteHydrating,
+  useFavoriteRecords,
+  useHydrateFavoriteState,
+  useFavoriteStore,
+} from '../../state/favorites';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -23,6 +31,11 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
   const strings = getStrings();
   const insets = useSafeAreaInsets();
+  const [activeSection, setActiveSection] = React.useState<'settings' | 'favorites'>('settings');
+  useHydrateFavoriteState(user?.id, Boolean(user?.id), 120);
+  const favoriteRecords = useFavoriteRecords();
+  const isFavoriteHydrating = useFavoriteHydrating();
+  const removeFavoriteAndStore = useFavoriteStore((state) => state.removeFavoriteAndStore);
 
   const handle = `${strings.profile.handlePrefix}${user?.handle || 'alex_explorer'}`;
   return (
@@ -61,64 +74,112 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
           }}
         />
 
-        <View style={styles.sectionGroup}>
-          <SettingsSection
-            title={strings.profile.sectionCreator}
-            theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
-          >
-            <SettingsRow
-              icon="palette"
-              iconBg="rgba(147,51,234,0.15)"
-              iconColor="#a855f7"
-              label={strings.profile.creatorSettings}
-              theme={{
-                textPrimary: theme.textPrimary,
-                textMuted: theme.textMuted,
-                border: theme.border,
-              }}
-            />
-            <SettingsRow
-              icon="groups"
-              iconBg="rgba(245,158,11,0.15)"
-              iconColor="#f59e0b"
-              label={strings.profile.subscriberManagement}
-              badge={strings.profile.subscriberCount}
-              theme={{
-                textPrimary: theme.textPrimary,
-                textMuted: theme.textMuted,
-                border: theme.border,
-              }}
-            />
-          </SettingsSection>
+        <ProfileSectionTabs
+          activeTab={activeSection}
+          onChangeTab={setActiveSection}
+          labels={{
+            settings: strings.profile.tabSettings,
+            favorites: strings.profile.tabFavorites,
+          }}
+          theme={{
+            surface: theme.surface,
+            border: theme.border,
+            primary: theme.primary,
+            textPrimary: theme.textPrimary,
+            textMuted: theme.textMuted,
+          }}
+        />
 
-          <SettingsSection
-            title={strings.profile.sectionPreferences}
-            theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
-          >
-            <SettingsRow
-              icon="loyalty"
-              iconBg="rgba(34,197,94,0.15)"
-              iconColor="#22c55e"
-              label={strings.profile.manageSubscriptions}
-              theme={{
-                textPrimary: theme.textPrimary,
-                textMuted: theme.textMuted,
-                border: theme.border,
-              }}
-            />
-            <SettingsRow
-              icon="block"
-              iconBg="rgba(100,116,139,0.15)"
-              iconColor="#94a3b8"
-              label={strings.profile.blockedUsers}
-              theme={{
-                textPrimary: theme.textPrimary,
-                textMuted: theme.textMuted,
-                border: theme.border,
-              }}
-            />
-          </SettingsSection>
-        </View>
+        {activeSection === 'settings' ? (
+          <View style={styles.sectionGroup}>
+            <SettingsSection
+              title={strings.profile.sectionCreator}
+              theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
+            >
+              <SettingsRow
+                icon="palette"
+                iconBg="rgba(147,51,234,0.15)"
+                iconColor="#a855f7"
+                label={strings.profile.creatorSettings}
+                theme={{
+                  textPrimary: theme.textPrimary,
+                  textMuted: theme.textMuted,
+                  border: theme.border,
+                }}
+              />
+              <SettingsRow
+                icon="groups"
+                iconBg="rgba(245,158,11,0.15)"
+                iconColor="#f59e0b"
+                label={strings.profile.subscriberManagement}
+                badge={strings.profile.subscriberCount}
+                theme={{
+                  textPrimary: theme.textPrimary,
+                  textMuted: theme.textMuted,
+                  border: theme.border,
+                }}
+              />
+            </SettingsSection>
+
+            <SettingsSection
+              title={strings.profile.sectionPreferences}
+              theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
+            >
+              <SettingsRow
+                icon="loyalty"
+                iconBg="rgba(34,197,94,0.15)"
+                iconColor="#22c55e"
+                label={strings.profile.manageSubscriptions}
+                theme={{
+                  textPrimary: theme.textPrimary,
+                  textMuted: theme.textMuted,
+                  border: theme.border,
+                }}
+              />
+              <SettingsRow
+                icon="block"
+                iconBg="rgba(100,116,139,0.15)"
+                iconColor="#94a3b8"
+                label={strings.profile.blockedUsers}
+                theme={{
+                  textPrimary: theme.textPrimary,
+                  textMuted: theme.textMuted,
+                  border: theme.border,
+                }}
+              />
+            </SettingsSection>
+          </View>
+        ) : (
+          <FavoritesSection
+            favorites={favoriteRecords}
+            isHydrating={isFavoriteHydrating}
+            onOpenReview={(reviewId) => navigation.navigate(Routes.ReviewDetail, { reviewId })}
+            onRemoveFavorite={async (reviewId) => {
+              if (!user?.id) {
+                return;
+              }
+              try {
+                await removeFavoriteAndStore({ userId: user.id, reviewId });
+              } catch {
+                // Keep interactions resilient if network or permissions fail.
+              }
+            }}
+            strings={{
+              title: strings.profile.favoritesTitle,
+              subtitle: strings.profile.favoritesSubtitle,
+              emptyTitle: strings.profile.favoritesEmptyTitle,
+              emptySubtitle: strings.profile.favoritesEmptySubtitle,
+              removeLabel: strings.profile.favoritesRemoveLabel,
+            }}
+            theme={{
+              surface: theme.surface,
+              border: theme.border,
+              textPrimary: theme.textPrimary,
+              textMuted: theme.textMuted,
+              primary: theme.primary,
+            }}
+          />
+        )}
 
         <LogoutRow
           label={strings.profile.logout}
