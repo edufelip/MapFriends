@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import BottomNav from '../BottomNav';
-import { StyleSheet } from 'react-native';
+import { Image, StyleSheet } from 'react-native';
 
 describe('BottomNav', () => {
   it('uses controlled tab selection without pushing stack routes', () => {
@@ -69,5 +69,33 @@ describe('BottomNav', () => {
 
     expect(wrapperStyle.overflow).toBe('visible');
     expect(trackStyle.overflow).toBe('hidden');
+  });
+
+  it('does not render profile avatar preview even when avatar exists', () => {
+    const screen = render(
+      <BottomNav
+        active="profile"
+        onSelect={jest.fn()}
+        onPrimaryPress={jest.fn()}
+        theme={{
+          glass: 'rgba(16,22,34,0.8)',
+          border: '#1f2937',
+          primary: '#135bec',
+          textMuted: '#94a3b8',
+          surface: '#1c1f27',
+          textPrimary: '#ffffff',
+        }}
+        labels={{
+          home: 'Home',
+          explore: 'Explore',
+          activity: 'Activity',
+          profile: 'Profile',
+        }}
+        user={{ name: 'Alex', avatar: 'https://example.com/avatar.jpg' }}
+        bottomInset={0}
+      />
+    );
+
+    expect(screen.UNSAFE_queryAllByType(Image)).toHaveLength(0);
   });
 });

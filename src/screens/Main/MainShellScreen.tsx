@@ -15,6 +15,8 @@ import ProfileScreen from '../Profile/ProfileScreen';
 type Props = NativeStackScreenProps<any>;
 type MainTab = 'home' | 'explore' | 'activity' | 'profile';
 
+const MAIN_TABS: MainTab[] = ['home', 'explore', 'activity', 'profile'];
+
 export default function MainShellScreen({ navigation, route }: Props) {
   const colorScheme = useColorScheme();
   const theme = colorScheme === 'dark' ? palette.dark : palette.light;
@@ -23,8 +25,27 @@ export default function MainShellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = React.useState<MainTab>('home');
   const [homeMode, setHomeMode] = React.useState<'feed' | 'map'>('map');
+  const [visitedTabs, setVisitedTabs] = React.useState<Record<MainTab, boolean>>({
+    home: true,
+    explore: false,
+    activity: false,
+    profile: false,
+  });
   const contentOpacity = React.useRef(new Animated.Value(1)).current;
   const navBackgroundTransition = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev[activeTab]) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        [activeTab]: true,
+      };
+    });
+  }, [activeTab]);
 
   React.useEffect(() => {
     contentOpacity.setValue(0);
@@ -78,33 +99,51 @@ export default function MainShellScreen({ navigation, route }: Props) {
     ]
   );
 
-  const activeContent = React.useMemo(() => {
-    switch (activeTab) {
-      case 'home':
-        return (
-          <MapHomeScreen
-            navigation={navigation}
-            route={route}
-            hideBottomNav
-            homeMode={homeMode}
-            onHomeModeChange={setHomeMode}
-          />
-        );
-      case 'explore':
-        return <ExploreScreen navigation={navigation} route={route} hideBottomNav />;
-      case 'activity':
-        return <NotificationsScreen navigation={navigation} route={route} variant="panel" />;
-      case 'profile':
-      default:
-        return <ProfileScreen navigation={navigation} route={route} hideBottomNav />;
-    }
-  }, [activeTab, homeMode, navigation, route]);
+  const renderTabContent = React.useCallback(
+    (tab: MainTab) => {
+      switch (tab) {
+        case 'home':
+          return (
+            <MapHomeScreen
+              navigation={navigation}
+              route={route}
+              hideBottomNav
+              homeMode={homeMode}
+              onHomeModeChange={setHomeMode}
+            />
+          );
+        case 'explore':
+          return <ExploreScreen navigation={navigation} route={route} hideBottomNav />;
+        case 'activity':
+          return <NotificationsScreen navigation={navigation} route={route} variant="panel" />;
+        case 'profile':
+        default:
+          return <ProfileScreen navigation={navigation} route={route} hideBottomNav />;
+      }
+    },
+    [homeMode, navigation, route]
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
-      <Animated.View style={[styles.contentLayer, { opacity: contentOpacity }]}>
-        {activeContent}
-      </Animated.View>
+      {MAIN_TABS.map((tab) => {
+        if (!visitedTabs[tab]) {
+          return null;
+        }
+
+        const isActive = activeTab === tab;
+
+        return (
+          <Animated.View
+            key={tab}
+            style={[styles.contentLayer, { opacity: isActive ? contentOpacity : 0 }]}
+            pointerEvents={isActive ? 'auto' : 'none'}
+            testID={`main-shell-tab-${tab}`}
+          >
+            {renderTabContent(tab)}
+          </Animated.View>
+        );
+      })}
 
       <BottomNav
         active={activeTab}

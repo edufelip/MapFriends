@@ -3,6 +3,8 @@ import { fireEvent, render } from '@testing-library/react-native';
 import { Animated } from 'react-native';
 import MainShellScreen from '../MainShellScreen';
 
+const mockHomeUnmountSpy = jest.fn();
+
 jest.mock('../../../services/auth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', name: 'Alex' },
@@ -25,8 +27,13 @@ jest.mock('react-native-safe-area-context', () => ({
 }));
 
 jest.mock('../../Map/MapHomeScreen', () => {
+  const React = require('react');
   const { Text } = require('react-native');
-  return () => <Text>home-tab-content</Text>;
+
+  return () => {
+    React.useEffect(() => () => mockHomeUnmountSpy(), []);
+    return <Text>home-tab-content</Text>;
+  };
 });
 
 jest.mock('../../Explore/ExploreScreen', () => {
@@ -68,6 +75,7 @@ jest.mock('../../Map/components/BottomNav', () => {
 
 describe('MainShellScreen', () => {
   beforeEach(() => {
+    mockHomeUnmountSpy.mockReset();
     jest.spyOn(Animated, 'timing').mockReturnValue({
       start: (callback?: (result: { finished: boolean }) => void) =>
         callback?.({ finished: true }),
@@ -80,19 +88,18 @@ describe('MainShellScreen', () => {
     (Animated.timing as jest.Mock).mockRestore();
   });
 
-  it('renders only the active tab content tree', () => {
+  it('keeps home content mounted while switching bottom tabs', () => {
     const navigation = { navigate: jest.fn() } as never;
     const route = { key: 'MainShell', name: 'MainShell' } as never;
     const screen = render(<MainShellScreen navigation={navigation} route={route} />);
 
     expect(screen.getByText('home-tab-content')).toBeTruthy();
     expect(screen.queryByText('explore-tab-content')).toBeNull();
-    expect(screen.queryByText('activity-tab-content')).toBeNull();
-    expect(screen.queryByText('profile-tab-content')).toBeNull();
 
     fireEvent.press(screen.getByText('select-explore'));
 
     expect(screen.getByText('explore-tab-content')).toBeTruthy();
-    expect(screen.queryByText('home-tab-content')).toBeNull();
+    expect(screen.getByText('home-tab-content')).toBeTruthy();
+    expect(mockHomeUnmountSpy).not.toHaveBeenCalled();
   });
 });

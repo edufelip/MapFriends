@@ -11,13 +11,15 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 ## Data Model / State
 - `activeTab` in shell: `home | explore | activity | profile`.
 - A single animated opacity value drives tab-content fade in (`260ms`).
-- Only the active primary tab panel is mounted (inactive tab trees are unmounted).
+- Primary tab panels are kept alive after first visit (lazy keep-alive), so returning to a visited tab restores prior UI state.
 
 ## UI/UX Notes
 - Bottom nav is mounted once in shell.
 - Bottom nav active selector uses animated sliding highlight.
+- Profile tab in bottom nav uses a static person icon (no avatar preview).
 - Bottom nav track background animates by Home submode: solid white on `home + feed`, glass on `home + map` (and non-home tabs).
 - Primary tab changes crossfade content in place (`260ms`).
+- Home panel remains mounted while other primary tabs are active to preserve feed scroll/media state.
 - Activity tab uses a panel variant (not the standalone notifications stack route header/back behavior).
 
 ## Routing
@@ -28,3 +30,4 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 - Bottom nav selection does not push new stack route for primary areas.
 - Bottom nav remains visible while changing primary tabs.
 - Active tab highlight animates to selected item.
+- Switching away from Home does not unmount Home panel.

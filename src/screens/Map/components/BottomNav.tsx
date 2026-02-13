@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { Routes } from '../../../app/routes';
 
@@ -33,7 +33,6 @@ function BottomNav({
   onPrimaryPress,
   theme,
   labels,
-  user,
   bottomInset,
 }: Props) {
   const selectorX = React.useRef(new Animated.Value(0)).current;
@@ -167,19 +166,9 @@ function BottomNav({
           }}
           onPress={() => selectTab('profile')}
         >
-          {user?.avatar ? (
-            <Image
-              source={{ uri: user.avatar }}
-              style={[
-                styles.navAvatar,
-                active === 'profile' && { borderColor: theme.primary, borderWidth: 1.5 },
-              ]}
-            />
-          ) : (
-            <View style={styles.navIconShell}>
-              <MaterialIcons name="person" size={18} color={colorFor('profile')} />
-            </View>
-          )}
+          <View style={styles.navIconShell}>
+            <MaterialIcons name="person" size={20} color={colorFor('profile')} />
+          </View>
           <Text style={[styles.navLabel, { color: colorFor('profile') }]}>{labels.profile}</Text>
         </Pressable>
       </Animated.View>
@@ -246,13 +235,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
     elevation: 4,
-  },
-  navAvatar: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   navIconShell: {
     width: 22,
