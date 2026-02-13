@@ -1,7 +1,7 @@
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
 import { Animated } from 'react-native';
-import MainShellScreen from '../MainShellScreen';
+import MainShellScreen, { shouldRenderMainTabLayer } from '../MainShellScreen';
 
 const mockHomeUnmountSpy = jest.fn();
 
@@ -86,6 +86,12 @@ describe('MainShellScreen', () => {
 
   afterEach(() => {
     (Animated.timing as jest.Mock).mockRestore();
+  });
+
+  it('renders active tab layer even when tab is not yet marked visited', () => {
+    expect(
+      shouldRenderMainTabLayer({ home: true, explore: false, activity: false, profile: false }, 'explore', 'explore')
+    ).toBe(true);
   });
 
   it('keeps home content mounted while switching bottom tabs', () => {
