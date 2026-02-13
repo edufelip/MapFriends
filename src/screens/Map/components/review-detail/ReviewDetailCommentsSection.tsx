@@ -2,6 +2,7 @@ import React from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -43,7 +44,106 @@ type Props = {
   };
 };
 
+type CommentItemProps = {
+  comment: ReviewCommentRecord;
+  mine: boolean;
+  deleting: boolean;
+  onDelete: (commentId: string) => void;
+  theme: Props['theme'];
+};
+
 const MAX_COMMENT_LENGTH = 200;
+const toRelativeTimeLabel = (dateIso: string) => {
+  const timestamp = Date.parse(dateIso);
+  if (Number.isNaN(timestamp)) {
+    return 'now';
+  }
+
+  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60000));
+  if (elapsedMinutes < 1) {
+    return 'now';
+  }
+  if (elapsedMinutes < 60) {
+    return `${elapsedMinutes}m`;
+  }
+
+  const elapsedHours = Math.floor(elapsedMinutes / 60);
+  if (elapsedHours < 24) {
+    return `${elapsedHours}h`;
+  }
+
+  const elapsedDays = Math.floor(elapsedHours / 24);
+  return `${elapsedDays}d`;
+};
+
+const CommentItem = React.memo(function CommentItem({
+  comment,
+  mine,
+  deleting,
+  onDelete,
+  theme,
+}: CommentItemProps) {
+  const avatarUri = comment.userAvatar;
+  const hasAvatar = Boolean(avatarUri?.trim());
+
+  return (
+    <View style={[styles.item, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
+      <View style={styles.itemRow}>
+        <View style={[styles.avatarShell, { borderColor: theme.primary }]}> 
+          {hasAvatar ? (
+            <Image
+              testID={`comment-avatar-image-${comment.id}`}
+              source={{ uri: avatarUri!.trim(), cache: 'force-cache' }}
+              style={styles.avatar}
+            />
+          ) : (
+            <View
+              testID={`comment-avatar-fallback-${comment.id}`}
+              style={[styles.avatarFallback, { backgroundColor: `${theme.primary}18` }]}
+            >
+              <MaterialIcons name="person" size={22} color={theme.textMuted} />
+            </View>
+          )}
+        </View>
+
+        <View style={styles.contentWrap}>
+          <View style={styles.metaRow}>
+            <View style={styles.nameRow}>
+              <Text style={[styles.author, { color: theme.textPrimary }]} numberOfLines={1}>
+                {comment.userName}
+              </Text>
+              <Text style={[styles.handle, { color: theme.textMuted }]} numberOfLines={1}>
+                @{comment.userHandle}
+              </Text>
+            </View>
+
+            <View style={styles.rightMetaRow}>
+              <View style={[styles.timeChip, { borderColor: theme.border, backgroundColor: theme.background }]}> 
+                <MaterialIcons name="schedule" size={11} color={theme.textMuted} />
+                <Text style={[styles.timeText, { color: theme.textMuted }]}>{toRelativeTimeLabel(comment.createdAt)}</Text>
+              </View>
+
+              {mine ? (
+                <Pressable
+                  onPress={() => onDelete(comment.id)}
+                  disabled={deleting}
+                  style={[styles.deleteButton, { opacity: deleting ? 0.5 : 1 }]}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Delete comment"
+                >
+                  <MaterialIcons name="delete-outline" size={17} color={theme.danger} />
+                </Pressable>
+              ) : null}
+            </View>
+          </View>
+
+          <Text style={[styles.body, { color: theme.textPrimary }]}>{comment.text}</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
 
 export default function ReviewDetailCommentsSection({
   userId,
@@ -86,14 +186,22 @@ export default function ReviewDetailCommentsSection({
         },
       ]);
     },
-    [labels.cancel, labels.delete, labels.deleteErrorMessage, labels.deleteErrorTitle, labels.deleteMessage, labels.deleteTitle, onDelete]
+    [
+      labels.cancel,
+      labels.delete,
+      labels.deleteErrorMessage,
+      labels.deleteErrorTitle,
+      labels.deleteMessage,
+      labels.deleteTitle,
+      onDelete,
+    ]
   );
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: theme.textPrimary }]}>{labels.title}</Text>
+      <Text style={[styles.title, { color: theme.textMuted }]}>{labels.title}</Text>
 
-      <View style={[styles.composer, { borderColor: theme.border, backgroundColor: theme.surface }]}>
+      <View style={[styles.composer, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
         <TextInput
           value={draft}
           onChangeText={setDraft}
@@ -103,10 +211,12 @@ export default function ReviewDetailCommentsSection({
           maxLength={MAX_COMMENT_LENGTH}
           multiline
         />
+
         <View style={styles.composerFooter}>
-          <Text style={[styles.remaining, { color: remaining < 20 ? theme.danger : theme.textMuted }]}>
+          <Text style={[styles.remaining, { color: remaining < 20 ? theme.danger : theme.textMuted }]}> 
             {remaining}
           </Text>
+
           <Pressable
             onPress={() => {
               void handleSubmit();
@@ -119,8 +229,13 @@ export default function ReviewDetailCommentsSection({
               },
             ]}
             disabled={!trimmed || isPosting || draft.length > MAX_COMMENT_LENGTH}
+            accessibilityRole="button"
           >
-            <Text style={styles.submitButtonText}>{isPosting ? labels.submitting : labels.submit}</Text>
+            {isPosting ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Text style={styles.submitButtonText}>{labels.submit}</Text>
+            )}
           </Pressable>
         </View>
       </View>
@@ -133,30 +248,16 @@ export default function ReviewDetailCommentsSection({
         <Text style={[styles.empty, { color: theme.textMuted }]}>{labels.empty}</Text>
       ) : (
         <View style={styles.list}>
-          {comments.map((comment) => {
-            const mine = Boolean(userId && comment.userId === userId);
-            const deleting = Boolean(deletingById[comment.id]);
-
-            return (
-              <View key={comment.id} style={[styles.item, { borderColor: theme.border, backgroundColor: theme.surface }]}>
-                <View style={styles.itemHeader}>
-                  <Text style={[styles.author, { color: theme.textPrimary }]}>
-                    {comment.userName} @{comment.userHandle}
-                  </Text>
-                  {mine ? (
-                    <Pressable
-                      onPress={() => handleDelete(comment.id)}
-                      disabled={deleting}
-                      style={{ opacity: deleting ? 0.5 : 1 }}
-                    >
-                      <MaterialIcons name="delete-outline" size={16} color={theme.danger} />
-                    </Pressable>
-                  ) : null}
-                </View>
-                <Text style={[styles.body, { color: theme.textPrimary }]}>{comment.text}</Text>
-              </View>
-            );
-          })}
+          {comments.map((comment) => (
+            <CommentItem
+              key={comment.id}
+              comment={comment}
+              mine={Boolean(userId && comment.userId === userId)}
+              deleting={Boolean(deletingById[comment.id])}
+              onDelete={handleDelete}
+              theme={theme}
+            />
+          ))}
         </View>
       )}
     </View>
@@ -169,20 +270,22 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   title: {
-    fontSize: 16,
-    fontFamily: 'BeVietnamPro-Bold',
+    fontSize: 11,
+    letterSpacing: 1.1,
+    textTransform: 'uppercase',
+    fontFamily: 'NotoSans-Bold',
     marginBottom: 10,
   },
   composer: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 10,
     gap: 8,
   },
   input: {
-    minHeight: 68,
+    minHeight: 48,
     fontSize: 13,
-    lineHeight: 18,
+    lineHeight: 19,
     fontFamily: 'NotoSans-Regular',
     textAlignVertical: 'top',
   },
@@ -201,6 +304,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     alignItems: 'center',
     justifyContent: 'center',
+    minWidth: 74,
   },
   submitButtonText: {
     color: '#ffffff',
@@ -222,23 +326,86 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   item: {
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 1,
     padding: 10,
   },
-  itemHeader: {
+  itemRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  avatarShell: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarFallback: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  contentWrap: {
+    flex: 1,
+    gap: 6,
+  },
+  metaRow: {
+    flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 6,
+    alignItems: 'center',
+    gap: 10,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 6,
+    flex: 1,
   },
   author: {
     fontSize: 12,
     fontFamily: 'NotoSans-Bold',
   },
+  handle: {
+    fontSize: 11,
+    fontFamily: 'NotoSans-Medium',
+    flexShrink: 1,
+  },
+  rightMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeChip: {
+    height: 22,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 7,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  timeText: {
+    fontSize: 10,
+    fontFamily: 'NotoSans-Bold',
+  },
+  deleteButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   body: {
     fontSize: 13,
-    lineHeight: 19,
+    lineHeight: 20,
     fontFamily: 'NotoSans-Regular',
   },
 });

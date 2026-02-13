@@ -21,8 +21,22 @@ const localCommentsByReviewId: Record<string, Record<string, ReviewCommentRecord
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null;
 
-const toNullableString = (value: unknown): string | null =>
-  typeof value === 'string' && value.length > 0 ? value : null;
+const toNullableString = (value: unknown): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (['null', 'undefined', 'none', 'n/a'].includes(normalized.toLowerCase())) {
+    return null;
+  }
+
+  return normalized;
+};
 
 const toReviewComment = (commentId: string, raw: unknown): ReviewCommentRecord | null => {
   if (!isRecord(raw)) {
@@ -96,7 +110,7 @@ function createLocalEngagementRepository(): EngagementRepository {
         userId: input.userId,
         userName: input.userName,
         userHandle: input.userHandle,
-        userAvatar: input.userAvatar,
+        userAvatar: toNullableString(input.userAvatar),
         text: input.text,
         createdAt: now,
         updatedAt: now,
@@ -220,7 +234,7 @@ function createFirestoreEngagementRepository(): EngagementRepository {
         userId: input.userId,
         userName: input.userName,
         userHandle: input.userHandle,
-        userAvatar: input.userAvatar,
+        userAvatar: toNullableString(input.userAvatar),
         text: input.text,
         createdAt: now,
         updatedAt: now,

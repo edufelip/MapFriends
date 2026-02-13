@@ -13,7 +13,6 @@ import { MaterialIcons } from '@expo/vector-icons';
 type Props = {
   bottomInset: number;
   isLiked: boolean;
-  likeCount: number;
   isTogglingLike: boolean;
   onToggleLike: () => void;
   isFavorited: boolean;
@@ -39,7 +38,6 @@ type Props = {
 export default function ReviewDetailBottomActionBar({
   bottomInset,
   isLiked,
-  likeCount,
   isTogglingLike,
   onToggleLike,
   isFavorited,
@@ -100,7 +98,7 @@ export default function ReviewDetailBottomActionBar({
             />
           </Animated.View>
           <Text style={[styles.likeButtonText, { color: theme.danger }]}> 
-            {labels.like} {Math.max(0, likeCount)}
+            {labels.like}
           </Text>
         </Pressable>
 

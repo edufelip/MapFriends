@@ -71,7 +71,7 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
 
   const isFavorited = useIsReviewFavorited(reviewId);
   const toggleFavorite = useToggleFavoriteReview();
-  const { liked, likeCount } = useReviewLikeState(reviewId);
+  const { liked } = useReviewLikeState(reviewId);
   const toggleLike = useToggleReviewLike();
   const commentsState = useReviewComments(reviewId);
   const postComment = usePostReviewComment();
@@ -495,7 +495,6 @@ export default function ReviewDetailScreen({ route, navigation }: Props) {
       <ReviewDetailBottomActionBar
         bottomInset={insets.bottom}
         isLiked={liked}
-        likeCount={likeCount}
         isTogglingLike={isTogglingLike}
         onToggleLike={handleToggleLike}
         isFavorited={isFavorited}

@@ -1,27 +1,44 @@
 import React from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useEngagementStore } from './engagementStore';
 
-export function useReviewLikeState(reviewId: string | null | undefined) {
-  return useEngagementStore(
-    React.useCallback(
-      (state) => {
-        if (!reviewId) {
-          return {
-            liked: false,
-            likeCount: 0,
-            isHydrating: false,
-          };
-        }
+const EMPTY_LIKE_STATE = {
+  liked: false,
+  likeCount: 0,
+  isHydrating: false,
+};
 
-        return {
-          liked: Boolean(state.likedByReviewId[reviewId]),
-          likeCount: state.likeCountByReviewId[reviewId] || 0,
-          isHydrating: Boolean(state.likeHydratingByReviewId[reviewId]),
-        };
-      },
-      [reviewId]
-    )
+const EMPTY_COMMENT_STATE = {
+  items: [],
+  isHydrating: false,
+  isPosting: false,
+  hydrated: false,
+  hasMore: false,
+  error: null,
+  deletingById: {},
+};
+
+export function useReviewLikeState(reviewId: string | null | undefined) {
+  const selectLikeState = React.useCallback(
+    (state: {
+      likedByReviewId: Record<string, boolean>;
+      likeCountByReviewId: Record<string, number>;
+      likeHydratingByReviewId: Record<string, boolean>;
+    }) => {
+      if (!reviewId) {
+        return EMPTY_LIKE_STATE;
+      }
+
+      return {
+        liked: Boolean(state.likedByReviewId[reviewId]),
+        likeCount: state.likeCountByReviewId[reviewId] || 0,
+        isHydrating: Boolean(state.likeHydratingByReviewId[reviewId]),
+      };
+    },
+    [reviewId]
   );
+
+  return useEngagementStore(useShallow(selectLikeState));
 }
 
 export function useHydrateReviewLikeState(
@@ -52,28 +69,10 @@ export function useReviewComments(reviewId: string | null | undefined) {
     React.useCallback(
       (state) => {
         if (!reviewId) {
-          return {
-            items: [],
-            isHydrating: false,
-            isPosting: false,
-            hydrated: false,
-            hasMore: false,
-            error: null,
-            deletingById: {},
-          };
+          return EMPTY_COMMENT_STATE;
         }
 
-        return (
-          state.commentsByReviewId[reviewId] || {
-            items: [],
-            isHydrating: false,
-            isPosting: false,
-            hydrated: false,
-            hasMore: false,
-            error: null,
-            deletingById: {},
-          }
-        );
+        return state.commentsByReviewId[reviewId] || EMPTY_COMMENT_STATE;
       },
       [reviewId]
     )
