@@ -26,6 +26,8 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
   - Comment opens `ReviewDetail`.
   - Send opens share bottom sheet (system share + copy deep link).
   - Favorite toggles saved state with tap animation.
+- Feed comment counters are hydrated independently from Review Detail so counts are visible on first feed render.
+- Feed like counters are also hydrated independently (including signed-out sessions) and stay in sync after local like/unlike actions.
 - Premium feed cards remain restricted and do not expose the interactive action row.
 
 ## Routing
@@ -42,3 +44,5 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
   - Comment action opens review detail.
   - Send action opens share bottom sheet.
   - Premium cards keep action row restricted.
+- Feed comment count updates immediately after comment create/delete without requiring a Review Detail roundtrip.
+- Feed like count is accurate on first feed visit and remains consistent after like/unlike.
