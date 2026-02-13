@@ -14,8 +14,15 @@ import ProfileScreen from '../Profile/ProfileScreen';
 
 type Props = NativeStackScreenProps<any>;
 type MainTab = 'home' | 'explore' | 'activity' | 'profile';
+type MainTabVisitState = Record<MainTab, boolean>;
 
 const MAIN_TABS: MainTab[] = ['home', 'explore', 'activity', 'profile'];
+
+export const shouldRenderMainTabLayer = (
+  visitedTabs: MainTabVisitState,
+  tab: MainTab,
+  activeTab: MainTab
+) => visitedTabs[tab] || tab === activeTab;
 
 export default function MainShellScreen({ navigation, route }: Props) {
   const colorScheme = useColorScheme();
@@ -25,7 +32,7 @@ export default function MainShellScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const [activeTab, setActiveTab] = React.useState<MainTab>('home');
   const [homeMode, setHomeMode] = React.useState<'feed' | 'map'>('map');
-  const [visitedTabs, setVisitedTabs] = React.useState<Record<MainTab, boolean>>({
+  const [visitedTabs, setVisitedTabs] = React.useState<MainTabVisitState>({
     home: true,
     explore: false,
     activity: false,
@@ -99,6 +106,19 @@ export default function MainShellScreen({ navigation, route }: Props) {
     ]
   );
 
+  const handleMainTabSelect = React.useCallback((nextTab: MainTab) => {
+    setVisitedTabs((prev) => {
+      if (prev[nextTab]) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [nextTab]: true,
+      };
+    });
+    setActiveTab(nextTab);
+  }, []);
+
   const renderTabContent = React.useCallback(
     (tab: MainTab) => {
       switch (tab) {
@@ -125,9 +145,9 @@ export default function MainShellScreen({ navigation, route }: Props) {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}> 
       {MAIN_TABS.map((tab) => {
-        if (!visitedTabs[tab]) {
+        if (!shouldRenderMainTabLayer(visitedTabs, tab, activeTab)) {
           return null;
         }
 
@@ -147,7 +167,7 @@ export default function MainShellScreen({ navigation, route }: Props) {
 
       <BottomNav
         active={activeTab}
-        onSelect={setActiveTab}
+        onSelect={handleMainTabSelect}
         onPrimaryPress={() => navigation.navigate(Routes.ShareReview)}
         theme={bottomNavTheme}
         labels={bottomNavLabels}
