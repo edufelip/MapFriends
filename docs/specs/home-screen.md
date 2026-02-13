@@ -52,8 +52,9 @@ Create a Home screen with a top segmented control (Feed/Map) and a bottom naviga
 - Tapping the review context card body opens `ReviewDetail` for the selected review.
 - `ReviewDetail` uses a full-page immersive layout with hero gallery, reviewer metadata, place/location block, and long-form experience text.
 - `ReviewDetail` top-right `more_horiz` action is shown only to the review owner and opens owner actions (`Edit`, `Delete`).
-- `ReviewDetail` sticky bottom actions include `Save to favorites` (persistent) and `Share`.
+- `ReviewDetail` sticky bottom actions include `Like` (with animated tap feedback and live count), `Save to favorites` (persistent), and `Share`.
 - `ReviewDetail` prefetches its gallery image URLs once on detail load and renders hero media with `force-cache` to reduce warm re-open latency.
+- `ReviewDetail` includes a comments section at the bottom supporting create/list and delete for the comment owner (max 200 chars).
 - `Save to favorites` persists per-user favorites in Firestore under `userFavorites/{uid}/items/{reviewId}`.
 - Profile screen now includes a `Favorites` tab that lists saved reviews and allows quick unsave.
 - Review context card visibility transitions use smooth fade/slide animations.
