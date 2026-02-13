@@ -105,7 +105,6 @@ function FeedCard({
               <Text style={[styles.time, { color: theme.textMuted }]}>{post.time}</Text>
             </View>
           </View>
-          <MaterialIcons name="more-horiz" size={20} color={theme.textMuted} />
         </View>
 
         {hasImage ? (
@@ -189,7 +188,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     marginBottom: 12,
   },
   authorRow: {
