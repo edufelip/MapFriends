@@ -21,13 +21,24 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 - Primary tab changes crossfade content in place (`260ms`).
 - Home panel remains mounted while other primary tabs are active to preserve feed scroll/media state.
 - Activity tab uses a panel variant (not the standalone notifications stack route header/back behavior).
+- Feed regular cards expose interactive action row:
+  - Like toggles engagement with tap animation.
+  - Comment opens `ReviewDetail`.
+  - Send opens share bottom sheet (system share + copy deep link).
+  - Favorite toggles saved state with tap animation.
+- Premium feed cards remain restricted and do not expose the interactive action row.
 
 ## Routing
 - `MainStack` entry route is `MainShell`.
 - Drill-in routes like `PlaceDetail`, `ShareReview`, and `Settings` remain stack-based.
+- Deep link `com.eduardo880.mapfriends://review/:reviewId` routes to `ReviewDetail`.
 
 ## Test Cases
 - Bottom nav selection does not push new stack route for primary areas.
 - Bottom nav remains visible while changing primary tabs.
 - Active tab highlight animates to selected item.
 - Switching away from Home does not unmount Home panel.
+- Feed action row behavior:
+  - Comment action opens review detail.
+  - Send action opens share bottom sheet.
+  - Premium cards keep action row restricted.
