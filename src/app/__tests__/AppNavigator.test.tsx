@@ -70,7 +70,7 @@ jest.mock('../../screens/Settings/SettingsScreen', () => {
 });
 
 describe('AppNavigator', () => {
-  it('shows auth stack when user is not authenticated', () => {
+  it('shows auth stack when user is not authenticated', async () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isBootstrappingAuth: false,
@@ -81,10 +81,10 @@ describe('AppNavigator', () => {
 
     const screen = render(<AppNavigator />);
 
-    expect(screen.getByText('login-screen')).toBeTruthy();
+    expect(await screen.findByText('login-screen')).toBeTruthy();
   });
 
-  it('does not switch stacks based on bootstrap loading flag', () => {
+  it('does not switch stacks based on bootstrap loading flag', async () => {
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       isBootstrappingAuth: true,
@@ -95,6 +95,6 @@ describe('AppNavigator', () => {
 
     const screen = render(<AppNavigator />);
 
-    expect(screen.getByText('login-screen')).toBeTruthy();
+    expect(await screen.findByText('login-screen')).toBeTruthy();
   });
 });

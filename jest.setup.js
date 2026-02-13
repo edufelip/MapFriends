@@ -16,3 +16,11 @@ jest.mock('@expo/vector-icons', () => {
     MaterialIcons: MockIcon,
   };
 });
+
+jest.mock('expo-linking', () => ({
+  createURL: jest.fn((path = '') => `com.eduardo880.mapfriends://${String(path).replace(/^\//, '')}`),
+}));
+
+jest.mock('expo-clipboard', () => ({
+  setStringAsync: jest.fn(async () => true),
+}));
