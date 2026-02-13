@@ -18,6 +18,39 @@ type Props = {
   };
 };
 
+const INVALID_AVATAR_VALUES = new Set(['null', 'undefined', 'none', 'n/a']);
+const KNOWN_PLACEHOLDER_AVATAR_PATTERNS = ['default-user', 'default_profile', '/avatar/00000000000000000000000000000000'];
+
+const normalizeAvatarUri = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (INVALID_AVATAR_VALUES.has(normalized.toLowerCase())) {
+    return null;
+  }
+
+  const lower = normalized.toLowerCase();
+  if (KNOWN_PLACEHOLDER_AVATAR_PATTERNS.some((pattern) => lower.includes(pattern))) {
+    return null;
+  }
+
+  return normalized;
+};
+
+const toInitial = (handle: string) => {
+  const normalized = handle.replace(/^@+/, '').trim();
+  if (!normalized) {
+    return 'U';
+  }
+  return normalized.slice(0, 1).toUpperCase();
+};
+
 export default function ProfileHero({
   handle,
   subtitle,
@@ -26,6 +59,15 @@ export default function ProfileHero({
   editLabel,
   theme,
 }: Props) {
+  const avatarUri = React.useMemo(() => normalizeAvatarUri(avatar), [avatar]);
+  const [avatarLoadError, setAvatarLoadError] = React.useState(false);
+  const [avatarLoaded, setAvatarLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    setAvatarLoadError(false);
+    setAvatarLoaded(false);
+  }, [avatarUri]);
+
   return (
     <View style={styles.container}>
       <View style={styles.avatarWrap}>
@@ -35,17 +77,23 @@ export default function ProfileHero({
             { borderColor: theme.primary, backgroundColor: theme.background },
           ]}
         >
-          {avatar ? (
-            <Image source={{ uri: avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatarFallback, { backgroundColor: theme.surface }]}>
-              <Text style={[styles.avatarInitial, { color: theme.textPrimary }]}>
-                {handle.replace('@', '').slice(0, 1).toUpperCase()}
-              </Text>
+          <View style={[styles.avatarSurface, { backgroundColor: theme.surface }]}> 
+            <View style={styles.avatarFallback} testID="profile-hero-avatar-fallback">
+              <Text style={[styles.avatarInitial, { color: theme.textPrimary }]}>{toInitial(handle)}</Text>
             </View>
-          )}
+
+            {avatarUri && !avatarLoadError ? (
+              <Image
+                source={{ uri: avatarUri, cache: 'force-cache' }}
+                style={[styles.avatar, !avatarLoaded && styles.avatarHidden]}
+                testID="profile-hero-avatar-image"
+                onLoad={() => setAvatarLoaded(true)}
+                onError={() => setAvatarLoadError(true)}
+              />
+            ) : null}
+          </View>
         </View>
-        <View style={[styles.verified, { backgroundColor: theme.primary, borderColor: theme.background }]}>
+        <View style={[styles.verified, { backgroundColor: theme.primary, borderColor: theme.background }]}> 
           <MaterialIcons name="verified" size={14} color="#ffffff" />
         </View>
       </View>
@@ -75,15 +123,23 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     padding: 3,
   },
+  avatarSurface: {
+    flex: 1,
+    borderRadius: 42,
+    overflow: 'hidden',
+    position: 'relative',
+  },
   avatar: {
+    ...StyleSheet.absoluteFillObject,
     width: '100%',
     height: '100%',
     borderRadius: 42,
   },
+  avatarHidden: {
+    opacity: 0,
+  },
   avatarFallback: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 42,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },

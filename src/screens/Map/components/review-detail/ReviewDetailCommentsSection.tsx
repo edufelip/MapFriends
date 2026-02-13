@@ -53,6 +53,31 @@ type CommentItemProps = {
 };
 
 const MAX_COMMENT_LENGTH = 200;
+const INVALID_AVATAR_VALUES = new Set(['null', 'undefined', 'none', 'n/a']);
+const KNOWN_PLACEHOLDER_AVATAR_PATTERNS = ['default-user', 'default_profile', '/avatar/00000000000000000000000000000000'];
+
+const normalizeAvatarUri = (value: string | null | undefined) => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  if (INVALID_AVATAR_VALUES.has(normalized.toLowerCase())) {
+    return null;
+  }
+
+  const lower = normalized.toLowerCase();
+  if (KNOWN_PLACEHOLDER_AVATAR_PATTERNS.some((pattern) => lower.includes(pattern))) {
+    return null;
+  }
+
+  return normalized;
+};
+
 const toRelativeTimeLabel = (dateIso: string) => {
   const timestamp = Date.parse(dateIso);
   if (Number.isNaN(timestamp)) {
@@ -83,27 +108,35 @@ const CommentItem = React.memo(function CommentItem({
   onDelete,
   theme,
 }: CommentItemProps) {
-  const avatarUri = comment.userAvatar;
-  const hasAvatar = Boolean(avatarUri?.trim());
+  const avatarUri = React.useMemo(() => normalizeAvatarUri(comment.userAvatar), [comment.userAvatar]);
+  const [avatarLoadError, setAvatarLoadError] = React.useState(false);
+  const [avatarLoaded, setAvatarLoaded] = React.useState(false);
+
+  React.useEffect(() => {
+    setAvatarLoadError(false);
+    setAvatarLoaded(false);
+  }, [avatarUri]);
 
   return (
     <View style={[styles.item, { borderColor: theme.border, backgroundColor: theme.surface }]}> 
       <View style={styles.itemRow}>
         <View style={[styles.avatarShell, { borderColor: theme.primary }]}> 
-          {hasAvatar ? (
+          <View
+            testID={`comment-avatar-fallback-${comment.id}`}
+            style={[styles.avatarFallback, { backgroundColor: `${theme.primary}18` }]}
+          >
+            <MaterialIcons name="person" size={22} color={theme.textMuted} />
+          </View>
+
+          {avatarUri && !avatarLoadError ? (
             <Image
               testID={`comment-avatar-image-${comment.id}`}
-              source={{ uri: avatarUri!.trim(), cache: 'force-cache' }}
-              style={styles.avatar}
+              source={{ uri: avatarUri, cache: 'force-cache' }}
+              style={[styles.avatar, styles.avatarOverlay, !avatarLoaded && styles.avatarHidden]}
+              onLoad={() => setAvatarLoaded(true)}
+              onError={() => setAvatarLoadError(true)}
             />
-          ) : (
-            <View
-              testID={`comment-avatar-fallback-${comment.id}`}
-              style={[styles.avatarFallback, { backgroundColor: `${theme.primary}18` }]}
-            >
-              <MaterialIcons name="person" size={22} color={theme.textMuted} />
-            </View>
-          )}
+          ) : null}
         </View>
 
         <View style={styles.contentWrap}>
@@ -348,9 +381,16 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  avatarHidden: {
+    opacity: 0,
+  },
   avatarFallback: {
-    width: '100%',
-    height: '100%',
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
   },
