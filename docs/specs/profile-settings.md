@@ -35,6 +35,10 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
 - Visibility is updated from Edit Profile save flow and persisted in auth state.
 - The rest of the rows are visual-only placeholders.
 - Version label is static.
+- Favorites is the first profile section tab and opens by default; Settings is the second tab.
+- Switching between Favorites and Settings uses a smooth horizontal/opacity transition for content and an animated active-tab indicator.
+- Settings screen exposes a dedicated logout button that asks for confirmation before calling `signOut`.
+- Confirming logout pushes `AuthLogin` with a right-to-left transition and then completes auth sign-out.
 
 ## Localization
 Strings live in `src/localization/strings.ts` under `profile` for `en-US` and `pt-BR`.
