@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 
 type TabKey = 'settings' | 'favorites';
 
@@ -20,32 +20,59 @@ type Props = {
 };
 
 export default function ProfileSectionTabs({ activeTab, onChangeTab, labels, theme }: Props) {
+  const indicatorProgress = React.useRef(new Animated.Value(activeTab === 'favorites' ? 0 : 1)).current;
+  const [wrapWidth, setWrapWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    Animated.timing(indicatorProgress, {
+      toValue: activeTab === 'favorites' ? 0 : 1,
+      duration: 220,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab, indicatorProgress]);
+
+  const indicatorWidth = React.useMemo(() => {
+    if (wrapWidth <= 8) {
+      return 0;
+    }
+
+    return (wrapWidth - 8) / 2;
+  }, [wrapWidth]);
+
   return (
-    <View style={[styles.wrap, { backgroundColor: theme.surface, borderColor: theme.border }]}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => onChangeTab('settings')}
-        style={[
-          styles.tab,
-          activeTab === 'settings' && { backgroundColor: `${theme.primary}18` },
-        ]}
-      >
-        <Text
+    <View
+      style={[styles.wrap, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      onLayout={(event) => {
+        setWrapWidth(event.nativeEvent.layout.width);
+      }}
+    >
+      {indicatorWidth > 0 ? (
+        <Animated.View
+          pointerEvents="none"
           style={[
-            styles.tabLabel,
-            { color: activeTab === 'settings' ? theme.primary : theme.textMuted },
+            styles.activeTabIndicator,
+            {
+              width: indicatorWidth,
+              backgroundColor: `${theme.primary}18`,
+              transform: [
+                {
+                  translateX: indicatorProgress.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0, indicatorWidth],
+                  }),
+                },
+              ],
+            },
           ]}
-        >
-          {labels.settings}
-        </Text>
-      </Pressable>
+        />
+      ) : null}
+
       <Pressable
         accessibilityRole="button"
+        testID="profile-section-tab-favorites"
         onPress={() => onChangeTab('favorites')}
-        style={[
-          styles.tab,
-          activeTab === 'favorites' && { backgroundColor: `${theme.primary}18` },
-        ]}
+        style={styles.tab}
       >
         <Text
           style={[
@@ -54,6 +81,21 @@ export default function ProfileSectionTabs({ activeTab, onChangeTab, labels, the
           ]}
         >
           {labels.favorites}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        testID="profile-section-tab-settings"
+        onPress={() => onChangeTab('settings')}
+        style={styles.tab}
+      >
+        <Text
+          style={[
+            styles.tabLabel,
+            { color: activeTab === 'settings' ? theme.primary : theme.textMuted },
+          ]}
+        >
+          {labels.settings}
         </Text>
       </Pressable>
     </View>
@@ -68,6 +110,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignSelf: 'center',
     width: '100%',
+    position: 'relative',
+  },
+  activeTabIndicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 10,
   },
   tab: {
     flex: 1,

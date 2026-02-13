@@ -107,6 +107,15 @@ function MainStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
+        name={Routes.AuthLogin}
+        component={LoginScreen}
+        options={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          gestureEnabled: false,
+        }}
+      />
+      <Stack.Screen
         name={Routes.MapHome}
         component={MapHomeScreen}
         options={{ headerShown: false }}

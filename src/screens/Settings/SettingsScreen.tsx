@@ -1,6 +1,20 @@
 import React from 'react';
-import { Image, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  InteractionManager,
+  Pressable,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../../services/auth';
+import { getStrings } from '../../localization/strings';
+import { Routes } from '../../app/routes';
 
 const INVALID_AVATAR_VALUES = new Set(['null', 'undefined', 'none', 'n/a']);
 const KNOWN_PLACEHOLDER_AVATAR_PATTERNS = ['default-user', 'default_profile', '/avatar/00000000000000000000000000000000'];
@@ -36,10 +50,15 @@ const toAvatarInitial = (name: string | null | undefined, handle: string | null 
   return source.slice(0, 1).toUpperCase();
 };
 
-export default function SettingsScreen() {
-  const { user } = useAuth();
+type Props = NativeStackScreenProps<Record<string, object | undefined>, typeof Routes.Settings>;
+
+export default function SettingsScreen({ navigation }: Props) {
+  const { user, signOut } = useAuth();
+  const strings = getStrings();
   const [shareLocation, setShareLocation] = React.useState(true);
   const [weeklyDigest, setWeeklyDigest] = React.useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
+  const isMountedRef = React.useRef(true);
 
   const rawAvatar = user?.avatar ?? null;
   const avatarUri = React.useMemo(() => normalizeAvatarUri(rawAvatar), [rawAvatar]);
@@ -52,6 +71,12 @@ export default function SettingsScreen() {
     setAvatarLoadError(false);
     setAvatarLoaded(false);
   }, [avatarUri]);
+
+  React.useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const showAvatarImage = Boolean(avatarUri && !avatarLoadError && avatarLoaded);
 
@@ -72,6 +97,61 @@ export default function SettingsScreen() {
       branch: showAvatarImage ? 'image' : 'fallback',
     });
   }, [avatarLoadError, avatarLoaded, avatarUri, rawAvatar, showAvatarImage, user?.id]);
+
+  const executeLogout = React.useCallback(() => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    navigation.push(Routes.AuthLogin);
+
+    InteractionManager.runAfterInteractions(() => {
+      void signOut()
+        .catch(() => {
+          Alert.alert(strings.profile.logoutErrorTitle, strings.profile.logoutErrorMessage);
+          if (navigation.canGoBack()) {
+            navigation.goBack();
+          }
+        })
+        .finally(() => {
+          if (isMountedRef.current) {
+            setIsLoggingOut(false);
+          }
+        });
+    });
+  }, [
+    isLoggingOut,
+    navigation,
+    signOut,
+    strings.profile.logoutErrorMessage,
+    strings.profile.logoutErrorTitle,
+  ]);
+
+  const handleLogoutPress = React.useCallback(() => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    Alert.alert(strings.profile.logoutConfirmTitle, strings.profile.logoutConfirmMessage, [
+      {
+        text: strings.profile.logoutConfirmCancel,
+        style: 'cancel',
+      },
+      {
+        text: strings.profile.logoutConfirmConfirm,
+        style: 'destructive',
+        onPress: executeLogout,
+      },
+    ]);
+  }, [
+    executeLogout,
+    isLoggingOut,
+    strings.profile.logoutConfirmCancel,
+    strings.profile.logoutConfirmConfirm,
+    strings.profile.logoutConfirmMessage,
+    strings.profile.logoutConfirmTitle,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -134,6 +214,20 @@ export default function SettingsScreen() {
         </View>
         <Switch value={weeklyDigest} onValueChange={setWeeklyDigest} />
       </View>
+
+      <Pressable
+        testID="settings-logout-button"
+        style={[styles.logoutButton, isLoggingOut && styles.logoutButtonDisabled]}
+        onPress={handleLogoutPress}
+        disabled={isLoggingOut}
+      >
+        {isLoggingOut ? (
+          <ActivityIndicator size="small" color="#c2410c" />
+        ) : (
+          <MaterialIcons name="logout" size={18} color="#c2410c" />
+        )}
+        <Text style={styles.logoutLabel}>{isLoggingOut ? strings.profile.loggingOut : strings.profile.logout}</Text>
+      </Pressable>
     </View>
   );
 }
@@ -230,5 +324,25 @@ const styles = StyleSheet.create({
   caption: {
     marginTop: 4,
     color: '#6c7a7f',
+  },
+  logoutButton: {
+    marginTop: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#fed7aa',
+    backgroundColor: '#fff7ed',
+    paddingVertical: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.72,
+  },
+  logoutLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#c2410c',
   },
 });
