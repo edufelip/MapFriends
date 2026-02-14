@@ -42,6 +42,27 @@ service cloud.firestore {
       return /databases/$(database)/documents/userReviews/$(uid)/items/$(reviewId);
     }
 
+    function userFollowingPath(uid, followedUid) {
+      return /databases/$(database)/documents/userFollowing/$(uid)/items/$(followedUid);
+    }
+
+    function userFollowersPath(uid, followerUid) {
+      return /databases/$(database)/documents/userFollowers/$(uid)/items/$(followerUid);
+    }
+
+    function userFollowRequestPath(uid, requesterUid) {
+      return /databases/$(database)/documents/userFollowRequests/$(uid)/items/$(requesterUid);
+    }
+
+    function userPath(uid) {
+      return /databases/$(database)/documents/users/$(uid);
+    }
+
+    function isProfileOpen(uid) {
+      return exists(userPath(uid))
+        && get(userPath(uid)).data.visibility == 'open';
+    }
+
     function hasReviewKeys(data) {
       return data.keys().hasOnly([
         'id',
@@ -239,7 +260,17 @@ service cloud.firestore {
 
     match /userFollowing/{uid}/items/{followedUid} {
       allow read: if isOwner(uid);
-      allow create, update: if isOwner(uid)
+      allow create, update: if isSignedIn()
+        && (
+          (
+            isOwner(uid)
+            && isProfileOpen(followedUid)
+          )
+          || (
+            request.auth.uid == followedUid
+            && exists(userFollowRequestPath(followedUid, uid))
+          )
+        )
         && request.resource.data.keys().hasOnly([
           'userId',
           'followedUserId',
@@ -248,6 +279,150 @@ service cloud.firestore {
         && request.resource.data.userId == uid
         && request.resource.data.followedUserId == followedUid
         && request.resource.data.createdAt is string;
+      allow delete: if isOwner(uid);
+    }
+
+    match /userFollowers/{uid}/items/{followerUid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isSignedIn()
+        && existsAfter(userFollowingPath(followerUid, uid))
+        && (
+          (
+            request.auth.uid == followerUid
+            && isProfileOpen(uid)
+          )
+          || (
+            isOwner(uid)
+            && exists(userFollowRequestPath(uid, followerUid))
+          )
+        )
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'followerUserId',
+          'createdAt',
+        ])
+        && request.resource.data.userId == uid
+        && request.resource.data.followerUserId == followerUid
+        && request.resource.data.createdAt is string;
+      allow delete: if isSignedIn()
+        && (isOwner(uid) || request.auth.uid == followerUid);
+    }
+
+    match /userFollowRequests/{uid}/items/{requesterUid} {
+      allow read: if isOwner(uid) || (isSignedIn() && request.auth.uid == requesterUid);
+      allow create, update: if isSignedIn()
+        && request.auth.uid == requesterUid
+        && request.resource.data.keys().hasOnly([
+          'targetUserId',
+          'requesterUserId',
+          'requesterName',
+          'requesterHandle',
+          'requesterAvatar',
+          'createdAt',
+        ])
+        && request.resource.data.targetUserId == uid
+        && request.resource.data.requesterUserId == requesterUid
+        && request.resource.data.requesterName is string
+        && request.resource.data.requesterHandle is string
+        && (request.resource.data.requesterAvatar == null || request.resource.data.requesterAvatar is string)
+        && request.resource.data.createdAt is string;
+      allow delete: if isOwner(uid) || (isSignedIn() && request.auth.uid == requesterUid);
+    }
+
+    match /userNotifications/{uid}/items/{notificationId} {
+      allow read: if isOwner(uid);
+      allow create: if isSignedIn()
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'userId',
+          'type',
+          'actorUserId',
+          'actorName',
+          'actorHandle',
+          'actorAvatar',
+          'createdAt',
+          'readAt',
+          'requestStatus',
+          'targetReviewId',
+          'targetReviewPlaceTitle',
+          'targetReviewPlaceSubtitle',
+          'targetReviewImageUrl',
+          'targetReviewVisibility',
+        ])
+        && request.resource.data.id == notificationId
+        && request.resource.data.userId == uid
+        && request.resource.data.actorUserId == request.auth.uid
+        && request.resource.data.type in [
+          'follow_started',
+          'follow_request',
+          'review_published',
+          'follow_request_accepted',
+        ]
+        && request.resource.data.actorName is string
+        && request.resource.data.actorHandle is string
+        && (request.resource.data.actorAvatar == null || request.resource.data.actorAvatar is string)
+        && request.resource.data.createdAt is string
+        && (request.resource.data.readAt == null || request.resource.data.readAt is string)
+        && request.resource.data.requestStatus in [null, 'pending', 'accepted', 'declined']
+        && (request.resource.data.targetReviewId == null || request.resource.data.targetReviewId is string)
+        && (request.resource.data.targetReviewPlaceTitle == null || request.resource.data.targetReviewPlaceTitle is string)
+        && (request.resource.data.targetReviewPlaceSubtitle == null || request.resource.data.targetReviewPlaceSubtitle is string)
+        && (request.resource.data.targetReviewImageUrl == null || request.resource.data.targetReviewImageUrl is string)
+        && request.resource.data.targetReviewVisibility in [null, 'followers', 'subscribers']
+        && (
+          (
+            request.resource.data.type == 'follow_started'
+            && exists(userFollowingPath(request.auth.uid, uid))
+          )
+          || (
+            request.resource.data.type == 'follow_request'
+            && request.resource.data.requestStatus == 'pending'
+            && exists(userFollowRequestPath(uid, request.auth.uid))
+          )
+          || (
+            request.resource.data.type == 'follow_request_accepted'
+            && exists(userFollowersPath(request.auth.uid, uid))
+          )
+          || (
+            request.resource.data.type == 'review_published'
+            && request.resource.data.targetReviewId is string
+            && request.resource.data.targetReviewVisibility in ['followers', 'subscribers']
+            && exists(userFollowersPath(request.auth.uid, uid))
+          )
+        );
+      allow update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'id',
+          'userId',
+          'type',
+          'actorUserId',
+          'actorName',
+          'actorHandle',
+          'actorAvatar',
+          'createdAt',
+          'readAt',
+          'requestStatus',
+          'targetReviewId',
+          'targetReviewPlaceTitle',
+          'targetReviewPlaceSubtitle',
+          'targetReviewImageUrl',
+          'targetReviewVisibility',
+        ])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.userId == resource.data.userId
+        && request.resource.data.type == resource.data.type
+        && request.resource.data.actorUserId == resource.data.actorUserId
+        && request.resource.data.actorName == resource.data.actorName
+        && request.resource.data.actorHandle == resource.data.actorHandle
+        && request.resource.data.actorAvatar == resource.data.actorAvatar
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.targetReviewId == resource.data.targetReviewId
+        && request.resource.data.targetReviewPlaceTitle == resource.data.targetReviewPlaceTitle
+        && request.resource.data.targetReviewPlaceSubtitle == resource.data.targetReviewPlaceSubtitle
+        && request.resource.data.targetReviewImageUrl == resource.data.targetReviewImageUrl
+        && request.resource.data.targetReviewVisibility == resource.data.targetReviewVisibility
+        && (request.resource.data.readAt == null || request.resource.data.readAt is string)
+        && request.resource.data.requestStatus in [null, 'pending', 'accepted', 'declined'];
       allow delete: if isOwner(uid);
     }
 
