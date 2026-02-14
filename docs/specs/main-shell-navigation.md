@@ -21,6 +21,8 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 - Primary tab changes crossfade content in place (`260ms`).
 - Home panel remains mounted while other primary tabs are active to preserve feed scroll/media state.
 - Activity tab uses a panel variant (not the standalone notifications stack route header/back behavior).
+- Activity icon can display unread badge count sourced from remote notifications state.
+- Badge freshness uses active-app unread subscription plus focus-triggered refresh fallback.
 - Feed and map tabs only surface reviews authored by accounts the signed-in user follows (plus the user's own reviews).
 - Feed regular cards expose interactive action row:
   - Like toggles engagement with tap animation.

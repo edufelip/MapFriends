@@ -1,5 +1,6 @@
 import React from 'react';
 import { Animated, Easing, StyleSheet, View, useColorScheme } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/auth';
@@ -11,6 +12,12 @@ import MapHomeScreen from '../Map/MapHomeScreen';
 import ExploreScreen from '../Explore/ExploreScreen';
 import NotificationsScreen from '../Notifications/NotificationsScreen';
 import ProfileScreen from '../Profile/ProfileScreen';
+import {
+  useHydrateNotificationsState,
+  useNotificationUnreadCount,
+  useObserveNotificationUnreadCount,
+  useRefreshNotifications,
+} from '../../state/notifications';
 
 type Props = NativeStackScreenProps<any>;
 type MainTab = 'home' | 'explore' | 'activity' | 'profile';
@@ -40,6 +47,22 @@ export default function MainShellScreen({ navigation, route }: Props) {
   });
   const contentOpacity = React.useRef(new Animated.Value(1)).current;
   const navBackgroundTransition = React.useRef(new Animated.Value(0)).current;
+
+  useHydrateNotificationsState(user?.id, Boolean(user?.id), 120);
+  useObserveNotificationUnreadCount(user?.id, Boolean(user?.id));
+  const refreshNotifications = useRefreshNotifications();
+  const activityUnreadCount = useNotificationUnreadCount(user?.id);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!user?.id) {
+        return undefined;
+      }
+
+      void refreshNotifications({ userId: user.id, limit: 120 });
+      return undefined;
+    }, [refreshNotifications, user?.id])
+  );
 
   React.useEffect(() => {
     setVisitedTabs((prev) => {
@@ -173,6 +196,7 @@ export default function MainShellScreen({ navigation, route }: Props) {
         labels={bottomNavLabels}
         user={user}
         bottomInset={insets.bottom}
+        activityBadgeCount={activityUnreadCount}
       />
     </View>
   );

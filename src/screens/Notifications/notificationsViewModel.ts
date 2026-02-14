@@ -97,7 +97,8 @@ const toSectionKey = (record: NotificationRecord, now: number): keyof SectionBuc
 const toRowItem = (
   record: NotificationRecord,
   strings: NotificationStrings,
-  now: number
+  now: number,
+  followedUserIds: ReadonlySet<string>
 ): NotificationRowItem => ({
   id: record.id,
   name: toName(record),
@@ -114,14 +115,19 @@ const toRowItem = (
         }
       : null,
   premiumCard: record.type === 'review_published' && record.targetReviewVisibility === 'subscribers',
-  action: record.type === 'follow_started' ? 'follow' : null,
+  action:
+    record.type === 'follow_started' && !followedUserIds.has(record.actorUserId) ? 'follow' : null,
   isRead: Boolean(record.readAt),
   hasRequestActions: record.type === 'follow_request',
   requestStatus:
     record.type === 'follow_request' ? (record.requestStatus || 'pending') : record.requestStatus,
 });
 
-export function buildNotificationListState(records: NotificationRecord[], strings: NotificationStrings): {
+export function buildNotificationListState(
+  records: NotificationRecord[],
+  strings: NotificationStrings,
+  followedUserIds: ReadonlySet<string> = new Set()
+): {
   recordsById: Record<string, NotificationRecord>;
   sections: NotificationSection[];
 } {
@@ -135,7 +141,7 @@ export function buildNotificationListState(records: NotificationRecord[], string
 
   records.forEach((record) => {
     recordsById[record.id] = record;
-    grouped[toSectionKey(record, now)].push(toRowItem(record, strings, now));
+    grouped[toSectionKey(record, now)].push(toRowItem(record, strings, now, followedUserIds));
   });
 
   return {

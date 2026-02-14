@@ -12,6 +12,7 @@ export {
   useNotificationsError,
   useNotificationsHydrating,
   useNotificationUnreadCount,
+  useObserveNotificationUnreadCount,
   usePendingNotificationActions,
   useRefreshNotifications,
 } from './notificationSelectors';

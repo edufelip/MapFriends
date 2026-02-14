@@ -1,6 +1,7 @@
 import React from 'react';
+import { AppState } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
-import { NotificationRecord } from '../../services/notifications';
+import { subscribeNotificationUnreadCount, NotificationRecord } from '../../services/notifications';
 import { useNotificationsStore } from './notificationsStore';
 
 const EMPTY_NOTIFICATIONS_BY_ID: Record<string, NotificationRecord> = {};
@@ -30,12 +31,82 @@ export function useNotificationRecords() {
 
 export function useNotificationUnreadCount(userId?: string | null) {
   return useNotificationsStore((state) => {
-    if (!userId || state.hydratedUserId !== userId) {
+    if (
+      !userId ||
+      (state.hydratedUserId !== userId && state.unreadCountUserId !== userId)
+    ) {
       return 0;
     }
 
     return Math.max(0, state.unreadCount);
   });
+}
+
+export function useObserveNotificationUnreadCount(userId?: string | null, enabled = true) {
+  const setUnreadCountForUser = useNotificationsStore((state) => state.setUnreadCountForUser);
+
+  React.useEffect(() => {
+    if (!enabled || !userId) {
+      return;
+    }
+
+    let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
+
+    const stopSubscription = () => {
+      if (!unsubscribe) {
+        return;
+      }
+
+      unsubscribe();
+      unsubscribe = null;
+    };
+
+    const startSubscription = async () => {
+      stopSubscription();
+
+      try {
+        const nextUnsubscribe = await subscribeNotificationUnreadCount({
+          userId,
+          onChange: (unreadCount) => {
+            if (!isMounted) {
+              return;
+            }
+
+            setUnreadCountForUser({ userId, unreadCount });
+          },
+        });
+
+        if (!isMounted) {
+          nextUnsubscribe();
+          return;
+        }
+
+        unsubscribe = nextUnsubscribe;
+      } catch {
+        // best-effort live updates; fallback refresh still keeps the badge fresh.
+      }
+    };
+
+    if (AppState.currentState === 'active') {
+      void startSubscription();
+    }
+
+    const appStateSubscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState === 'active') {
+        void startSubscription();
+        return;
+      }
+
+      stopSubscription();
+    });
+
+    return () => {
+      isMounted = false;
+      appStateSubscription.remove();
+      stopSubscription();
+    };
+  }, [enabled, setUnreadCountForUser, userId]);
 }
 
 export function useNotificationsHydrating() {

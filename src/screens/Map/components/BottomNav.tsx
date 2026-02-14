@@ -24,6 +24,7 @@ type Props = {
   };
   user?: { name?: string; avatar?: string | null } | null;
   bottomInset: number;
+  activityBadgeCount?: number;
 };
 
 function BottomNav({
@@ -34,6 +35,7 @@ function BottomNav({
   theme,
   labels,
   bottomInset,
+  activityBadgeCount = 0,
 }: Props) {
   const selectorX = React.useRef(new Animated.Value(0)).current;
   const [selectorWidth, setSelectorWidth] = React.useState(52);
@@ -98,6 +100,9 @@ function BottomNav({
     }
   }, [navigation, onPrimaryPress]);
 
+  const showActivityBadge = activityBadgeCount > 0;
+  const activityBadgeLabel = activityBadgeCount > 99 ? '99+' : String(activityBadgeCount);
+
   return (
     <View
       style={[
@@ -155,7 +160,14 @@ function BottomNav({
           }}
           onPress={() => selectTab('activity')}
         >
-          <MaterialIcons name="notifications" size={22} color={colorFor('activity')} />
+          <View style={styles.activityIconWrap}>
+            <MaterialIcons name="notifications" size={22} color={colorFor('activity')} />
+            {showActivityBadge ? (
+              <View style={[styles.activityBadge, { backgroundColor: theme.primary }]}>
+                <Text style={styles.activityBadgeText}>{activityBadgeLabel}</Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={[styles.navLabel, { color: colorFor('activity') }]}>{labels.activity}</Text>
         </Pressable>
         <Pressable
@@ -241,5 +253,28 @@ const styles = StyleSheet.create({
     height: 22,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activityIconWrap: {
+    width: 22,
+    height: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    paddingHorizontal: 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityBadgeText: {
+    color: '#ffffff',
+    fontSize: 9,
+    lineHeight: 11,
+    fontFamily: 'BeVietnamPro-Bold',
   },
 });

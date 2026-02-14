@@ -17,7 +17,7 @@ import { palette } from '../../theme/palette';
 import { Routes } from '../../app/routes';
 import NotificationsHeader from './components/NotificationsHeader';
 import NotificationSectionHeader from './components/NotificationSectionHeader';
-import NotificationRow from './components/NotificationRow';
+import NotificationRow, { NotificationRowItem } from './components/NotificationRow';
 import { buildNotificationListState } from './notificationsViewModel';
 import {
   useAcceptFollowRequestNotification,
@@ -32,7 +32,7 @@ import {
   usePendingNotificationActions,
   useRefreshNotifications,
 } from '../../state/notifications';
-import { useFollowingStore } from '../../state/following';
+import { useFollowedUserIds, useHydrateFollowing, useFollowingStore } from '../../state/following';
 
 type Props = NativeStackScreenProps<any>;
 
@@ -46,8 +46,10 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
   const { user } = useAuth();
 
   useHydrateNotificationsState(user?.id, Boolean(user?.id), 120);
+  useHydrateFollowing(user?.id, Boolean(user?.id));
 
   const records = useNotificationRecords();
+  const followedUserIds = useFollowedUserIds(user?.id);
   const isHydrating = useNotificationsHydrating();
   const isClearing = useNotificationsClearing();
   const pendingActionById = usePendingNotificationActions();
@@ -59,9 +61,53 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
   const followBack = useFollowBackNotification();
   const hydrateFollowing = useFollowingStore((state) => state.hydrateFollowing);
 
+  const followedUserIdSet = React.useMemo(() => new Set(followedUserIds), [followedUserIds]);
+
   const { recordsById, sections: listSections } = React.useMemo(
-    () => buildNotificationListState(records, strings.notifications),
-    [records, strings.notifications]
+    () => buildNotificationListState(records, strings.notifications, followedUserIdSet),
+    [followedUserIdSet, records, strings.notifications]
+  );
+
+  const rowTheme = React.useMemo(
+    () => ({
+      background: theme.background,
+      surfaceMuted: theme.surfaceMuted,
+      border: theme.border,
+      textPrimary: theme.textPrimary,
+      textMuted: theme.textMuted,
+      primary: theme.primary,
+    }),
+    [
+      theme.background,
+      theme.border,
+      theme.primary,
+      theme.surfaceMuted,
+      theme.textMuted,
+      theme.textPrimary,
+    ]
+  );
+
+  const rowLabels = React.useMemo(
+    () => ({
+      accept: strings.notifications.accept,
+      decline: strings.notifications.decline,
+      follow: strings.notifications.followBack,
+      accepted: strings.notifications.accepted,
+      declined: strings.notifications.declined,
+      premiumTitle: strings.notifications.premiumTitle,
+      premiumSubtitle: strings.notifications.premiumSubtitle,
+      premiumCta: strings.notifications.premiumCta,
+    }),
+    [
+      strings.notifications.accept,
+      strings.notifications.accepted,
+      strings.notifications.decline,
+      strings.notifications.declined,
+      strings.notifications.followBack,
+      strings.notifications.premiumCta,
+      strings.notifications.premiumSubtitle,
+      strings.notifications.premiumTitle,
+    ]
   );
 
   const handleRefresh = React.useCallback(async () => {
@@ -220,6 +266,62 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
     ]
   );
 
+  const handleAcceptPress = React.useCallback(
+    (notificationId: string) => {
+      void handleAccept(notificationId);
+    },
+    [handleAccept]
+  );
+
+  const handleDeclinePress = React.useCallback(
+    (notificationId: string) => {
+      void handleDecline(notificationId);
+    },
+    [handleDecline]
+  );
+
+  const handleFollowPress = React.useCallback(
+    (notificationId: string) => {
+      void handleFollowBack(notificationId);
+    },
+    [handleFollowBack]
+  );
+
+  const renderSectionHeader = React.useCallback(
+    ({ section }: { section: { title: string } }) => (
+      <NotificationSectionHeader
+        title={section.title}
+        background={theme.surfaceMuted}
+        textColor={theme.textMuted}
+      />
+    ),
+    [theme.surfaceMuted, theme.textMuted]
+  );
+
+  const renderItem = React.useCallback(
+    ({ item }: { item: NotificationRowItem }) => (
+      <NotificationRow
+        item={item}
+        onPress={handleRowPress}
+        onAcceptPress={handleAcceptPress}
+        onDeclinePress={handleDeclinePress}
+        onFollowPress={handleFollowPress}
+        pendingAction={Boolean(pendingActionById[item.id])}
+        theme={rowTheme}
+        labels={rowLabels}
+      />
+    ),
+    [
+      handleAcceptPress,
+      handleDeclinePress,
+      handleFollowPress,
+      handleRowPress,
+      pendingActionById,
+      rowLabels,
+      rowTheme,
+    ]
+  );
+
   const listEmptyComponent = React.useMemo(() => {
     if (isHydrating) {
       return (
@@ -247,6 +349,11 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
     theme.textMuted,
     theme.textPrimary,
   ]);
+
+  const listContentContainerStyle = React.useMemo(
+    () => [styles.list, variant === 'panel' && { paddingBottom: 140 + insets.bottom }],
+    [insets.bottom, variant]
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}> 
@@ -284,48 +391,9 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
             colors={[theme.primary]}
           />
         }
-        renderSectionHeader={({ section }) => (
-          <NotificationSectionHeader
-            title={section.title}
-            background={theme.surfaceMuted}
-            textColor={theme.textMuted}
-          />
-        )}
-        renderItem={({ item }) => (
-          <NotificationRow
-            item={item}
-            onPress={handleRowPress}
-            onAcceptPress={(notificationId) => {
-              void handleAccept(notificationId);
-            }}
-            onDeclinePress={(notificationId) => {
-              void handleDecline(notificationId);
-            }}
-            onFollowPress={(notificationId) => {
-              void handleFollowBack(notificationId);
-            }}
-            pendingAction={Boolean(pendingActionById[item.id])}
-            theme={{
-              background: theme.background,
-              surfaceMuted: theme.surfaceMuted,
-              border: theme.border,
-              textPrimary: theme.textPrimary,
-              textMuted: theme.textMuted,
-              primary: theme.primary,
-            }}
-            labels={{
-              accept: strings.notifications.accept,
-              decline: strings.notifications.decline,
-              follow: strings.notifications.followBack,
-              accepted: strings.notifications.accepted,
-              declined: strings.notifications.declined,
-              premiumTitle: strings.notifications.premiumTitle,
-              premiumSubtitle: strings.notifications.premiumSubtitle,
-              premiumCta: strings.notifications.premiumCta,
-            }}
-          />
-        )}
-        contentContainerStyle={[styles.list, variant === 'panel' && { paddingBottom: 140 + insets.bottom }]}
+        renderSectionHeader={renderSectionHeader}
+        renderItem={renderItem}
+        contentContainerStyle={listContentContainerStyle}
         showsVerticalScrollIndicator={false}
       />
     </View>

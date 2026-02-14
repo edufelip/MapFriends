@@ -64,3 +64,11 @@ export async function updateNotificationRequestStatus(input: {
 export async function clearNotifications(input: { userId: string }): Promise<void> {
   return repository.clear(input);
 }
+
+export async function subscribeNotificationUnreadCount(input: {
+  userId: string;
+  onChange: (count: number) => void;
+  onError?: (error: unknown) => void;
+}): Promise<() => void> {
+  return repository.subscribeUnreadCount(input);
+}

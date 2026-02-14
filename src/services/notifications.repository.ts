@@ -19,9 +19,15 @@ export type NotificationsRepository = {
     readAt?: string;
   }) => Promise<void>;
   clear: (input: { userId: string }) => Promise<void>;
+  subscribeUnreadCount: (input: {
+    userId: string;
+    onChange: (count: number) => void;
+    onError?: (error: unknown) => void;
+  }) => Promise<() => void>;
 };
 
 const localNotificationsByUserId: Record<string, Record<string, NotificationRecord>> = {};
+const localUnreadCountListenersByUserId: Record<string, Set<(count: number) => void>> = {};
 
 const NOTIFICATION_BATCH_DELETE_LIMIT = 200;
 export const DEFAULT_NOTIFICATIONS_LIMIT = 120;
@@ -123,6 +129,21 @@ const toPayload = (input: CreateNotificationInput, id: string) => ({
   targetReviewVisibility: input.targetReviewVisibility ?? null,
 });
 
+const getLocalUnreadCount = (userId: string) =>
+  Object.values(localNotificationsByUserId[userId] || {}).filter((item) => !item.readAt).length;
+
+const emitLocalUnreadCount = (userId: string) => {
+  const listeners = localUnreadCountListenersByUserId[userId];
+  if (!listeners || listeners.size === 0) {
+    return;
+  }
+
+  const count = getLocalUnreadCount(userId);
+  listeners.forEach((listener) => {
+    listener(count);
+  });
+};
+
 function createLocalNotificationsRepository(): NotificationsRepository {
   return {
     list: async ({ userId, limit }) => {
@@ -144,6 +165,7 @@ function createLocalNotificationsRepository(): NotificationsRepository {
         [id]: payload,
       };
 
+      emitLocalUnreadCount(input.userId);
       return payload;
     },
     markRead: async ({ userId, notificationId, readAt }) => {
@@ -156,6 +178,8 @@ function createLocalNotificationsRepository(): NotificationsRepository {
         ...userNotifications[notificationId],
         readAt,
       };
+
+      emitLocalUnreadCount(userId);
     },
     updateRequestStatus: async ({ userId, notificationId, requestStatus, readAt }) => {
       const userNotifications = localNotificationsByUserId[userId];
@@ -168,9 +192,31 @@ function createLocalNotificationsRepository(): NotificationsRepository {
         requestStatus,
         readAt: readAt || userNotifications[notificationId].readAt,
       };
+
+      emitLocalUnreadCount(userId);
     },
     clear: async ({ userId }) => {
       localNotificationsByUserId[userId] = {};
+      emitLocalUnreadCount(userId);
+    },
+    subscribeUnreadCount: async ({ userId, onChange }) => {
+      const listeners = localUnreadCountListenersByUserId[userId] || new Set<(count: number) => void>();
+      listeners.add(onChange);
+      localUnreadCountListenersByUserId[userId] = listeners;
+
+      onChange(getLocalUnreadCount(userId));
+
+      return () => {
+        const activeListeners = localUnreadCountListenersByUserId[userId];
+        if (!activeListeners) {
+          return;
+        }
+
+        activeListeners.delete(onChange);
+        if (activeListeners.size === 0) {
+          delete localUnreadCountListenersByUserId[userId];
+        }
+      };
     },
   };
 }
@@ -338,6 +384,28 @@ function createFirestoreNotificationsRepository(): NotificationsRepository {
           return;
         }
       }
+    },
+    subscribeUnreadCount: async ({ userId, onChange, onError }) => {
+      const { collection, onSnapshot, query, where } = await import('firebase/firestore');
+      const db = getFirestoreDb();
+      const unreadQuery = query(
+        collection(db, 'userNotifications', userId, 'items'),
+        where('readAt', '==', null)
+      );
+
+      const unsubscribe = onSnapshot(
+        unreadQuery,
+        (snapshot) => {
+          onChange(snapshot.size);
+        },
+        (error) => {
+          if (onError) {
+            onError(error);
+          }
+        }
+      );
+
+      return unsubscribe;
     },
   };
 }

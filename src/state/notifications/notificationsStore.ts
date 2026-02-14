@@ -34,9 +34,11 @@ type NotificationsState = {
   hydrateError: string | null;
   isClearing: boolean;
   unreadCount: number;
+  unreadCountUserId: string | null;
   pendingActionById: Record<string, boolean>;
   hydrateNotifications: (input: HydrateNotificationsInput) => Promise<void>;
   refreshNotifications: (input: { userId: string; limit?: number }) => Promise<void>;
+  setUnreadCountForUser: (input: { userId: string; unreadCount: number }) => void;
   markNotificationReadAndStore: (input: {
     userId: string;
     notificationId: string;
@@ -96,6 +98,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   hydrateError: null,
   isClearing: false,
   unreadCount: 0,
+  unreadCountUserId: null,
   pendingActionById: {},
   hydrateNotifications: async ({ userId, limit = 120, force = false }) => {
     const state = get();
@@ -109,6 +112,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         hydratedUserId: null,
         hydrateError: null,
         unreadCount: 0,
+        unreadCountUserId: null,
         pendingActionById: {},
       });
     }
@@ -135,6 +139,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
           isHydrating: false,
           hydrateError: null,
           unreadCount: Math.max(0, result.unreadCount),
+          unreadCountUserId: userId,
           pendingActionById: {},
         };
       });
@@ -148,6 +153,22 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
   },
   refreshNotifications: async ({ userId, limit = 120 }) => {
     await get().hydrateNotifications({ userId, limit, force: true });
+  },
+  setUnreadCountForUser: ({ userId, unreadCount }) => {
+    if (!userId) {
+      return;
+    }
+
+    set((state) => {
+      if (state.hydratedUserId && state.hydratedUserId !== userId && state.unreadCountUserId !== userId) {
+        return state;
+      }
+
+      return {
+        unreadCount: Math.max(0, unreadCount),
+        unreadCountUserId: userId,
+      };
+    });
   },
   markNotificationReadAndStore: async ({ userId, notificationId }) => {
     const existing = get().notificationsById[notificationId];
@@ -413,6 +434,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
         hydratedUserId: userId,
         isClearing: false,
         unreadCount: 0,
+        unreadCountUserId: userId,
         pendingActionById: {},
         hydrateError: null,
       });
@@ -432,6 +454,7 @@ export const useNotificationsStore = create<NotificationsState>((set, get) => ({
       hydrateError: null,
       isClearing: false,
       unreadCount: 0,
+      unreadCountUserId: null,
       pendingActionById: {},
     });
   },
