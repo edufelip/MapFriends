@@ -21,6 +21,7 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
 - Primary tab changes crossfade content in place (`260ms`).
 - Home panel remains mounted while other primary tabs are active to preserve feed scroll/media state.
 - Activity tab uses a panel variant (not the standalone notifications stack route header/back behavior).
+- Feed and map tabs only surface reviews authored by accounts the signed-in user follows (plus the user's own reviews).
 - Feed regular cards expose interactive action row:
   - Like toggles engagement with tap animation.
   - Comment opens `ReviewDetail`.
@@ -46,3 +47,4 @@ Primary app areas (Home, Explore, Activity, Profile) are rendered inside a persi
   - Premium cards keep action row restricted.
 - Feed comment count updates immediately after comment create/delete without requiring a Review Detail roundtrip.
 - Feed like count is accurate on first feed visit and remains consistent after like/unlike.
+- Feed and map lists exclude authors outside the viewer's followed network.

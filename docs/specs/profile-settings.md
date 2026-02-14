@@ -33,12 +33,14 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
 
 ## Data & Behavior
 - Visibility is updated from Edit Profile save flow and persisted in auth state.
-- The rest of the rows are visual-only placeholders.
-- Version label is static.
+- The rest of the rows are visual-only placeholders except **Blocked Users**.
+- Version label is resolved at runtime from native app metadata (version / build) with localized template formatting.
 - Favorites is the first profile section tab and opens by default; Settings is the second tab.
 - Switching between Favorites and Settings uses a smooth horizontal/opacity transition for content and an animated active-tab indicator.
 - Settings screen exposes a dedicated logout button that asks for confirmation before calling `signOut`.
 - Confirming logout pushes `AuthLogin` with a right-to-left transition and then completes auth sign-out.
+- Blocked Users row opens a dedicated `BlockedUsers` screen with loading, empty, error, and list states.
+- Unblock action requires confirmation, updates UI optimistically, and refreshes following/reviews caches after success.
 
 ## Localization
 Strings live in `src/localization/strings.ts` under `profile` for `en-US` and `pt-BR`.
@@ -48,3 +50,5 @@ Strings live in `src/localization/strings.ts` under `profile` for `en-US` and `p
 - Bottom nav highlights Profile tab.
 - Pressing **Edit Profile** navigates to `EditProfile`.
 - Saving on Edit Profile updates `name`, `bio`, and `visibility`, then navigates back.
+- Pressing **Blocked Users** in Profile settings navigates to `BlockedUsers`.
+- Unblocking a user requires confirmation and removes the user from the blocked list.
