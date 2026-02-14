@@ -3,11 +3,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 
 type Props = {
-  value: 'people' | 'places';
-  onChange: (next: 'people' | 'places') => void;
+  query: string;
+  onChangeQuery: (next: string) => void;
   placeholder: string;
-  tabPeople: string;
-  tabPlaces: string;
   cancelLabel: string;
   theme: {
     background: string;
@@ -21,17 +19,13 @@ type Props = {
 };
 
 export default function SearchHeader({
-  value,
-  onChange,
+  query,
+  onChangeQuery,
   placeholder,
-  tabPeople,
-  tabPlaces,
   cancelLabel,
   theme,
   topInset,
 }: Props) {
-  const [query, setQuery] = React.useState('');
-
   return (
     <View
       style={[
@@ -40,46 +34,21 @@ export default function SearchHeader({
       ]}
     >
       <View style={styles.inputRow}>
-        <View style={[styles.inputWrap, { backgroundColor: theme.surfaceMuted }]}> 
+        <View style={[styles.inputWrap, { backgroundColor: theme.surfaceMuted }]}>
           <MaterialIcons name="search" size={20} color={theme.textMuted} style={styles.searchIcon} />
           <TextInput
             placeholder={placeholder}
             placeholderTextColor={theme.textMuted}
             style={[styles.input, { color: theme.textPrimary }]}
             value={query}
-            onChangeText={setQuery}
+            onChangeText={onChangeQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
           />
         </View>
-        <Pressable onPress={() => setQuery('')}>
+        <Pressable onPress={() => onChangeQuery('')} hitSlop={8}>
           <Text style={[styles.cancel, { color: theme.primary }]}>{cancelLabel}</Text>
-        </Pressable>
-      </View>
-      <View style={[styles.tabs, { borderBottomColor: theme.border }]}> 
-        <Pressable
-          style={[styles.tab, value === 'people' && { borderBottomColor: theme.primary }]}
-          onPress={() => onChange('people')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: value === 'people' ? theme.primary : theme.textMuted },
-            ]}
-          >
-            {tabPeople}
-          </Text>
-        </Pressable>
-        <Pressable
-          style={[styles.tab, value === 'places' && { borderBottomColor: theme.primary }]}
-          onPress={() => onChange('places')}
-        >
-          <Text
-            style={[
-              styles.tabText,
-              { color: value === 'places' ? theme.primary : theme.textMuted },
-            ]}
-          >
-            {tabPlaces}
-          </Text>
         </Pressable>
       </View>
     </View>
@@ -114,22 +83,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   cancel: {
-    fontFamily: 'NotoSans-Bold',
-    fontSize: 13,
-  },
-  tabs: {
-    marginTop: 16,
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-  },
-  tab: {
-    flex: 1,
-    alignItems: 'center',
-    paddingBottom: 10,
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  tabText: {
     fontFamily: 'NotoSans-Bold',
     fontSize: 13,
   },

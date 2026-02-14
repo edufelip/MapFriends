@@ -5,13 +5,17 @@ import { SearchPerson } from '../../../services/search';
 
 type Props = {
   person: SearchPerson;
+  followLabel: string;
   lockLabel: string;
-  onPress?: () => void;
-  onRemove?: () => void;
+  pending?: boolean;
+  buttonVariant?: 'filled' | 'outline';
+  onPress: () => void;
+  onFollowPress: () => void;
   theme: {
     surface: string;
     textPrimary: string;
     textMuted: string;
+    primary: string;
     border: string;
   };
 };
@@ -25,15 +29,25 @@ const avatarFallbackFromHandle = (handle: string) => {
   return trimmed[0].toUpperCase();
 };
 
-export default function RecentRow({ person, lockLabel, onPress, onRemove, theme }: Props) {
+export default function SearchResultRow({
+  person,
+  followLabel,
+  lockLabel,
+  pending = false,
+  buttonVariant = 'filled',
+  onPress,
+  onFollowPress,
+  theme,
+}: Props) {
   const hasAvatar = Boolean(person.avatar);
+  const isOutline = buttonVariant === 'outline';
 
   return (
     <View
       style={[styles.row, { backgroundColor: theme.surface, borderColor: theme.border }]}
-      testID={`search-recent-${person.id}`}
+      testID={`search-result-${person.id}`}
     >
-      <Pressable style={styles.profileTap} onPress={onPress} disabled={!onPress}>
+      <Pressable style={styles.profileTap} onPress={onPress}>
         <View style={styles.avatarWrap}>
           {hasAvatar ? (
             <Image source={{ uri: person.avatar || '' }} style={styles.avatar} />
@@ -43,10 +57,15 @@ export default function RecentRow({ person, lockLabel, onPress, onRemove, theme 
             </View>
           )}
         </View>
+
         <View style={styles.meta}>
-          <Text style={[styles.name, { color: theme.textPrimary }]}>{person.name}</Text>
+          <Text style={[styles.name, { color: theme.textPrimary }]} numberOfLines={1}>
+            {person.name}
+          </Text>
           <View style={styles.handleRow}>
-            <Text style={[styles.handle, { color: theme.textMuted }]}>@{person.handle}</Text>
+            <Text style={[styles.handle, { color: theme.textMuted }]} numberOfLines={1}>
+              @{person.handle}
+            </Text>
             {person.visibility === 'locked' ? (
               <View style={styles.lockWrap}>
                 <MaterialIcons name="lock" size={12} color={theme.textMuted} />
@@ -56,8 +75,21 @@ export default function RecentRow({ person, lockLabel, onPress, onRemove, theme 
           </View>
         </View>
       </Pressable>
-      <Pressable onPress={onRemove} hitSlop={8}>
-        <MaterialIcons name="close" size={20} color={theme.textMuted} />
+
+      <Pressable
+        style={[
+          styles.followButton,
+          {
+            borderColor: theme.primary,
+            backgroundColor: isOutline ? 'transparent' : theme.primary,
+            opacity: pending ? 0.6 : 1,
+          },
+        ]}
+        onPress={onFollowPress}
+        disabled={pending}
+        hitSlop={6}
+      >
+        <Text style={[styles.followText, { color: isOutline ? theme.primary : '#ffffff' }]}>{followLabel}</Text>
       </Pressable>
     </View>
   );
@@ -65,30 +97,30 @@ export default function RecentRow({ person, lockLabel, onPress, onRemove, theme 
 
 const styles = StyleSheet.create({
   row: {
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    gap: 10,
   },
   profileTap: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   avatarWrap: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     overflow: 'hidden',
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 21,
+    borderRadius: 22,
   },
   avatarFallback: {
     backgroundColor: '#dbe4ee',
@@ -96,15 +128,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   avatarFallbackText: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#475569',
     fontFamily: 'BeVietnamPro-Bold',
   },
   meta: {
     flex: 1,
+    minWidth: 0,
   },
   name: {
-    fontSize: 13,
+    fontSize: 14,
     fontFamily: 'BeVietnamPro-Bold',
   },
   handleRow: {
@@ -114,7 +147,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   handle: {
-    fontSize: 11,
+    fontSize: 12,
     fontFamily: 'NotoSans-Medium',
   },
   lockWrap: {
@@ -126,6 +159,18 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'NotoSans-Bold',
     textTransform: 'uppercase',
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
+  },
+  followButton: {
+    minWidth: 84,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  followText: {
+    fontSize: 12,
+    fontFamily: 'NotoSans-Bold',
   },
 });

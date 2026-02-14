@@ -1,118 +1,166 @@
 import React from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import { SearchPerson } from '../../../services/search';
 
 type Props = {
   person: SearchPerson;
-  labels: {
-    follow: string;
-    following: string;
-    pro: string;
-  };
+  followLabel: string;
+  lockLabel: string;
+  postsLabel: string;
+  pending?: boolean;
+  buttonVariant?: 'filled' | 'outline';
+  onPress: () => void;
+  onFollowPress: () => void;
   theme: {
     background: string;
     surface: string;
     textPrimary: string;
     textMuted: string;
     primary: string;
-    accentGold: string;
+    border: string;
   };
 };
 
-export default function TrendingCard({ person, labels, theme }: Props) {
-  const isFollowing = person.isFollowing;
+const avatarFallbackFromHandle = (handle: string) => {
+  const trimmed = (handle || '').replace(/^@+/, '').trim();
+  if (!trimmed) {
+    return '?';
+  }
+
+  return trimmed[0].toUpperCase();
+};
+
+export default function TrendingCard({
+  person,
+  followLabel,
+  lockLabel,
+  postsLabel,
+  pending = false,
+  buttonVariant = 'filled',
+  onPress,
+  onFollowPress,
+  theme,
+}: Props) {
   const hasAvatar = Boolean(person.avatar);
+  const isOutline = buttonVariant === 'outline';
 
   return (
-    <View style={styles.card}>
-      <View style={[styles.avatarShell, { backgroundColor: person.isPro ? theme.primary : theme.surface }]}> 
-        <View style={[styles.avatarInner, { backgroundColor: theme.background }]}> 
-          {hasAvatar ? (
-            <Image source={{ uri: person.avatar }} style={styles.avatar} />
-          ) : (
-            <View style={[styles.avatar, styles.avatarFallback]} />
-          )}
-        </View>
-        {person.isPro ? (
-          <View style={[styles.proBadge, { backgroundColor: theme.accentGold }]}>
-            <Text style={styles.proText}>{labels.pro}</Text>
+    <Pressable
+      style={[styles.card, { backgroundColor: theme.surface, borderColor: theme.border }]}
+      onPress={onPress}
+      testID={`trending-person-${person.id}`}
+    >
+      <View style={[styles.avatarShell, { backgroundColor: theme.background }]}> 
+        {hasAvatar ? (
+          <Image source={{ uri: person.avatar || '' }} style={styles.avatar} />
+        ) : (
+          <View style={[styles.avatar, styles.avatarFallback]}>
+            <Text style={styles.avatarFallbackText}>{avatarFallbackFromHandle(person.handle)}</Text>
           </View>
-        ) : null}
+        )}
       </View>
       <Text style={[styles.name, { color: theme.textPrimary }]} numberOfLines={1}>
         {person.name}
       </Text>
+      <Text style={[styles.handle, { color: theme.textMuted }]} numberOfLines={1}>
+        @{person.handle}
+      </Text>
+
+      {person.visibility === 'locked' ? (
+        <View style={styles.metaRow}>
+          <MaterialIcons name="lock" size={12} color={theme.textMuted} />
+          <Text style={[styles.metaText, { color: theme.textMuted }]}>{lockLabel}</Text>
+        </View>
+      ) : null}
+
+      {typeof person.postCount === 'number' ? (
+        <Text style={[styles.posts, { color: theme.textMuted }]}>{postsLabel.replace('{count}', String(person.postCount))}</Text>
+      ) : null}
+
       <Pressable
         style={[
           styles.followButton,
-          isFollowing
-            ? { borderColor: theme.primary, backgroundColor: 'transparent' }
-            : { backgroundColor: theme.primary },
+          {
+            borderColor: theme.primary,
+            backgroundColor: isOutline ? 'transparent' : theme.primary,
+            opacity: pending ? 0.6 : 1,
+          },
         ]}
+        onPress={onFollowPress}
+        disabled={pending}
+        hitSlop={6}
       >
-        <Text
-          style={[
-            styles.followText,
-            { color: isFollowing ? theme.primary : '#ffffff' },
-          ]}
-        >
-          {isFollowing ? labels.following : labels.follow}
-        </Text>
+        <Text style={[styles.followText, { color: isOutline ? theme.primary : '#ffffff' }]}>{followLabel}</Text>
       </Pressable>
-    </View>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    width: 132,
+    width: 150,
     alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 14,
   },
   avatarShell: {
-    width: 84,
-    height: 84,
-    borderRadius: 20,
-    padding: 4,
-    justifyContent: 'center',
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    overflow: 'hidden',
     alignItems: 'center',
-  },
-  avatarInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 16,
-    padding: 2,
+    justifyContent: 'center',
   },
   avatar: {
     width: '100%',
     height: '100%',
-    borderRadius: 14,
+    borderRadius: 36,
   },
   avatarFallback: {
     backgroundColor: '#dbe4ee',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  proBadge: {
-    position: 'absolute',
-    right: -6,
-    bottom: -6,
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  proText: {
-    fontSize: 10,
+  avatarFallbackText: {
+    fontSize: 22,
+    color: '#475569',
     fontFamily: 'BeVietnamPro-Bold',
-    color: '#0f172a',
   },
   name: {
-    marginTop: 8,
-    fontSize: 12,
+    marginTop: 10,
+    fontSize: 13,
     fontFamily: 'BeVietnamPro-Bold',
     textAlign: 'center',
   },
+  handle: {
+    marginTop: 3,
+    fontSize: 11,
+    fontFamily: 'NotoSans-Medium',
+  },
+  metaRow: {
+    marginTop: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 10,
+    fontFamily: 'NotoSans-Bold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  posts: {
+    marginTop: 4,
+    fontSize: 10,
+    fontFamily: 'NotoSans-Medium',
+  },
   followButton: {
-    marginTop: 8,
+    marginTop: 10,
     width: '100%',
-    paddingVertical: 6,
+    paddingVertical: 7,
     borderRadius: 10,
     borderWidth: 1,
     alignItems: 'center',
