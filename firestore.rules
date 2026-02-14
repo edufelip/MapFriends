@@ -237,6 +237,40 @@ service cloud.firestore {
     }
 
 
+    match /userFollowing/{uid}/items/{followedUid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'followedUserId',
+          'createdAt',
+        ])
+        && request.resource.data.userId == uid
+        && request.resource.data.followedUserId == followedUid
+        && request.resource.data.createdAt is string;
+      allow delete: if isOwner(uid);
+    }
+
+    match /userBlocks/{uid}/items/{blockedUid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly([
+          'userId',
+          'blockedUserId',
+          'blockedName',
+          'blockedHandle',
+          'blockedAvatar',
+          'createdAt',
+        ])
+        && request.resource.data.userId == uid
+        && request.resource.data.blockedUserId == blockedUid
+        && request.resource.data.blockedName is string
+        && request.resource.data.blockedHandle is string
+        && (request.resource.data.blockedAvatar == null || request.resource.data.blockedAvatar is string)
+        && request.resource.data.createdAt is string;
+      allow delete: if isOwner(uid);
+    }
+
     match /reviewLikes/{reviewId}/users/{uid} {
       allow read: if isSignedIn();
       allow create, update: if isOwner(uid)
