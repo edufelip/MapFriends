@@ -12,6 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../services/auth';
+import { formatAppVersionLabel, getAppVersionInfo } from '../../services/appVersion';
 import { getStrings } from '../../localization/strings';
 import { palette } from '../../theme/palette';
 import BottomNav from '../Map/components/BottomNav';
@@ -54,6 +55,11 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
   const removeFavoriteAndStore = useFavoriteStore((state) => state.removeFavoriteAndStore);
 
   const handle = `${strings.profile.handlePrefix}${user?.handle || 'alex_explorer'}`;
+  const appVersionInfo = React.useMemo(() => getAppVersionInfo(), []);
+  const appVersionLabel = React.useMemo(
+    () => formatAppVersionLabel(strings.profile.versionLabel, appVersionInfo),
+    [appVersionInfo, strings.profile.versionLabel]
+  );
 
   React.useEffect(() => {
     return () => {
@@ -152,7 +158,7 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
   ]);
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.background }]}>
+    <View style={[styles.container, { backgroundColor: theme.background }]}> 
       <ProfileHeader
         title={strings.profile.title}
         onBack={navigation.canGoBack() ? navigation.goBack : undefined}
@@ -255,6 +261,7 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
                   iconBg="rgba(100,116,139,0.15)"
                   iconColor="#94a3b8"
                   label={strings.profile.blockedUsers}
+                  onPress={() => navigation.navigate(Routes.BlockedUsers)}
                   theme={{
                     textPrimary: theme.textPrimary,
                     textMuted: theme.textMuted,
@@ -298,7 +305,7 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
 
         <LogoutRow
           label={isLoggingOut ? strings.profile.loggingOut : strings.profile.logout}
-          version={strings.profile.versionLabel}
+          version={appVersionLabel}
           onLogout={handleLogoutPress}
           theme={{ danger: theme.danger, textMuted: theme.textMuted }}
         />

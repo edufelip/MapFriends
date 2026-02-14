@@ -14,6 +14,7 @@ export const Routes = {
   Profile: 'Profile',
   EditProfile: 'EditProfile',
   Settings: 'Settings',
+  BlockedUsers: 'BlockedUsers',
 } as const;
 
 export type RouteName = (typeof Routes)[keyof typeof Routes];

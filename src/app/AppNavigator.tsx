@@ -19,6 +19,7 @@ import NotificationsScreen from '../screens/Notifications/NotificationsScreen';
 import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
+import BlockedUsersScreen from '../screens/Profile/BlockedUsersScreen';
 
 type RootStackParamList = {
   [Routes.MainShell]: undefined;
@@ -36,6 +37,7 @@ type RootStackParamList = {
   [Routes.Profile]: undefined;
   [Routes.EditProfile]: undefined;
   [Routes.Settings]: undefined;
+  [Routes.BlockedUsers]: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -140,6 +142,11 @@ function MainStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name={Routes.Settings} component={SettingsScreen} options={{ title: 'Settings' }} />
+      <Stack.Screen
+        name={Routes.BlockedUsers}
+        component={BlockedUsersScreen}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }
