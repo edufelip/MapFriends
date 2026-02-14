@@ -68,6 +68,10 @@ jest.mock('../../screens/Settings/SettingsScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>settings-screen</Text>;
 });
+jest.mock('../../screens/Profile/BlockedUsersScreen', () => {
+  const { Text } = require('react-native');
+  return () => <Text>blocked-users-screen</Text>;
+});
 
 describe('AppNavigator', () => {
   it('shows auth stack when user is not authenticated', async () => {

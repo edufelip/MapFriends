@@ -4,13 +4,23 @@ import type { ReactNode } from 'react';
 import { Alert, InteractionManager } from 'react-native';
 import ProfileScreen from '../ProfileScreen';
 import { Routes } from '../../../app/routes';
-import { getStrings } from '../../../localization/strings';
 
 const mockUseAuth = jest.fn();
 const mockRemoveFavoriteAndStore = jest.fn();
 
 jest.mock('../../../services/auth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('../../../services/appVersion', () => ({
+  getAppVersionInfo: () => ({
+    version: '1.0.0',
+    build: '77',
+  }),
+  formatAppVersionLabel: (template: string, info: { version: string; build: string }) =>
+    template
+      .replace('{{version}}', info.version)
+      .replace('{{build}}', info.build),
 }));
 
 jest.mock('../../../state/favorites', () => ({
@@ -33,8 +43,12 @@ jest.mock('../components/ProfileHeader', () => {
 });
 jest.mock('../components/SettingsSection', () => ({ children }: { children: ReactNode }) => <>{children}</>);
 jest.mock('../components/SettingsRow', () => {
-  const { Text } = require('react-native');
-  return () => <Text>settings-row</Text>;
+  const { Pressable, Text } = require('react-native');
+  return ({ label, onPress }: { label: string; onPress?: () => void }) => (
+    <Pressable onPress={onPress} accessibilityRole="button">
+      <Text>{label}</Text>
+    </Pressable>
+  );
 });
 jest.mock('../components/ToggleRow', () => {
   const { Text } = require('react-native');
@@ -42,9 +56,18 @@ jest.mock('../components/ToggleRow', () => {
 });
 jest.mock('../components/LogoutRow', () => {
   const { Pressable, Text } = require('react-native');
-  return ({ onLogout, label }: { onLogout?: () => void; label: string }) => (
+  return ({
+    onLogout,
+    label,
+    version,
+  }: {
+    onLogout?: () => void;
+    label: string;
+    version: string;
+  }) => (
     <Pressable testID="profile-logout-button" onPress={onLogout}>
       <Text>{label}</Text>
+      <Text>{version}</Text>
     </Pressable>
   );
 });
@@ -96,10 +119,9 @@ describe('ProfileScreen', () => {
   });
 
   it('navigates to edit profile screen when edit action is pressed', () => {
-    const strings = getStrings();
     const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
 
-    fireEvent.press(screen.getByText(strings.profile.editProfile));
+    fireEvent.press(screen.getByText('Edit Profile'));
 
     expect(navigation.navigate).toHaveBeenCalledWith(Routes.EditProfile);
   });
@@ -108,11 +130,26 @@ describe('ProfileScreen', () => {
     const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
 
     expect(screen.getByText('favorites-section')).toBeTruthy();
-    expect(screen.queryByText('settings-row')).toBeNull();
+    expect(screen.queryByText('Blocked Users')).toBeNull();
 
     fireEvent.press(screen.getByTestId('profile-section-tab-settings'));
 
-    expect(screen.getAllByText('settings-row').length).toBeGreaterThan(0);
+    expect(screen.getByText('Blocked Users')).toBeTruthy();
+  });
+
+  it('navigates to blocked users screen when blocked users row is pressed', () => {
+    const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
+
+    fireEvent.press(screen.getByTestId('profile-section-tab-settings'));
+    fireEvent.press(screen.getByText('Blocked Users'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith(Routes.BlockedUsers);
+  });
+
+  it('renders version label using runtime app metadata', () => {
+    const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
+
+    expect(screen.getByText('Version 1.0.0 (Build 77)')).toBeTruthy();
   });
 
   it('asks for confirmation before logout and only signs out after confirm', async () => {
