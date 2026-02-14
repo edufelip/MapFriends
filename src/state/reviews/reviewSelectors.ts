@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useEngagementStore } from '../engagement';
 import { logReviewPinDebug } from './reviewPinLogger';
 import { ReviewMapPin, resolveReviewCoordinates, toFeedPost } from './reviewViewModels';
+import { filterReviewsByAuthorIds, ReviewAuthorFilter } from './reviewAuthorFilter';
 import { useReviewStore } from './reviewsStore';
 
 const selectReviewRecords = (state: {
@@ -22,12 +23,20 @@ const selectHydrationGate = (state: {
   lastHydratedAt: state.lastHydratedAt,
 });
 
-export function useReviewRecords(): ReviewRecord[] {
-  return useReviewStore(useShallow(selectReviewRecords));
+export type { ReviewAuthorFilter } from './reviewAuthorFilter';
+export { filterReviewsByAuthorIds } from './reviewAuthorFilter';
+
+export function useReviewRecords(filter: ReviewAuthorFilter = {}): ReviewRecord[] {
+  const records = useReviewStore(useShallow(selectReviewRecords));
+
+  return React.useMemo(
+    () => filterReviewsByAuthorIds(records, filter),
+    [filter.authorIds, filter.requireAuthorFilter, records]
+  );
 }
 
-export function useReviewFeedPosts(): FeedPost[] {
-  const reviewRecords = useReviewRecords();
+export function useReviewFeedPosts(filter: ReviewAuthorFilter = {}): FeedPost[] {
+  const reviewRecords = useReviewRecords(filter);
   const likeCountByReviewId = useEngagementStore((state) => state.likeCountByReviewId);
   const commentCountByReviewId = useEngagementStore((state) => state.commentCountByReviewId);
   const commentsByReviewId = useEngagementStore((state) => state.commentsByReviewId);
@@ -48,8 +57,8 @@ export function useReviewFeedPosts(): FeedPost[] {
   );
 }
 
-export function useReviewPins(): ReviewMapPin[] {
-  const reviewRecords = useReviewRecords();
+export function useReviewPins(filter: ReviewAuthorFilter = {}): ReviewMapPin[] {
+  const reviewRecords = useReviewRecords(filter);
 
   const computation = React.useMemo(
     () => {

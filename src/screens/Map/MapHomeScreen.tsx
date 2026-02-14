@@ -27,6 +27,7 @@ import {
   useReviewHydrating,
   useReviewPins,
 } from '../../state/reviews';
+import { useFollowedUserIds, useHydrateFollowing } from '../../state/following';
 
 type Props = NativeStackScreenProps<any> & {
   hideBottomNav?: boolean;
@@ -46,8 +47,27 @@ export default function MapHomeScreen({
   const strings = getStrings();
   const { user } = useAuth();
   useHydrateReviewState(120, Boolean(user?.id), 2 * 60 * 1000);
-  const reviewFeedPosts = useReviewFeedPosts();
-  const reviewPins = useReviewPins();
+  useHydrateFollowing(user?.id, Boolean(user?.id), 2 * 60 * 1000);
+
+  const followedUserIds = useFollowedUserIds(user?.id);
+  const visibleAuthorIds = React.useMemo(() => {
+    if (!user?.id) {
+      return [];
+    }
+
+    return Array.from(new Set([user.id, ...followedUserIds]));
+  }, [followedUserIds, user?.id]);
+
+  const reviewFilter = React.useMemo(
+    () => ({
+      authorIds: visibleAuthorIds,
+      requireAuthorFilter: true,
+    }),
+    [visibleAuthorIds]
+  );
+
+  const reviewFeedPosts = useReviewFeedPosts(reviewFilter);
+  const reviewPins = useReviewPins(reviewFilter);
   const isReviewHydrating = useReviewHydrating();
   const refreshReviews = useRefreshReviews();
   const posts = reviewFeedPosts;
