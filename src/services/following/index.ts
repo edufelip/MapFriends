@@ -44,6 +44,13 @@ export async function createFollowRequest(input: FollowRequestRecord): Promise<v
   return repository.createFollowRequest(input);
 }
 
+export async function listOutgoingFollowRequestTargetUserIds(input: {
+  requesterUserId: string;
+  targetUserIds: string[];
+}): Promise<string[]> {
+  return repository.listOutgoingFollowRequestTargetUserIds(input);
+}
+
 export async function listFollowRequests(input: {
   userId: string;
   limit?: number;
@@ -68,4 +75,3 @@ export async function declineFollowRequest(input: {
 }): Promise<void> {
   return repository.declineFollowRequest(input);
 }
-

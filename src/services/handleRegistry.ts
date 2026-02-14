@@ -7,6 +7,7 @@ import {
 import { getFirestoreDb } from './firebase';
 import { runFirestoreOperation } from './firebaseDbLogger';
 import { isHandleReserved, isHandleValidFormat, normalizeHandle } from './handlePolicy';
+import { buildSearchPrefixes } from './searchIndex';
 
 type ClaimProfileInput = {
   uid: string;
@@ -73,6 +74,7 @@ export const claimProfileHandle = async ({
   const db = getFirestoreDb();
   const handleRef = doc(db, 'handles', handle);
   const userRef = doc(db, 'users', uid);
+  const searchIndexRef = doc(db, 'userSearchIndex', uid);
 
   await runFirestoreOperation(
     'handles.claimTransaction',
@@ -81,6 +83,7 @@ export const claimProfileHandle = async ({
       handle,
       handlePath: handleRef.path,
       userPath: userRef.path,
+      searchIndexPath: searchIndexRef.path,
     },
     () =>
       runTransaction(db, async (transaction) => {
@@ -113,6 +116,23 @@ export const claimProfileHandle = async ({
             visibility,
             avatar: avatar ?? null,
             updatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+
+        transaction.set(
+          searchIndexRef,
+          {
+            uid,
+            name,
+            handle,
+            avatar: avatar ?? null,
+            visibility,
+            updatedAt: new Date().toISOString(),
+            searchPrefixes: buildSearchPrefixes({
+              name,
+              handle,
+            }),
           },
           { merge: true }
         );

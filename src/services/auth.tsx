@@ -51,6 +51,7 @@ import {
   HandleAvailabilityStatus,
 } from './handleRegistry';
 import { isHandleValidFormat, normalizeHandle } from './handlePolicy';
+import { upsertSearchIndexProfile } from './search';
 
 type AuthState = {
   user: User | null;
@@ -408,6 +409,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           onboardingVersion: ONBOARDING_VERSION,
         });
       }
+
+      if (nextHasCompletedProfile && nextUser && nextUser.name && nextUser.handle) {
+        void upsertSearchIndexProfile({
+          userId: nextUser.id,
+          name: nextUser.name,
+          handle: nextUser.handle,
+          avatar: nextUser.avatar ?? null,
+          visibility: nextUser.visibility,
+          updatedAt: new Date().toISOString(),
+        }).catch(() => {
+          // Search index backfill should never block auth bootstrap.
+        });
+      }
     });
 
     return () => {
@@ -603,6 +617,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             const userMetaRef = doc(db, 'userMeta', uid);
             const userRef = doc(db, 'users', uid);
             const handleRef = normalizedHandle ? doc(db, 'handles', normalizedHandle) : null;
+            const searchIndexRef = doc(db, 'userSearchIndex', uid);
 
             await runFirestoreOperation(
               'auth.deleteAccountRemoteCleanup',
@@ -611,11 +626,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 userMetaPath: userMetaRef.path,
                 userPath: userRef.path,
                 handlePath: handleRef?.path || null,
+                searchIndexPath: searchIndexRef.path,
               },
               () =>
                 Promise.all([
                   deleteDoc(userMetaRef),
                   deleteDoc(userRef),
+                  deleteDoc(searchIndexRef),
                   handleRef ? deleteDoc(handleRef) : Promise.resolve(),
                 ]).then(() => undefined)
             );
@@ -770,6 +787,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           try {
             const db = getFirestoreDb();
             const userRef = doc(db, 'users', uid);
+            const searchIndexRef = doc(db, 'userSearchIndex', uid);
             await runFirestoreOperation(
               'auth.updateProfileRemoteUser',
               {
@@ -789,6 +807,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                   },
                   { merge: true }
                 )
+            );
+
+            await runFirestoreOperation(
+              'auth.updateProfileSearchIndex',
+              {
+                uid,
+                path: searchIndexRef.path,
+              },
+              () =>
+                upsertSearchIndexProfile({
+                  userId: uid,
+                  name: nextUser.name,
+                  handle: nextUser.handle,
+                  avatar: nextUser.avatar ?? null,
+                  visibility: nextUser.visibility,
+                  updatedAt: new Date().toISOString(),
+                })
             );
           } catch {
             // Keep local profile update working when remote sync fails.
