@@ -1,42 +1,54 @@
 # Search Screen
 
 ## Overview
-The Search screen replaces the current Explore placeholder and provides a people/places search experience with recent items, trending creators/places, and a guidance callout. It shares the global bottom navigation and highlights the Explore tab.
+Explore is now a people-first search surface. Users can search by name or handle, revisit recent profile opens, and discover trending creators ranked by weekly posting volume.
 
 ## Goals
-- Provide a visually rich search landing page aligned with MapFriends UI.
-- Support quick access to recent people and places.
-- Highlight trending creators and premium content.
-- Keep the layout modular and theme-aware (light/dark).
+- Focus Explore on creator discovery (people only).
+- Persist recent profile opens remotely per user, synced across devices.
+- Rank trending creators by number of reviews posted in the last 7 days (top 10).
+- Support open and locked profiles, with lock-aware follow CTA text.
 
 ## UI Structure
-- Sticky header with search input and People/Places segmented tabs.
-- People tab:
-  - Recent Searches list (clearable).
-  - Trending Creators horizontal list with follow CTA and PRO badge.
-  - Info callout.
-- Places tab:
-  - Recent Places list (clearable).
-  - Trending Places cards with premium indicator.
-  - Info callout.
+- Sticky header with a single search input (`name` or `@handle`).
+- Search mode (`>= 2` chars):
+  - People results list.
+  - Result rows show avatar, name, handle, lock state, and follow action.
+- Default mode (no active search):
+  - Recent Searches (clearable), max 5 items.
+  - Trending Creators horizontal list.
+  - Guidance callout.
 - Bottom navigation (Home/Explore/Activity/Profile) with Explore active.
 
+## Behavior
+- Recent searches are saved only when user performs a search and taps a person result.
+- Recent entries are persisted in Firestore under the current user and trimmed to 5.
+- Search uses normalized prefixes from `name` and `handle`.
+- Locked profiles are included in results/trending with lock indication.
+- Follow CTA labels:
+  - Open profile: `Follow` / `Following`
+  - Locked profile: `Request` / `Requested`
+
 ## Data & Sources
-- Mock data lives in `src/mocks/search.json`.
-- Access via `src/services/search.ts`:
-  - `getRecentPeople()`, `getTrendingPeople()`
-  - `getRecentPlaces()`, `getTrendingPlaces()`
+- `userSearchIndex/{uid}` stores search metadata:
+  - `uid`, `name`, `handle`, `avatar`, `visibility`, `updatedAt`, `searchPrefixes`
+- `userSearchRecent/{uid}/items/{searchedUid}` stores recent profile opens:
+  - `userId`, `searchedUserId`, `name`, `handle`, `avatar`, `visibility`, `openedAt`
+- Trending creators:
+  - Derived from `reviews` created in last 7 days.
+  - Aggregated by `userId`, sorted by post count desc, then latest post timestamp.
 
 ## Localization
-Strings are defined in `src/localization/strings.ts` under the `search` namespace for `en-US` and `pt-BR`.
+Strings are defined in `src/localization/strings.ts` under `search` for `en-US` and `pt-BR`.
 
 ## Test Cases
-- People tab shows recents, clears when tapping “Clear All”.
-- Places tab shows recents and trending cards.
-- Trending creators display PRO badge when `isPro` is true.
-- Bottom navigation highlights Explore when on Search.
+- Search by handle prefix returns matching user.
+- Search by name prefix returns matching user.
+- Recent save keeps max 5 and refreshes order when same user is opened again.
+- Clear recent removes all recent items for current user.
+- Trending list excludes current viewer and returns top creators in 7-day window.
 
 ## Use Cases
-- User discovers creators to follow and populate their map.
-- User revisits recently viewed people or places quickly.
-- User switches between People and Places to browse content.
+- User finds creators by typing name or handle.
+- User quickly reopens recently viewed profiles across sessions/devices.
+- User discovers active creators through the weekly trending list.
