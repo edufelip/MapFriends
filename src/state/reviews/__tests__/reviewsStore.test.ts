@@ -6,6 +6,8 @@ import {
   type ReviewRecord,
   updateReview,
 } from '../../../services/reviews';
+import { listFollowerUserIds } from '../../../services/following';
+import { createNotification } from '../../../services/notifications';
 import { useReviewStore } from '../reviewsStore';
 
 jest.mock('../../../services/reviews', () => ({
@@ -16,11 +18,21 @@ jest.mock('../../../services/reviews', () => ({
   getReviewById: jest.fn(),
 }));
 
+jest.mock('../../../services/following', () => ({
+  listFollowerUserIds: jest.fn(),
+}));
+
+jest.mock('../../../services/notifications', () => ({
+  createNotification: jest.fn(),
+}));
+
 const mockCreateReview = createReview as jest.MockedFunction<typeof createReview>;
 const mockUpdateReview = updateReview as jest.MockedFunction<typeof updateReview>;
 const mockDeleteReview = deleteReview as jest.MockedFunction<typeof deleteReview>;
 const mockGetRecentReviews = getRecentReviews as jest.MockedFunction<typeof getRecentReviews>;
 const mockGetReviewById = getReviewById as jest.MockedFunction<typeof getReviewById>;
+const mockListFollowerUserIds = listFollowerUserIds as jest.MockedFunction<typeof listFollowerUserIds>;
+const mockCreateNotification = createNotification as jest.MockedFunction<typeof createNotification>;
 
 const makeReview = (overrides: Partial<ReviewRecord> = {}): ReviewRecord => ({
   id: 'review-1',
@@ -50,6 +62,14 @@ describe('reviewsStore', () => {
     mockDeleteReview.mockReset();
     mockGetRecentReviews.mockReset();
     mockGetReviewById.mockReset();
+    mockListFollowerUserIds.mockReset();
+    mockCreateNotification.mockReset();
+
+    mockListFollowerUserIds.mockResolvedValue({
+      userId: 'user-1',
+      followerUserIds: [],
+    });
+    mockCreateNotification.mockResolvedValue(undefined as never);
   });
 
   it('hydrates and sorts reviews by newest createdAt', async () => {
@@ -114,6 +134,65 @@ describe('reviewsStore', () => {
     await creationPromise;
 
     expect(useReviewStore.getState().reviewIds).toEqual(['review-1']);
+  });
+
+  it('retries review notification fanout when first delivery attempt fails', async () => {
+    mockCreateReview.mockResolvedValueOnce(
+      makeReview({
+        id: 'review-fanout',
+        userId: 'author-1',
+        userName: 'Author',
+        userHandle: 'author',
+      }) as any
+    );
+
+    mockListFollowerUserIds.mockResolvedValueOnce({
+      userId: 'author-1',
+      followerUserIds: ['follower-1'],
+    });
+
+    mockCreateNotification
+      .mockRejectedValueOnce(new Error('temporary-notification-error'))
+      .mockResolvedValueOnce(undefined as never);
+
+    await useReviewStore.getState().createReviewAndStore({
+      author: { id: 'author-1', name: 'Author', handle: 'author', avatar: null },
+      place: { id: 'place-1', title: 'A' },
+      notes: 'Test',
+      rating: 8,
+      visibility: 'followers',
+      photos: [],
+    });
+
+    expect(mockCreateNotification).toHaveBeenCalledTimes(2);
+    expect(mockCreateNotification).toHaveBeenNthCalledWith(1, {
+      userId: 'follower-1',
+      type: 'review_published',
+      actorUserId: 'author-1',
+      actorName: 'Author',
+      actorHandle: 'author',
+      actorAvatar: null,
+      createdAt: expect.any(String),
+      targetReviewId: 'review-fanout',
+      targetReviewPlaceTitle: 'A',
+      targetReviewPlaceSubtitle: null,
+      targetReviewImageUrl: null,
+      targetReviewVisibility: 'followers',
+    });
+    expect(mockCreateNotification).toHaveBeenNthCalledWith(2, {
+      userId: 'follower-1',
+      type: 'review_published',
+      actorUserId: 'author-1',
+      actorName: 'Author',
+      actorHandle: 'author',
+      actorAvatar: null,
+      createdAt: expect.any(String),
+      targetReviewId: 'review-fanout',
+      targetReviewPlaceTitle: 'A',
+      targetReviewPlaceSubtitle: null,
+      targetReviewImageUrl: null,
+      targetReviewVisibility: 'followers',
+    });
   });
 
   it('removes review after delete succeeds', async () => {

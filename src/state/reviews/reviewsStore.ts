@@ -10,6 +10,8 @@ import {
   UpdateReviewInput,
   updateReview,
 } from '../../services/reviews';
+import { listFollowerUserIds } from '../../services/following';
+import { createNotification } from '../../services/notifications';
 import { logReviewPinDebug, logReviewPinError } from './reviewPinLogger';
 
 type ReviewsById = Record<string, ReviewRecord>;
@@ -40,6 +42,123 @@ const isFreshTimestamp = (timestamp: number | null | undefined, staleMs: number)
   }
 
   return Date.now() - timestamp < staleMs;
+};
+
+const REVIEW_NOTIFICATION_FANOUT_LIMIT = 400;
+const REVIEW_NOTIFICATION_RETRY_ATTEMPTS = 3;
+const REVIEW_NOTIFICATION_RETRY_DELAY_MS = 30;
+
+const waitForRetry = async (ms: number) => {
+  await new Promise<void>((resolve) => {
+    setTimeout(() => resolve(), ms);
+  });
+};
+
+const createReviewNotificationWithRetry = async (input: {
+  review: ReviewRecord;
+  recipientUserId: string;
+  createdAt: string;
+  imageUrl: string | null;
+}) => {
+  let attempt = 0;
+
+  while (attempt < REVIEW_NOTIFICATION_RETRY_ATTEMPTS) {
+    try {
+      await createNotification({
+        userId: input.recipientUserId,
+        type: 'review_published',
+        actorUserId: input.review.userId,
+        actorName: input.review.userName,
+        actorHandle: input.review.userHandle,
+        actorAvatar: input.review.userAvatar,
+        createdAt: input.createdAt,
+        targetReviewId: input.review.id,
+        targetReviewPlaceTitle: input.review.placeTitle,
+        targetReviewPlaceSubtitle: null,
+        targetReviewImageUrl: input.imageUrl,
+        targetReviewVisibility: input.review.visibility,
+      });
+      return true;
+    } catch (error) {
+      attempt += 1;
+
+      if (attempt >= REVIEW_NOTIFICATION_RETRY_ATTEMPTS) {
+        logReviewPinError('step8-review-notification-recipient-error', error, {
+          reviewId: input.review.id,
+          authorId: input.review.userId,
+          recipientUserId: input.recipientUserId,
+          attempts: attempt,
+        });
+        return false;
+      }
+
+      await waitForRetry(REVIEW_NOTIFICATION_RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  return false;
+};
+
+const fanOutReviewNotification = async (review: ReviewRecord) => {
+  try {
+    const followers = await listFollowerUserIds({
+      userId: review.userId,
+      limit: REVIEW_NOTIFICATION_FANOUT_LIMIT,
+    });
+
+    const followerUserIds = followers.followerUserIds.filter(
+      (followerUserId) => followerUserId && followerUserId !== review.userId
+    );
+
+    if (followerUserIds.length === 0) {
+      return;
+    }
+
+    const createdAt = new Date().toISOString();
+    const imageUrl = review.photoUrls[0] || null;
+
+    const deliveryResults = await Promise.all(
+      followerUserIds.map(async (recipientUserId) => ({
+        recipientUserId,
+        delivered: await createReviewNotificationWithRetry({
+          review,
+          recipientUserId,
+          createdAt,
+          imageUrl,
+        }),
+      }))
+    );
+
+    const failedRecipientUserIds = deliveryResults
+      .filter((result) => !result.delivered)
+      .map((result) => result.recipientUserId);
+
+    logReviewPinDebug('step8-review-notification-fanout-success', {
+      reviewId: review.id,
+      authorId: review.userId,
+      recipientCount: followerUserIds.length,
+      deliveredCount: followerUserIds.length - failedRecipientUserIds.length,
+      failedCount: failedRecipientUserIds.length,
+    });
+
+    if (failedRecipientUserIds.length > 0) {
+      logReviewPinError(
+        'step8-review-notification-fanout-partial-error',
+        new Error('review-notification-partial-failure'),
+        {
+          reviewId: review.id,
+          authorId: review.userId,
+          failedCount: failedRecipientUserIds.length,
+          failedRecipientUserIds: failedRecipientUserIds.slice(0, 20),
+        }
+      );
+    }
+  } catch (error) {
+    logReviewPinError('step8-review-notification-fanout-error', error, {
+      reviewId: review.id,
+      authorId: review.userId,
+    });
+  }
 };
 
 type ReviewState = {
@@ -391,6 +510,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     try {
       const created = await createReview(input, options);
       get().upsertReview(created);
+      await fanOutReviewNotification(created);
       logReviewPinDebug('step8-create-review-success', {
         reviewId: created.id,
         placeId: created.placeId,
