@@ -1,38 +1,66 @@
-import seed from '../mocks/notifications.json';
+import {
+  createNotificationsRepository,
+  DEFAULT_NOTIFICATIONS_LIMIT,
+} from './notifications.repository';
+import {
+  CreateNotificationInput,
+  ListNotificationsResult,
+  NotificationBadge,
+  NotificationPreview,
+  NotificationRecord,
+  NotificationRequestStatus,
+  NotificationType,
+} from './notifications.types';
 
-export type NotificationBadge = {
-  icon: string;
-  color: string;
+export type {
+  CreateNotificationInput,
+  ListNotificationsResult,
+  NotificationBadge,
+  NotificationPreview,
+  NotificationRecord,
+  NotificationRequestStatus,
+  NotificationType,
 };
 
-export type NotificationPreview = {
-  title: string;
-  subtitle: string;
-  image: string;
-};
+const repository = createNotificationsRepository();
 
-export type NotificationItem = {
-  id: string;
-  name: string;
-  time: string;
-  avatar: string;
-  message: string;
-  quote?: string;
-  badge?: NotificationBadge | null;
-  actions?: Array<'accept' | 'decline'>;
-  preview?: NotificationPreview;
-  premiumCard?: boolean;
-  action?: 'follow';
-};
+export async function listNotifications(input: {
+  userId: string;
+  limit?: number;
+}): Promise<ListNotificationsResult> {
+  return repository.list({
+    userId: input.userId,
+    limit: input.limit ?? DEFAULT_NOTIFICATIONS_LIMIT,
+  });
+}
 
-export type NotificationSections = {
-  newRequests: NotificationItem[];
-  earlier: NotificationItem[];
-  week: NotificationItem[];
-};
+export async function createNotification(
+  input: CreateNotificationInput
+): Promise<NotificationRecord> {
+  return repository.create(input);
+}
 
-const notifications = seed as NotificationSections;
+export async function markNotificationRead(input: {
+  userId: string;
+  notificationId: string;
+  readAt?: string;
+}): Promise<void> {
+  return repository.markRead({
+    userId: input.userId,
+    notificationId: input.notificationId,
+    readAt: input.readAt || new Date().toISOString(),
+  });
+}
 
-export function getNotificationSections() {
-  return notifications;
+export async function updateNotificationRequestStatus(input: {
+  userId: string;
+  notificationId: string;
+  requestStatus: Exclude<NotificationRequestStatus, null>;
+  readAt?: string;
+}): Promise<void> {
+  return repository.updateRequestStatus(input);
+}
+
+export async function clearNotifications(input: { userId: string }): Promise<void> {
+  return repository.clear(input);
 }
