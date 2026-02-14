@@ -14,6 +14,9 @@ const mockRequestForegroundPermissionsAsync = jest.fn();
 const mockGetLastKnownPositionAsync = jest.fn();
 const mockGetCurrentPositionAsync = jest.fn();
 const mockRefreshReviews = jest.fn();
+const mockUseReviewFeedPosts = jest.fn(() => []);
+const mockUseReviewPins = jest.fn(() => []);
+const mockUseFollowedUserIds = jest.fn(() => ['user-2']);
 
 jest.mock('@rnmapbox/maps', () => ({
   setAccessToken: jest.fn(),
@@ -52,8 +55,13 @@ jest.mock('../../../state/reviews', () => ({
   useHydrateReviewState: jest.fn(),
   useRefreshReviews: () => mockRefreshReviews,
   useReviewHydrating: () => false,
-  useReviewFeedPosts: () => [],
-  useReviewPins: () => [],
+  useReviewFeedPosts: (filter: unknown) => mockUseReviewFeedPosts(filter),
+  useReviewPins: (filter: unknown) => mockUseReviewPins(filter),
+}));
+
+jest.mock('../../../state/following', () => ({
+  useHydrateFollowing: jest.fn(),
+  useFollowedUserIds: (userId: string | null | undefined) => mockUseFollowedUserIds(userId),
 }));
 
 jest.mock('../../../localization/strings', () => ({
@@ -98,6 +106,20 @@ describe('MapHomeScreen', () => {
     mockGetLastKnownPositionAsync.mockResolvedValue(null);
     mockGetCurrentPositionAsync.mockResolvedValue(null);
     mockRefreshReviews.mockResolvedValue(undefined);
+    mockUseFollowedUserIds.mockReturnValue(['user-2']);
+  });
+
+  it('applies followed-author scope to feed and map review selectors', () => {
+    render(<MapHomeScreen navigation={navigation} route={{ key: 'MapHome', name: 'MapHome' }} />);
+
+    expect(mockUseReviewFeedPosts).toHaveBeenCalledWith({
+      authorIds: ['user-1', 'user-2'],
+      requireAuthorFilter: true,
+    });
+    expect(mockUseReviewPins).toHaveBeenCalledWith({
+      authorIds: ['user-1', 'user-2'],
+      requireAuthorFilter: true,
+    });
   });
 
   it('shows a location explanation before requesting Android permission when not granted', async () => {
