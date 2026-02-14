@@ -5,10 +5,24 @@ import MainShellScreen, { shouldRenderMainTabLayer } from '../MainShellScreen';
 
 const mockHomeUnmountSpy = jest.fn();
 
+jest.mock('@react-navigation/native', () => ({
+  useFocusEffect: (callback: () => void | (() => void)) => {
+    const React = require('react');
+    React.useEffect(() => callback(), [callback]);
+  },
+}));
+
 jest.mock('../../../services/auth', () => ({
   useAuth: () => ({
     user: { id: 'user-1', name: 'Alex' },
   }),
+}));
+
+jest.mock('../../../state/notifications', () => ({
+  useHydrateNotificationsState: jest.fn(),
+  useNotificationUnreadCount: () => 0,
+  useObserveNotificationUnreadCount: jest.fn(),
+  useRefreshNotifications: () => jest.fn(),
 }));
 
 jest.mock('../../../localization/strings', () => ({
@@ -52,7 +66,6 @@ jest.mock('../../Profile/ProfileScreen', () => {
 });
 
 jest.mock('../../Map/components/BottomNav', () => {
-  const React = require('react');
   const { Pressable, Text, View } = require('react-native');
 
   return ({ onSelect }: { onSelect: (tab: 'home' | 'explore' | 'activity' | 'profile') => void }) => (

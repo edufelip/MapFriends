@@ -63,4 +63,23 @@ describe('notificationsViewModel', () => {
       nowSpy.mockRestore();
     }
   });
+
+  it('hides follow-back action when actor is already followed', () => {
+    const strings = getStrings().notifications;
+    const followNotification = makeNotification({
+      id: 'n-follow',
+      type: 'follow_started',
+      actorUserId: 'actor-followed',
+      createdAt: '2026-02-14T11:00:00.000Z',
+    });
+
+    const result = buildNotificationListState(
+      [followNotification],
+      strings,
+      new Set(['actor-followed'])
+    );
+
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0].data[0].action).toBeNull();
+  });
 });

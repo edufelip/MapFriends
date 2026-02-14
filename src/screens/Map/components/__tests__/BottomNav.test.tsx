@@ -98,4 +98,92 @@ describe('BottomNav', () => {
 
     expect(screen.UNSAFE_queryAllByType(Image)).toHaveLength(0);
   });
+
+  it('shows unread activity badge when count is provided', () => {
+    const screen = render(
+      <BottomNav
+        active="home"
+        onSelect={jest.fn()}
+        onPrimaryPress={jest.fn()}
+        activityBadgeCount={3}
+        theme={{
+          glass: 'rgba(16,22,34,0.8)',
+          border: '#1f2937',
+          primary: '#135bec',
+          textMuted: '#94a3b8',
+          surface: '#1c1f27',
+          textPrimary: '#ffffff',
+        }}
+        labels={{
+          home: 'Home',
+          explore: 'Explore',
+          activity: 'Activity',
+          profile: 'Profile',
+        }}
+        user={{ name: 'Alex' }}
+        bottomInset={0}
+      />
+    );
+
+    expect(screen.getByText('3')).toBeTruthy();
+  });
+
+  it('caps unread activity badge to 99+', () => {
+    const screen = render(
+      <BottomNav
+        active="home"
+        onSelect={jest.fn()}
+        onPrimaryPress={jest.fn()}
+        activityBadgeCount={120}
+        theme={{
+          glass: 'rgba(16,22,34,0.8)',
+          border: '#1f2937',
+          primary: '#135bec',
+          textMuted: '#94a3b8',
+          surface: '#1c1f27',
+          textPrimary: '#ffffff',
+        }}
+        labels={{
+          home: 'Home',
+          explore: 'Explore',
+          activity: 'Activity',
+          profile: 'Profile',
+        }}
+        user={{ name: 'Alex' }}
+        bottomInset={0}
+      />
+    );
+
+    expect(screen.getByText('99+')).toBeTruthy();
+  });
+
+  it('does not show unread badge when count is zero', () => {
+    const screen = render(
+      <BottomNav
+        active="home"
+        onSelect={jest.fn()}
+        onPrimaryPress={jest.fn()}
+        activityBadgeCount={0}
+        theme={{
+          glass: 'rgba(16,22,34,0.8)',
+          border: '#1f2937',
+          primary: '#135bec',
+          textMuted: '#94a3b8',
+          surface: '#1c1f27',
+          textPrimary: '#ffffff',
+        }}
+        labels={{
+          home: 'Home',
+          explore: 'Explore',
+          activity: 'Activity',
+          profile: 'Profile',
+        }}
+        user={{ name: 'Alex' }}
+        bottomInset={0}
+      />
+    );
+
+    expect(screen.queryByText('99+')).toBeNull();
+    expect(screen.queryByText('0')).toBeNull();
+  });
 });
