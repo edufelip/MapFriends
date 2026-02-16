@@ -1,0 +1,302 @@
+name: iOS Release
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - release/**
+      - hotfix/**
+    paths-ignore:
+      - "supabase/**"
+      - "docs/**"
+      - "web/**"
+
+jobs:
+  release:
+    runs-on: macos-latest
+
+    env:
+      KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat <<'EOF_ENV' > .env
+          ${{ secrets.ENV_FILE }}
+          EOF_ENV
+          cat <<'EOF_ENV' > .env.production
+          ${{ secrets.ENV_FILE }}
+          EOF_ENV
+
+      - name: Export env vars
+        run: |
+          tr -d '\r' < .env | \
+            awk '/^[[:space:]]*(export[[:space:]]+)?EXPO_PUBLIC_[A-Za-z0-9_]+=/ { sub(/^[[:space:]]*export[[:space:]]+/, "", $0); print $0; }' \
+            >> "$GITHUB_ENV"
+
+      - name: Set Expo environment
+        run: |
+          echo "EXPO_PUBLIC_ENV=prod" >> "$GITHUB_ENV"
+          echo "APP_ENV=prod" >> "$GITHUB_ENV"
+          echo "APP_VARIANT=prod" >> "$GITHUB_ENV"
+          echo "APP_SUPABASE_ENV=prod" >> "$GITHUB_ENV"
+
+      - name: Validate Expo environment
+        run: |
+          if [ "$EXPO_PUBLIC_ENV" != "prod" ]; then
+            echo "EXPO_PUBLIC_ENV must be 'prod' (got '$EXPO_PUBLIC_ENV')" >&2
+            exit 1
+          fi
+          echo "EXPO_PUBLIC_ENV=$EXPO_PUBLIC_ENV"
+
+      - name: Validate Firebase secrets
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "GOOGLE_SERVICE_INFO_PLIST_BASE64 is not set" >&2
+            exit 1
+          fi
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Ensure iOS native project exists
+        run: |
+          if [ ! -d ios ] || [ ! -f ios/Podfile ]; then
+            npx expo prebuild --platform ios --non-interactive --no-install
+          fi
+
+      - name: Bump iOS build number
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" ios/mapfriends/Info.plist
+
+      - name: Install pods
+        env:
+          COCOAPODS_CACHE_DIR: ${{ runner.temp }}/.cocoapods-cache
+        run: |
+          mkdir -p "$COCOAPODS_CACHE_DIR"
+          cd ios
+          pod install --repo-update
+
+      - name: Write GoogleService-Info.plist
+        working-directory: ios
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64 }}
+        run: |
+          mkdir -p mapfriends
+          echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > mapfriends/GoogleService-Info.plist
+
+      - name: Sync Google Sign-In scheme (prod)
+        run: |
+          python3 - <<'PY'
+          import plistlib
+          import sys
+
+          info_path = "ios/mapfriends/Info.plist"
+          gservice_path = "ios/mapfriends/GoogleService-Info.plist"
+
+          with open(gservice_path, "rb") as f:
+            gservice = plistlib.load(f)
+          scheme = gservice.get("REVERSED_CLIENT_ID")
+          if not scheme:
+            print("REVERSED_CLIENT_ID missing in GoogleService-Info.plist", file=sys.stderr)
+            sys.exit(1)
+
+          with open(info_path, "rb") as f:
+            info = plistlib.load(f)
+
+          url_types = info.get("CFBundleURLTypes", [])
+          google_entry = None
+          for entry in url_types:
+            schemes = entry.get("CFBundleURLSchemes", [])
+            if any(s.startswith("com.googleusercontent.apps.") for s in schemes):
+              google_entry = entry
+              break
+
+          if google_entry is None:
+            url_types.append({"CFBundleURLSchemes": [scheme]})
+            info["CFBundleURLTypes"] = url_types
+          else:
+            schemes = [s for s in google_entry.get("CFBundleURLSchemes", []) if not s.startswith("com.googleusercontent.apps.")]
+            schemes.insert(0, scheme)
+            google_entry["CFBundleURLSchemes"] = schemes
+
+          with open(info_path, "wb") as f:
+            plistlib.dump(info, f)
+          PY
+
+      - name: Validate Google Sign-In scheme
+        run: |
+          PLIST_REVERSED=$(/usr/libexec/PlistBuddy -c "Print :REVERSED_CLIENT_ID" ios/mapfriends/GoogleService-Info.plist)
+          if ! /usr/libexec/PlistBuddy -c "Print :CFBundleURLTypes" ios/mapfriends/Info.plist | grep -Fq "$PLIST_REVERSED"; then
+            echo "Google Sign-In mismatch: Info.plist missing REVERSED_CLIENT_ID scheme ($PLIST_REVERSED)" >&2
+            exit 1
+          fi
+
+      - name: Set up keychain and certificates
+        env:
+          CERT_P12_BASE64: ${{ secrets.IOS_DIST_CERT_P12_BASE64 }}
+          CERT_PASSWORD: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+          PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
+          PROFILE_PATH="$RUNNER_TEMP/build_profile.mobileprovision"
+          PROFILE_DEST="$HOME/Library/MobileDevice/Provisioning Profiles/mapfriends.mobileprovision"
+
+          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
+          echo -n "$PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          security import "$CERTIFICATE_PATH" \
+            -P "$CERT_PASSWORD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE_PATH" "$PROFILE_DEST"
+
+      - name: Validate provisioning profile entitlements (push)
+        run: |
+          PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/mapfriends.mobileprovision"
+          if [ ! -f "$PROFILE_PATH" ]; then
+            echo "Provisioning profile not found at $PROFILE_PATH" >&2
+            exit 1
+          fi
+
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          APS_ENV=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+
+          if [ -z "$APS_ENV" ]; then
+            echo "Provisioning profile missing Push Notifications entitlement (aps-environment)." >&2
+            exit 1
+          fi
+
+          if [ "$APS_ENV" != "production" ]; then
+            echo "Provisioning profile aps-environment is '$APS_ENV' but Release builds require 'production'." >&2
+            exit 1
+          fi
+
+          echo "Detected aps-environment: $APS_ENV"
+
+      - name: Build archive
+        env:
+          KEYCHAIN_PATH: ${{ runner.temp }}/app-signing.keychain-db
+          IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+        run: |
+          cd ios
+          xcodebuild \
+            -workspace mapfriends.xcworkspace \
+            -scheme mapfriends \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$PWD/build/mapfriends.xcarchive" \
+            archive \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="Apple Distribution" \
+            DEVELOPMENT_TEAM=${{ secrets.IOS_TEAM_ID }} \
+            PROVISIONING_PROFILE_SPECIFIER="$IOS_PROFILE_NAME" \
+            CODE_SIGN_ENTITLEMENTS="mapfriends/mapfriends.entitlements" \
+            PRODUCT_BUNDLE_IDENTIFIER="com.edufelip.mapfriends" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+
+      - name: Verify dSYM generation
+        run: |
+          if [ ! -d ios/build/mapfriends.xcarchive/dSYMs/mapfriends.app.dSYM ]; then
+            echo "Expected dSYM not found at ios/build/mapfriends.xcarchive/dSYMs/mapfriends.app.dSYM" >&2
+            ls -la ios/build/mapfriends.xcarchive/dSYMs || true
+            exit 1
+          fi
+
+      - name: Export IPA
+        env:
+          KEYCHAIN_PATH: ${{ runner.temp }}/app-signing.keychain-db
+          IOS_PROFILE_NAME: ${{ secrets.IOS_PROFILE_NAME }}
+        run: |
+          cat <<EOF_PLIST > ios/ExportOptions.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>compileBitcode</key><false/>
+            <key>stripSwiftSymbols</key><true/>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.edufelip.mapfriends</key><string>${IOS_PROFILE_NAME}</string>
+            </dict>
+          </dict>
+          </plist>
+          EOF_PLIST
+
+          cd ios
+          xcodebuild -exportArchive \
+            -archivePath "$PWD/build/mapfriends.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$PWD/build" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN_PATH"
+
+      - name: Archive dSYMs for backup
+        run: |
+          cd ios/build/mapfriends.xcarchive/dSYMs
+          zip -r mapfriends.dSYM.zip mapfriends.app.dSYM
+          echo "✅ dSYM archive created: $(du -sh mapfriends.dSYM.zip | cut -f1)"
+
+      - name: Upload dSYM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapfriends.dSYM
+          path: ios/build/mapfriends.xcarchive/dSYMs/mapfriends.dSYM.zip
+          retention-days: 90
+
+      - name: Upload IPA to TestFlight
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_KEY_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          mkdir -p "$HOME/.private_keys"
+          KEY_FILE="$HOME/.private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" | base64 -d > "$KEY_FILE"
+
+          IPA_PATH=$(ls ios/build/*.ipa | head -n 1)
+          if [ -z "$IPA_PATH" ]; then
+            echo "IPA not found in ios/build" && exit 1
+          fi
+
+          xcrun altool --upload-app -f "$IPA_PATH" -t ios \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_API_KEY_ISSUER_ID"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapfriends.ipa
+          path: ios/build/*.ipa
+
+      - name: Clean keychain and profiles
+        if: always()
+        run: |
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          security delete-keychain "$KEYCHAIN_PATH" || true
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision || true

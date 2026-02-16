@@ -1,0 +1,317 @@
+name: Android Release
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - release/**
+      - hotfix/**
+    paths-ignore:
+      - "supabase/**"
+      - "docs/**"
+      - "web/**"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    env:
+      ANDROID_NDK_VERSION: 28.0.13004108
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write env files
+        run: |
+          cat <<'EOF_ENV' > .env.production
+          ${{ secrets.ENV_FILE }}
+          EOF_ENV
+          cp .env.production .env
+        working-directory: .
+
+      - name: Export env vars
+        run: |
+          tr -d '\r' < .env.production | \
+            awk '/^[[:space:]]*(export[[:space:]]+)?EXPO_PUBLIC_[A-Za-z0-9_]+=/ { sub(/^[[:space:]]*export[[:space:]]+/, "", $0); print $0; }' \
+            >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Set Expo environment
+        run: |
+          echo "APP_ENV=prod" >> "$GITHUB_ENV"
+          echo "APP_VARIANT=prod" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_APP_ENV=prod" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_APP_VARIANT=prod" >> "$GITHUB_ENV"
+          echo "NODE_ENV=production" >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Validate Expo environment
+        run: |
+          if [ "$APP_ENV" != "prod" ]; then
+            echo "APP_ENV must be 'prod' (got '$APP_ENV')" >&2
+            exit 1
+          fi
+          echo "APP_ENV=$APP_ENV"
+          echo "EXPO_PUBLIC_APP_ENV=$EXPO_PUBLIC_APP_ENV"
+        working-directory: .
+
+      - name: Validate Firebase secrets
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "GOOGLE_SERVICES_JSON_BASE64 is not set" >&2
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install JS deps
+        run: npm ci --include=dev
+        working-directory: .
+
+      - name: Ensure Android native project exists
+        run: |
+          if [ ! -d android ] || [ ! -f android/gradlew ]; then
+            npx expo prebuild --platform android --non-interactive --no-install
+          fi
+        working-directory: .
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Android NDK r28
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          NDK_VERSION="$ANDROID_NDK_VERSION"
+          if [ -z "$SDK_ROOT" ]; then
+            echo "ANDROID_SDK_ROOT or ANDROID_HOME must be set" >&2
+            exit 1
+          fi
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            SDKMANAGER="$SDK_ROOT/cmdline-tools/bin/sdkmanager"
+          fi
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "sdkmanager not found under $SDK_ROOT/cmdline-tools" >&2
+            exit 1
+          fi
+          set +o pipefail
+          yes | "$SDKMANAGER" --sdk_root="$SDK_ROOT" "ndk;$NDK_VERSION"
+          set -o pipefail
+          if [ ! -d "$SDK_ROOT/ndk/$NDK_VERSION" ]; then
+            echo "NDK install failed (missing $SDK_ROOT/ndk/$NDK_VERSION)" >&2
+            exit 1
+          fi
+
+      - name: Set CI version code
+        run: echo "CI_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > app/mapfriends-release-key.jks
+
+      - name: Create keystore.properties
+        run: |
+          cat <<EOF_KEY > keystore.properties
+          storeFile=app/mapfriends-release-key.jks
+          storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
+          keyPassword=${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}
+          EOF_KEY
+
+      - name: Write google-services.json
+        run: |
+          mkdir -p app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}" | base64 -d > app/google-services.json
+
+      - name: Build release bundle
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: wrapper
+          build-root-directory: android
+          arguments: |
+            clean
+            bundleRelease
+            -PCI_VERSION_CODE=${{ env.CI_VERSION_CODE }}
+
+      - name: Resolve release artifact paths
+        id: resolve_release_paths
+        run: |
+          AAB_FILE=$(find app/build/outputs/bundle -type f -name "*.aab" | sort | head -n 1)
+          if [ -z "$AAB_FILE" ]; then
+            echo "AAB not found under app/build/outputs/bundle" >&2
+            exit 1
+          fi
+
+          MAPPING_FILE=$(find app/build/outputs/mapping -type f -name "mapping.txt" | sort | head -n 1)
+          if [ -z "$MAPPING_FILE" ]; then
+            echo "mapping.txt not found under app/build/outputs/mapping" >&2
+            exit 1
+          fi
+
+          echo "aab_file=$GITHUB_WORKSPACE/android/$AAB_FILE" >> "$GITHUB_OUTPUT"
+          echo "mapping_file=$GITHUB_WORKSPACE/android/$MAPPING_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: Validate 16 KB page size alignment
+        env:
+          AAB_FILE: ${{ steps.resolve_release_paths.outputs.aab_file }}
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          NDK_ROOT="$SDK_ROOT/ndk/$ANDROID_NDK_VERSION"
+          READELF="$NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
+          if [ ! -x "$READELF" ]; then
+            echo "llvm-readelf not found at $READELF" >&2
+            exit 1
+          fi
+          if [ ! -f "$AAB_FILE" ]; then
+            echo "AAB file not found at $AAB_FILE" >&2
+            exit 1
+          fi
+          TMP_DIR=$(mktemp -d)
+          unzip -q "$AAB_FILE" -d "$TMP_DIR"
+          READELF="$READELF" TMP_DIR="$TMP_DIR" python3 - <<'PY'
+          import os
+          import subprocess
+          import sys
+
+          readelf = os.environ["READELF"]
+          root = os.environ["TMP_DIR"]
+          bad = []
+          checked = 0
+
+          for dirpath, _, filenames in os.walk(root):
+            for name in filenames:
+              if not name.endswith('.so'):
+                continue
+              path = os.path.join(dirpath, name)
+              output = subprocess.check_output([readelf, '-lW', path], text=True)
+              checked += 1
+              for line in output.splitlines():
+                if line.strip().startswith('LOAD'):
+                  align = line.split()[-1]
+                  if align.startswith('0x') and int(align, 16) < 0x4000:
+                    bad.append((path, align))
+                    break
+
+          if checked == 0:
+            print('No native libraries found in AAB.')
+            sys.exit(0)
+
+          if bad:
+            print('❌ Found libraries not aligned for 16 KB pages:')
+            for path, align in bad:
+              rel = os.path.relpath(path, root)
+              print(f' - {rel} (align {align})')
+            sys.exit(1)
+
+          print(f'✅ All {checked} native libraries are 16 KB aligned.')
+          PY
+
+      - name: Verify mapping file exists
+        env:
+          MAPPING_FILE: ${{ steps.resolve_release_paths.outputs.mapping_file }}
+        run: |
+          if [ ! -f "$MAPPING_FILE" ]; then
+            echo "❌ ERROR: Mapping file not found at $MAPPING_FILE" >&2
+            exit 1
+          fi
+          echo "✅ Mapping file generated successfully"
+          echo "Size: $(du -h "$MAPPING_FILE" | cut -f1)"
+
+      - name: Find and package native debug symbols
+        env:
+          AAB_FILE: ${{ steps.resolve_release_paths.outputs.aab_file }}
+        run: |
+          echo "🔍 Searching for native libraries in build output..."
+
+          SYMBOLS_DIR=""
+          while IFS= read -r dir; do
+            if [ -n "$(find "$dir" -name "*.so" -type f 2>/dev/null)" ]; then
+              SYMBOLS_DIR="$dir"
+              echo "✅ Found native symbols at: $SYMBOLS_DIR"
+              break
+            fi
+          done < <(find app/build/intermediates -type d \( -path "*/merged_native_libs/*/out/lib" -o -path "*/library_jni/*/jni" -o -path "*/stripped_native_libs/*/out/lib" -o -path "*/merged_native_libs/*/lib" \) | sort)
+
+          if [ -z "$SYMBOLS_DIR" ]; then
+            echo "⚠️ Native symbols directory not found in standard locations"
+            if [ -f "$AAB_FILE" ]; then
+              TEMP_DIR=$(mktemp -d)
+              unzip -q "$AAB_FILE" -d "$TEMP_DIR" 2>/dev/null || true
+              if [ -d "$TEMP_DIR/base/lib" ]; then
+                SYMBOLS_DIR="$TEMP_DIR/base/lib"
+                echo "✅ Found native libraries inside AAB at base/lib/"
+              else
+                echo "ℹ️ No native libraries found in AAB"
+                exit 0
+              fi
+            else
+              echo "❌ AAB file not found at $AAB_FILE" >&2
+              exit 1
+            fi
+          fi
+
+          SYMBOLS_ZIP="app/build/outputs/native-debug-symbols.zip"
+          mkdir -p app/build/outputs
+          cd "$SYMBOLS_DIR"
+          zip -r "$GITHUB_WORKSPACE/android/$SYMBOLS_ZIP" . -i "*.so"
+
+          echo "✅ Native debug symbols zip created"
+          echo "Location: $SYMBOLS_ZIP"
+          echo "Size: $(du -h "$GITHUB_WORKSPACE/android/$SYMBOLS_ZIP" | cut -f1)"
+
+      - name: Sign bundle with jarsigner
+        env:
+          STOREPASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYPASS: ${{ secrets.ANDROID_KEY_ALIAS_PASSWORD }}
+          AAB_FILE: ${{ steps.resolve_release_paths.outputs.aab_file }}
+        run: |
+          jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+            -keystore app/mapfriends-release-key.jks \
+            -storepass "$STOREPASS" \
+            -keypass "$KEYPASS" \
+            "$AAB_FILE" \
+            ${{ secrets.ANDROID_KEY_ALIAS }}
+
+      - name: Upload mapping file artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mapping-file
+          path: ${{ steps.resolve_release_paths.outputs.mapping_file }}
+          retention-days: 90
+
+      - name: Upload bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release.aab
+          path: ${{ steps.resolve_release_paths.outputs.aab_file }}
+
+      - name: Upload native debug symbols artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-debug-symbols
+          path: android/app/build/outputs/native-debug-symbols.zip
+          retention-days: 90
+
+      - name: Upload to Play (internal track)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.edufelip.mapfriends
+          releaseFiles: ${{ steps.resolve_release_paths.outputs.aab_file }}
+          track: internal
+          status: draft
+          mappingFile: ${{ steps.resolve_release_paths.outputs.mapping_file }}
+          debugSymbols: android/app/build/outputs/native-debug-symbols.zip

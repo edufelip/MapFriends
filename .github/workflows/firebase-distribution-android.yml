@@ -1,0 +1,171 @@
+name: Android Firebase Distribution
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [develop]
+    paths-ignore:
+      - "supabase/**"
+      - "docs/**"
+      - "web/**"
+  pull_request:
+    branches:
+      - develop
+      - release/**
+      - hotfix/**
+    paths-ignore:
+      - "supabase/**"
+      - "docs/**"
+      - "web/**"
+
+jobs:
+  firebase-distribution:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write env files
+        run: |
+          cat <<'ENVEOF' > .env.development
+          ${{ secrets.ENV_FILE_DEV }}
+          ENVEOF
+          cp .env.development .env
+        working-directory: .
+
+      - name: Export env vars
+        run: |
+          while IFS= read -r line; do
+            case "$line" in
+              ''|\#*) continue ;;
+              EXPO_PUBLIC_*=*) echo "$line" >> "$GITHUB_ENV" ;;
+            esac
+          done < <(sed -e 's/\r$//' .env.development)
+        working-directory: .
+
+      - name: Set debug API flag
+        run: |
+          echo "EXPO_PUBLIC_USE_DEV_API=true" >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Set Expo environment
+        run: |
+          echo "APP_ENV=dev" >> "$GITHUB_ENV"
+          echo "APP_VARIANT=dev" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_APP_ENV=dev" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_APP_VARIANT=dev" >> "$GITHUB_ENV"
+          echo "NODE_ENV=development" >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Validate Expo environment
+        run: |
+          if [ "$APP_ENV" != "dev" ]; then
+            echo "APP_ENV must be 'dev' (got '$APP_ENV')" >&2
+            exit 1
+          fi
+          echo "APP_ENV=$APP_ENV"
+          echo "EXPO_PUBLIC_APP_ENV=$EXPO_PUBLIC_APP_ENV"
+        working-directory: .
+
+      - name: Validate Firebase secrets
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64_DEV }}
+          FIREBASE_APP_ID_ANDROID: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
+            echo "GOOGLE_SERVICES_JSON_BASE64_DEV is not set" >&2
+            exit 1
+          fi
+          if [ -z "$FIREBASE_APP_ID_ANDROID" ]; then
+            echo "FIREBASE_APP_ID_ANDROID_DEV is not set" >&2
+            exit 1
+          fi
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "FIREBASE_SERVICE_ACCOUNT_JSON is not set" >&2
+            exit 1
+          fi
+        working-directory: .
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install JS deps
+        run: npm ci
+        working-directory: .
+
+      - name: Ensure Android native project exists
+        run: |
+          if [ ! -d android ] || [ ! -f android/gradlew ]; then
+            npx expo prebuild --platform android --non-interactive --no-install
+          fi
+        working-directory: .
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set CI version code
+        run: echo "CI_VERSION_CODE=${{ github.run_number }}" >> "$GITHUB_ENV"
+
+      - name: Write google-services.json
+        run: |
+          mkdir -p app
+          echo "${{ secrets.GOOGLE_SERVICES_JSON_BASE64_DEV }}" | base64 -d > app/google-services.json
+
+      - name: Build dev debug APK
+        uses: gradle/gradle-build-action@v2
+        with:
+          gradle-version: wrapper
+          build-root-directory: android
+          arguments: |
+            clean
+            assembleDebug
+            -PCI_VERSION_CODE=${{ env.CI_VERSION_CODE }}
+
+      - name: Release notes
+        run: |
+          NOTES=$(git log -1 --pretty=%B)
+          echo "RELEASE_NOTES<<EOF" >> "$GITHUB_ENV"
+          echo "$NOTES" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+        working-directory: .
+
+      - name: Write Firebase service account
+        run: |
+          echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > firebase-service-account.json
+        working-directory: .
+
+      - name: Resolve APK path
+        id: resolve_apk
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk -type f -name "*debug*.apk" | sort | head -n 1)
+          if [ -z "$APK_PATH" ]; then
+            echo "No debug APK found under android/app/build/outputs/apk" >&2
+            exit 1
+          fi
+          echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
+        working-directory: .
+
+      - name: Upload to Firebase App Distribution
+        uses: wzieba/Firebase-Distribution-Github-Action@v1
+        with:
+          appId: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
+          serviceCredentialsFile: firebase-service-account.json
+          groups: mapfriends
+          file: ${{ steps.resolve_apk.outputs.apk_path }}
+          releaseNotes: ${{ env.RELEASE_NOTES }}
+
+      - name: Clean Firebase service account
+        if: always()
+        run: |
+          rm -f firebase-service-account.json
+        working-directory: .

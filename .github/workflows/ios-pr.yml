@@ -1,0 +1,90 @@
+name: iOS PR Checks
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - release/**
+      - hotfix/**
+    paths-ignore:
+      - "supabase/**"
+      - "docs/**"
+      - "web/**"
+
+jobs:
+  build:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Write .env
+        run: |
+          cat <<'EOF_ENV' > .env
+          ${{ secrets.ENV_FILE }}
+          EOF_ENV
+          echo "EXPO_PUBLIC_APP_MODE=mock" >> .env
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Ensure firebase secrets exist
+        run: |
+          if [ -z "${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64_DEV }}" ]; then
+            echo "GOOGLE_SERVICE_INFO_PLIST_BASE64_DEV is not set" >&2
+            exit 1
+          fi
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Ensure iOS native project exists
+        run: |
+          if [ ! -d ios ] || [ ! -f ios/Podfile ]; then
+            npx expo prebuild --platform ios --non-interactive --no-install
+          fi
+
+      - name: Install pods
+        env:
+          COCOAPODS_CACHE_DIR: ${{ runner.temp }}/.cocoapods-cache
+        run: |
+          mkdir -p "$COCOAPODS_CACHE_DIR"
+          cd ios
+          pod install --silent
+
+      - name: Write GoogleService-Info-Dev.plist
+        env:
+          GOOGLE_SERVICE_INFO_PLIST_BASE64: ${{ secrets.GOOGLE_SERVICE_INFO_PLIST_BASE64_DEV }}
+        run: |
+          if [ -n "$GOOGLE_SERVICE_INFO_PLIST_BASE64" ]; then
+            echo "$GOOGLE_SERVICE_INFO_PLIST_BASE64" | base64 -d > ios/mapfriends/GoogleService-Info-Dev.plist
+          fi
+
+      - name: Run JS tests
+        run: npm test -- --runInBand
+
+      - name: Build for iOS simulator
+        run: |
+          xcodebuild \
+            -workspace ios/mapfriends.xcworkspace \
+            -scheme mapfriends \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination "platform=iOS Simulator,name=iPhone 15" \
+            -derivedDataPath ios/build \
+            CODE_SIGNING_ALLOWED=NO \
+            BUNDLE_ID_SUFFIX=.dev \
+            build
+
+      - name: Upload iOS build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-pr-build-logs
+          path: |
+            ios/build/Logs
+            ios/build/**/*.xcresult
