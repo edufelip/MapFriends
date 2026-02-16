@@ -372,7 +372,7 @@ export default function NotificationsScreen({ navigation, variant = 'screen' }: 
           }}
         />
       ) : (
-        <View style={[styles.panelHeader, { paddingTop: 68 + insets.top, borderBottomColor: theme.border }]}> 
+        <View style={[styles.panelHeader, { paddingTop: 24 + insets.top, borderBottomColor: theme.border }]}> 
           <Text style={[styles.panelTitle, { color: theme.textPrimary }]}>{strings.notifications.title}</Text>
           <Text style={[styles.panelClear, { color: theme.primary }]} onPress={handleClear}>
             {isClearing ? '...' : strings.notifications.clear}
