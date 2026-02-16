@@ -146,6 +146,15 @@ describe('ProfileScreen', () => {
     expect(navigation.navigate).toHaveBeenCalledWith(Routes.BlockedUsers);
   });
 
+  it('navigates to manage subscriptions screen when manage subscriptions row is pressed', () => {
+    const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
+
+    fireEvent.press(screen.getByTestId('profile-section-tab-settings'));
+    fireEvent.press(screen.getByText('Manage My Subscriptions'));
+
+    expect(navigation.navigate).toHaveBeenCalledWith(Routes.ManageSubscriptions);
+  });
+
   it('renders version label using runtime app metadata', () => {
     const screen = render(<ProfileScreen navigation={navigation as never} route={{} as never} />);
 

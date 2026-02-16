@@ -68,6 +68,10 @@ jest.mock('../../screens/Settings/SettingsScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>settings-screen</Text>;
 });
+jest.mock('../../screens/Profile/ManageSubscriptionsScreen', () => {
+  const { Text } = require('react-native');
+  return () => <Text>manage-subscriptions-screen</Text>;
+});
 jest.mock('../../screens/Profile/BlockedUsersScreen', () => {
   const { Text } = require('react-native');
   return () => <Text>blocked-users-screen</Text>;
