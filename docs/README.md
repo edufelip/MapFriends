@@ -40,3 +40,4 @@ Pull requests should note which docs were updated and link to them.
 - `docs/specs/profile-settings.md` — defines profile tab settings layout plus Edit Profile navigation and save behavior.
 - `docs/specs/main-shell-navigation.md` — defines persistent bottom navigation shell behavior and in-canvas primary tab switching.
 - `docs/specs/review-composer.md` — documents review composer flow, including debounced location search and selected-location chip behavior.
+- `docs/specs/mobile-ci-cd-workflows.md` — documents Android/iOS CI checks, Firebase distribution pipelines, and store release automation triggers.
