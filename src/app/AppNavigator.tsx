@@ -20,6 +20,7 @@ import ProfileScreen from '../screens/Profile/ProfileScreen';
 import EditProfileScreen from '../screens/Profile/EditProfileScreen';
 import SettingsScreen from '../screens/Settings/SettingsScreen';
 import BlockedUsersScreen from '../screens/Profile/BlockedUsersScreen';
+import ManageSubscriptionsScreen from '../screens/Profile/ManageSubscriptionsScreen';
 
 type RootStackParamList = {
   [Routes.MainShell]: undefined;
@@ -37,6 +38,7 @@ type RootStackParamList = {
   [Routes.Profile]: undefined;
   [Routes.EditProfile]: undefined;
   [Routes.Settings]: undefined;
+  [Routes.ManageSubscriptions]: undefined;
   [Routes.BlockedUsers]: undefined;
 };
 
@@ -142,6 +144,11 @@ function MainStack() {
         options={{ headerShown: false }}
       />
       <Stack.Screen name={Routes.Settings} component={SettingsScreen} options={{ title: 'Settings' }} />
+      <Stack.Screen
+        name={Routes.ManageSubscriptions}
+        component={ManageSubscriptionsScreen}
+        options={{ headerShown: false }}
+      />
       <Stack.Screen
         name={Routes.BlockedUsers}
         component={BlockedUsersScreen}

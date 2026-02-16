@@ -14,6 +14,7 @@ export const Routes = {
   Profile: 'Profile',
   EditProfile: 'EditProfile',
   Settings: 'Settings',
+  ManageSubscriptions: 'ManageSubscriptions',
   BlockedUsers: 'BlockedUsers',
 } as const;
 

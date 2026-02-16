@@ -214,6 +214,15 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
             <View style={styles.sectionGroup}>
               <SettingsSection
                 title={strings.profile.sectionCreator}
+                overlay={{
+                  label: strings.profile.manageSubscriptionsComingSoon,
+                  backgroundColor: colorScheme === 'dark' ? 'rgba(15,23,42,0.64)' : 'rgba(248,250,252,0.74)',
+                  textColor: colorScheme === 'dark' ? '#f8fafc' : '#0f172a',
+                  badgeBackgroundColor:
+                    colorScheme === 'dark' ? 'rgba(30,41,59,0.88)' : 'rgba(255,255,255,0.92)',
+                  badgeBorderColor:
+                    colorScheme === 'dark' ? 'rgba(148,163,184,0.42)' : 'rgba(148,163,184,0.36)',
+                }}
                 theme={{ textMuted: theme.textMuted, surface: theme.surface, border: theme.border }}
               >
                 <SettingsRow
@@ -232,7 +241,6 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
                   iconBg="rgba(245,158,11,0.15)"
                   iconColor="#f59e0b"
                   label={strings.profile.subscriberManagement}
-                  badge={strings.profile.subscriberCount}
                   theme={{
                     textPrimary: theme.textPrimary,
                     textMuted: theme.textMuted,
@@ -250,6 +258,7 @@ export default function ProfileScreen({ navigation, hideBottomNav = false }: Scr
                   iconBg="rgba(34,197,94,0.15)"
                   iconColor="#22c55e"
                   label={strings.profile.manageSubscriptions}
+                  onPress={() => navigation.navigate(Routes.ManageSubscriptions)}
                   theme={{
                     textPrimary: theme.textPrimary,
                     textMuted: theme.textMuted,

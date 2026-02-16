@@ -5,6 +5,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 type Props = {
   title: string;
   onBack?: () => void;
+  backTestID?: string;
   theme: {
     background: string;
     border: string;
@@ -14,7 +15,7 @@ type Props = {
   topInset: number;
 };
 
-export default function ProfileHeader({ title, onBack, theme, topInset }: Props) {
+export default function ProfileHeader({ title, onBack, backTestID, theme, topInset }: Props) {
   return (
     <View
       style={[
@@ -27,6 +28,7 @@ export default function ProfileHeader({ title, onBack, theme, topInset }: Props)
       ]}
     >
       <Pressable
+        testID={backTestID}
         style={[styles.backButton, { backgroundColor: theme.surface }]}
         onPress={onBack}
         disabled={!onBack}
