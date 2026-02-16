@@ -33,7 +33,7 @@ The Profile tab is a settings-focused screen that surfaces account privacy, crea
 
 ## Data & Behavior
 - Visibility is updated from Edit Profile save flow and persisted in auth state.
-- The rest of the rows are visual-only placeholders except **Blocked Users**.
+- Most rows remain visual-only placeholders. **Manage Subscriptions** now opens a dedicated placeholder screen and **Blocked Users** opens a management flow.
 - Version label is resolved at runtime from native app metadata (version / build) with localized template formatting.
 - Favorites is the first profile section tab and opens by default; Settings is the second tab.
 - Switching between Favorites and Settings uses a smooth horizontal/opacity transition for content and an animated active-tab indicator.
@@ -50,5 +50,6 @@ Strings live in `src/localization/strings.ts` under `profile` for `en-US` and `p
 - Bottom nav highlights Profile tab.
 - Pressing **Edit Profile** navigates to `EditProfile`.
 - Saving on Edit Profile updates `name`, `bio`, and `visibility`, then navigates back.
+- Pressing **Manage My Subscriptions** in Profile settings navigates to `ManageSubscriptions` placeholder screen.
 - Pressing **Blocked Users** in Profile settings navigates to `BlockedUsers`.
 - Unblocking a user requires confirmation and removes the user from the blocked list.
