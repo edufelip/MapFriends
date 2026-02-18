@@ -71,11 +71,12 @@ jobs:
           echo "EXPO_PUBLIC_APP_ENV=$EXPO_PUBLIC_APP_ENV"
         working-directory: .
 
-      - name: Validate Firebase secrets
+      - name: Validate Firebase and Mapbox secrets
         env:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64_DEV }}
           FIREBASE_APP_ID_ANDROID: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
         run: |
           if [ -z "$GOOGLE_SERVICES_JSON_BASE64" ]; then
             echo "GOOGLE_SERVICES_JSON_BASE64_DEV is not set" >&2
@@ -87,6 +88,10 @@ jobs:
           fi
           if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
             echo "FIREBASE_SERVICE_ACCOUNT_JSON is not set" >&2
+            exit 1
+          fi
+          if [ -z "$MAPBOX_DOWNLOADS_TOKEN" ]; then
+            echo "MAPBOX_DOWNLOADS_TOKEN is not set" >&2
             exit 1
           fi
         working-directory: .
@@ -106,6 +111,12 @@ jobs:
           if [ ! -d android ] || [ ! -f android/gradlew ]; then
             npx expo prebuild --platform android --non-interactive --no-install
           fi
+        working-directory: .
+
+      - name: Configure Mapbox Maven auth
+        env:
+          MAPBOX_DOWNLOADS_TOKEN: ${{ secrets.MAPBOX_DOWNLOADS_TOKEN }}
+        run: bash scripts/ci/ensure_mapbox_maven_android.sh
         working-directory: .
 
       - uses: actions/setup-java@v4

@@ -54,6 +54,7 @@ Release workflows support both automatic branch-triggered execution and manual `
 - `ANDROID_KEY_ALIAS`
 - `ANDROID_KEY_ALIAS_PASSWORD`
 - `PLAY_SERVICE_ACCOUNT_JSON`
+- `MAPBOX_DOWNLOADS_TOKEN`
 
 ### iOS Firebase/TestFlight
 - `GOOGLE_SERVICE_INFO_PLIST_BASE64_DEV`
@@ -82,3 +83,4 @@ Release workflows support both automatic branch-triggered execution and manual `
 - Firebase tester group is `mapfriends` for both platforms.
 - Branch filters intentionally follow the `finn` model to keep release management consistent.
 - Because native folders are git-ignored in this repository, workflows generate `android/` or `ios/` with `npx expo prebuild --non-interactive --no-install` when missing.
+- Android workflows run `scripts/ci/ensure_mapbox_maven_android.sh` to inject Mapbox Maven auth in CI builds.
