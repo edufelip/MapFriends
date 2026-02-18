@@ -87,3 +87,5 @@ Release workflows support both automatic branch-triggered execution and manual `
 - Android CI workflows force `ORG_GRADLE_PROJECT_newArchEnabled=false` to avoid current RN 0.81 + react-native-screens C++ new-architecture build breakage in CI.
 
 - iOS distribution/release workflows validate decoded .p12 files with OpenSSL before keychain import and fail early with explicit certificate/password mismatch errors.
+
+- Android Firebase distribution workflow performs a preflight App Distribution API access check and fails with explicit IAM guidance before upload when permissions are missing.

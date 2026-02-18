@@ -157,6 +157,30 @@ jobs:
           echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > firebase-service-account.json
         working-directory: .
 
+      - name: Preflight Firebase App Distribution access
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
+          FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
+        run: |
+          set -euo pipefail
+      
+          node - <<'NODE'
+          const fs = require('fs');
+          const key = JSON.parse(fs.readFileSync('firebase-service-account.json', 'utf8'));
+          console.log(`[firebase-ci] service_account_email=${key.client_email}`);
+          console.log(`[firebase-ci] service_account_project_id=${key.project_id}`);
+          NODE
+      
+          if ! npx --yes firebase-tools appdistribution:groups:list --app "$FIREBASE_APP_ID" --json >/tmp/fad-groups.json 2>/tmp/fad-groups.err; then
+            echo "Firebase App Distribution authorization failed for app $FIREBASE_APP_ID." >&2
+            cat /tmp/fad-groups.err >&2 || true
+            echo "Ensure FIREBASE_SERVICE_ACCOUNT_JSON belongs to the same Firebase project as FIREBASE_APP_ID_ANDROID_DEV and has roles/firebaseappdistro.admin (or roles/firebase.admin)." >&2
+            exit 1
+          fi
+      
+          echo "Firebase App Distribution access check passed."
+        working-directory: .
+      
       - name: Resolve APK path
         id: resolve_apk
         run: |
