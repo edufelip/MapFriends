@@ -47,6 +47,24 @@ jobs:
           if [ ! -d ios ] || [ ! -f ios/Podfile ]; then
             npx expo prebuild --platform ios --non-interactive --no-install
           fi
+      - name: Patch Podfile for Firebase modular headers
+        run: |
+          ruby - <<'RUBY'
+          podfile_path = "ios/Podfile"
+          abort("Missing #{podfile_path}") unless File.exist?(podfile_path)
+
+          content = File.read(podfile_path)
+          unless content.include?("use_modular_headers!")
+            marker = /^platform :ios,.*$/
+            if content.match?(marker)
+              content.sub!(marker) { |line| "#{line}\nuse_modular_headers!" }
+            else
+              content = "use_modular_headers!\n#{content}"
+            end
+            File.write(podfile_path, content)
+          end
+          RUBY
+
 
       - name: Install pods
         env:
