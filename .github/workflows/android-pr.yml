@@ -13,6 +13,8 @@ jobs:
   lint-test-build:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    env:
+      ORG_GRADLE_PROJECT_newArchEnabled: false
     defaults:
       run:
         working-directory: android

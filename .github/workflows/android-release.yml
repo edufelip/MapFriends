@@ -19,6 +19,7 @@ jobs:
         working-directory: android
     env:
       ANDROID_NDK_VERSION: 28.0.13004108
+      ORG_GRADLE_PROJECT_newArchEnabled: false
 
     steps:
       - uses: actions/checkout@v4

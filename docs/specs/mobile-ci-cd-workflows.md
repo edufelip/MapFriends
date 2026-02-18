@@ -84,3 +84,4 @@ Release workflows support both automatic branch-triggered execution and manual `
 - Branch filters intentionally follow the `finn` model to keep release management consistent.
 - Because native folders are git-ignored in this repository, workflows generate `android/` or `ios/` with `npx expo prebuild --non-interactive --no-install` when missing.
 - Android workflows run `scripts/ci/ensure_mapbox_maven_android.sh` to inject Mapbox Maven auth in CI builds.
+- Android CI workflows force `ORG_GRADLE_PROJECT_newArchEnabled=false` to avoid current RN 0.81 + react-native-screens C++ new-architecture build breakage in CI.
