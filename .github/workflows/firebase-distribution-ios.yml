@@ -198,31 +198,56 @@ jobs:
           CERT_PASSWORD: ${{ secrets.IOS_ADHOC_CERT_PASSWORD }}
           PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 }}
         run: |
+          set -euo pipefail
+      
           KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
           CERTIFICATE_PATH="$RUNNER_TEMP/build_certificate.p12"
           PROFILE_PATH="$RUNNER_TEMP/build_profile.mobileprovision"
           PROFILE_DEST="$HOME/Library/MobileDevice/Provisioning Profiles/mapfriends-dev.mobileprovision"
-
-          echo -n "$CERT_P12_BASE64" | base64 --decode -o "$CERTIFICATE_PATH"
-          echo -n "$PROFILE_BASE64" | base64 --decode -o "$PROFILE_PATH"
-
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+      
+          CERT_PASSWORD_CLEAN="$(printf '%s' "$CERT_PASSWORD" | tr -d '\r\n')"
+          KEYCHAIN_PASSWORD_CLEAN="$(printf '%s' "$KEYCHAIN_PASSWORD" | tr -d '\r\n')"
+      
+          printf '%s' "$CERT_P12_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          printf '%s' "$PROFILE_BASE64" | base64 --decode > "$PROFILE_PATH"
+      
+          if [ ! -s "$CERTIFICATE_PATH" ]; then
+            echo "Decoded certificate is empty. Check IOS_ADHOC_CERT_P12_BASE64." >&2
+            exit 1
+          fi
+          if [ ! -s "$PROFILE_PATH" ]; then
+            echo "Decoded provisioning profile is empty. Check IOS_ADHOC_PROFILE_BASE64." >&2
+            exit 1
+          fi
+          if [ -z "$KEYCHAIN_PASSWORD_CLEAN" ]; then
+            echo "IOS_ADHOC_KEYCHAIN_PASSWORD is empty." >&2
+            exit 1
+          fi
+      
+          if ! openssl pkcs12 -in "$CERTIFICATE_PATH" -nokeys -passin pass:"$CERT_PASSWORD_CLEAN" >/dev/null 2>&1; then
+            echo "Invalid IOS_ADHOC_CERT_P12_BASE64 or IOS_ADHOC_CERT_PASSWORD mismatch." >&2
+            exit 1
+          fi
+      
+          security create-keychain -p "$KEYCHAIN_PASSWORD_CLEAN" "$KEYCHAIN_PATH"
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-
-          security import "$CERTIFICATE_PATH" \
-            -P "$CERT_PASSWORD" \
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD_CLEAN" "$KEYCHAIN_PATH"
+      
+          if ! security import "$CERTIFICATE_PATH" \
+            -P "$CERT_PASSWORD_CLEAN" \
             -A \
             -t cert \
             -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
-
-          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+            -k "$KEYCHAIN_PATH"; then
+            echo "Failed to import p12 into keychain. Re-export certificate as .p12 and verify password." >&2
+            exit 1
+          fi
+      
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD_CLEAN" "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH"
-
+      
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$PROFILE_PATH" "$PROFILE_DEST"
-
       - name: Validate provisioning profile entitlements (push)
         run: |
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/mapfriends-dev.mobileprovision"
