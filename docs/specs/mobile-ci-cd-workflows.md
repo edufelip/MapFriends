@@ -89,3 +89,5 @@ Release workflows support both automatic branch-triggered execution and manual `
 - iOS distribution/release workflows validate decoded .p12 files with OpenSSL before keychain import and fail early with explicit certificate/password mismatch errors.
 
 - Android Firebase distribution workflow performs a preflight App Distribution API access check and fails with explicit IAM guidance before upload when permissions are missing.
+
+- Android release workflow forces `-Pandroid.enableMinifyInReleaseBuilds=true` so `mapping.txt` is generated for Play Console deobfuscation uploads.

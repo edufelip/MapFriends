@@ -156,6 +156,7 @@ jobs:
             clean
             bundleRelease
             -PCI_VERSION_CODE=${{ env.CI_VERSION_CODE }}
+            -Pandroid.enableMinifyInReleaseBuilds=true
 
       - name: Resolve release artifact paths
         id: resolve_release_paths
