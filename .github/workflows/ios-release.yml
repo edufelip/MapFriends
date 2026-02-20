@@ -93,8 +93,6 @@ jobs:
             File.write(podfile_path, content)
           end
           RUBY
-
-
       - name: Bump iOS build number
         run: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $GITHUB_RUN_NUMBER" ios/mapfriends/Info.plist
@@ -106,6 +104,29 @@ jobs:
           mkdir -p "$COCOAPODS_CACHE_DIR"
           cd ios
           pod install --repo-update
+
+
+      - name: Resolve iOS workspace and scheme
+        run: |
+          set -euo pipefail
+
+          WORKSPACE_PATH="$(find ios -maxdepth 1 -name "*.xcworkspace" | sort | head -n 1)"
+          PROJECT_PATH="$(find ios -maxdepth 1 -name "*.xcodeproj" | sort | head -n 1)"
+
+          if [ -z "$WORKSPACE_PATH" ] || [ -z "$PROJECT_PATH" ]; then
+            echo "Unable to resolve iOS workspace/project under ios/." >&2
+            exit 1
+          fi
+
+          PROJECT_BASENAME="$(basename "$PROJECT_PATH" .xcodeproj)"
+          WORKSPACE_NAME="$(basename "$WORKSPACE_PATH")"
+
+          SCHEME_NAME="$(PROJECT_BASENAME="$PROJECT_BASENAME" xcodebuild -list -json -workspace "$WORKSPACE_PATH" | ruby -rjson -e 'project = ENV["PROJECT_BASENAME"]; data = JSON.parse(STDIN.read); schemes = data.dig("workspace", "schemes") || []; abort("No schemes found in workspace") if schemes.empty?; preferred = schemes.find { |s| s == project } || schemes.find { |s| s.casecmp?(project) } || schemes.find { |s| s.casecmp?("mapfriends") } || schemes.find { |s| !s.start_with?("Pods-") }; abort("Unable to resolve app scheme") unless preferred; puts preferred')"
+
+          echo "IOS_WORKSPACE_NAME=$WORKSPACE_NAME" >> "$GITHUB_ENV"
+          echo "IOS_SCHEME_NAME=$SCHEME_NAME" >> "$GITHUB_ENV"
+          echo "[ios-ci] workspace=$WORKSPACE_NAME"
+          echo "[ios-ci] scheme=$SCHEME_NAME"
 
       - name: Write GoogleService-Info.plist
         working-directory: ios
@@ -248,8 +269,8 @@ jobs:
         run: |
           cd ios
           xcodebuild \
-            -workspace mapfriends.xcworkspace \
-            -scheme mapfriends \
+            -workspace "$IOS_WORKSPACE_NAME" \
+            -scheme "$IOS_SCHEME_NAME" \
             -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$PWD/build/mapfriends.xcarchive" \
