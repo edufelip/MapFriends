@@ -26,15 +26,29 @@ There are no test scripts configured yet.
 - Hooks/use*: `camelCase` (e.g., `useAuth`).
 - Keep UI strings in `src/localization/strings.ts` (English `en-US` and Portuguese `pt-BR`).
 
+## Engineering Principles
+- Everything we do in this repository must be test-oriented.
+- Always evaluate and enforce:
+  - Code quality.
+  - React rerendering and performance.
+  - Testing and decoupling.
+  - Clean Architecture, DRY, and YAGNI.
+  - Avoid files with too much information; split into smaller components/modules.
+
 ## Testing Guidelines
-No automated test framework is configured. If you add tests, document:
+No automated test framework is configured. Even so, development in this repository is test-first and TDD-oriented.
+- Development must follow TDD: write or update failing tests first, implement, then make tests pass.
+- Every change should be validated with tests appropriate to the scope (unit/integration/UI/manual evidence when automation is not available).
+- If you add tests, document:
 - The framework (e.g., Jest).
 - Naming convention (e.g., `*.test.tsx`).
 - How to run them.
-- Development must follow TDD: write or update failing tests first, implement, then make tests pass.
 
 ## Documentation Policy
+- `docs/` is the canonical place for project documentation.
+- Documentation must cover use cases, test cases, business rules, and any other pertinent project/codebase information.
 - Always update `docs/` when modifying existing behavior or adding new functionality.
+- Documentation must ALWAYS be updated whenever we add or modify anything in the project.
 - Keep specs and implementation details in `docs/` aligned with the current codebase state.
 
 ## Commit & Pull Request Guidelines

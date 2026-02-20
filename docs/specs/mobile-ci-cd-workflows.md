@@ -91,3 +91,5 @@ Release workflows support both automatic branch-triggered execution and manual `
 - Android Firebase distribution workflow performs a preflight App Distribution API access check and fails with explicit IAM guidance before upload when permissions are missing.
 
 - Android release workflow forces `-Pandroid.enableMinifyInReleaseBuilds=true` so `mapping.txt` is generated for Play Console deobfuscation uploads.
+
+- iOS workflows resolve workspace and app scheme dynamically from the generated iOS project to avoid case-sensitive scheme mismatches in CI (e.g., `mapfriends` vs `MapFriends`).
