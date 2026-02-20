@@ -112,6 +112,23 @@ jobs:
           # Global modular headers break RNFirebase + FirebaseStorage Swift header resolution in CI.
           content.gsub!(/^\s*use_modular_headers!\s*\n/, '')
 
+          firebase_modular_block = <<~'FIREBASE_MODULAR'
+            # CI: keep modular headers scoped to Firebase dependencies required by static Swift pods.
+            pod 'GoogleUtilities', :modular_headers => true
+            pod 'FirebaseCoreInternal', :modular_headers => true
+            pod 'FirebaseAppCheckInterop', :modular_headers => true
+            pod 'FirebaseAuthInterop', :modular_headers => true
+          FIREBASE_MODULAR
+          
+          unless content.include?("pod 'GoogleUtilities', :modular_headers => true")
+            use_frameworks_line = /^\s*use_frameworks!\s*:linkage\s*=>\s*:static\s*$/
+            if content.match?(use_frameworks_line)
+              content.sub!(use_frameworks_line) { |line| "#{line}\n\n#{firebase_modular_block.rstrip}" }
+            else
+              abort("Unable to locate use_frameworks! :linkage => :static in #{podfile_path}")
+            end
+          end
+
           old_rnmbx_v11_block = <<~'OLD_RNMBX'
               if use_v11
                 installer.pods_project.build_configurations.each do |config|
