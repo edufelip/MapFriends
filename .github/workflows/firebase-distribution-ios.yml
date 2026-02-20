@@ -247,21 +247,33 @@ jobs:
           ensure_swift_define = lambda do |value, define_name|
             define_token = "-D #{define_name}"
             if value.nil?
-              [define_token]
+              "$(inherited) #{define_token}"
             elsif value.is_a?(Array)
-              value.any? { |v| v.to_s.include?(define_name) } ? value : value + [define_token]
+              values = value.map(&:to_s)
+              values << '$(inherited)' unless values.any? { |v| v.include?('$(inherited)') }
+              unless values.any? { |v| v.match?(/(^|\s)-D\s+#{Regexp.escape(define_name)}(\s|$)/) }
+                values << define_token
+              end
+              values
             else
-              value.to_s.match?(/(^|\s)-D\s+#{Regexp.escape(define_name)}(\s|$)/) ? value.to_s : ([value.to_s, define_token].join(' ').strip)
+              str = value.to_s
+              str = "$(inherited) #{str}" unless str.include?('$(inherited)')
+              str.match?(/(^|\s)-D\s+#{Regexp.escape(define_name)}(\s|$)/) ? str : "#{str} #{define_token}".strip
             end
           end
 
           ensure_condition = lambda do |value, condition_name|
             if value.nil?
-              [condition_name]
+              "$(inherited) #{condition_name}"
             elsif value.is_a?(Array)
-              value.include?(condition_name) ? value : value + [condition_name]
+              values = value.map(&:to_s)
+              values << '$(inherited)' unless values.any? { |v| v.include?('$(inherited)') }
+              values << condition_name unless values.include?(condition_name)
+              values
             else
-              value.to_s.match?(/(^|\s)#{Regexp.escape(condition_name)}(\s|$)/) ? value.to_s : ([value.to_s, condition_name].join(' ').strip)
+              str = value.to_s
+              str = "$(inherited) #{str}" unless str.include?('$(inherited)')
+              str.match?(/(^|\s)#{Regexp.escape(condition_name)}(\s|$)/) ? str : "#{str} #{condition_name}".strip
             end
           end
 
