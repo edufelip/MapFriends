@@ -204,7 +204,7 @@ jobs:
             exit 1
           fi
 
-          EXPECTED_FIREBASE_APP_ID="$(jq -r --arg pkg "$EXPECTED_ANDROID_PACKAGE" '.result[]? | select((.platform == "ANDROID" or .platform == "android") and .packageName == $pkg) | .appId' /tmp/fad-apps.json | head -n 1)"
+          EXPECTED_FIREBASE_APP_ID="$(jq -r --arg pkg "$EXPECTED_ANDROID_PACKAGE" '.result[]? | select((.platform == "ANDROID" or .platform == "android") and ((.namespace // .packageName // "") == $pkg)) | .appId' /tmp/fad-apps.json | head -n 1)"
           if [ -n "$EXPECTED_FIREBASE_APP_ID" ]; then
             echo "[firebase-ci] expected_firebase_app_id_for_${EXPECTED_ANDROID_PACKAGE}=$EXPECTED_FIREBASE_APP_ID"
           else
