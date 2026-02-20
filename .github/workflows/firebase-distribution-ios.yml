@@ -231,6 +231,51 @@ jobs:
           cd ios
           pod install --silent
 
+      - name: Enforce RNMapbox v11 flags in Pods project
+        run: |
+          set -euo pipefail
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = 'ios/Pods/Pods.xcodeproj'
+          abort("Missing #{project_path}") unless Dir.exist?(project_path)
+
+          project = Xcodeproj::Project.open(project_path)
+          target = project.targets.find { |t| t.name == 'rnmapbox-maps' }
+          abort("Target rnmapbox-maps not found in #{project_path}") unless target
+
+          ensure_swift_define = lambda do |value, define_name|
+            define_token = "-D #{define_name}"
+            if value.nil?
+              [define_token]
+            elsif value.is_a?(Array)
+              value.any? { |v| v.to_s.include?(define_name) } ? value : value + [define_token]
+            else
+              value.to_s.match?(/(^|\s)-D\s+#{Regexp.escape(define_name)}(\s|$)/) ? value.to_s : ([value.to_s, define_token].join(' ').strip)
+            end
+          end
+
+          ensure_condition = lambda do |value, condition_name|
+            if value.nil?
+              [condition_name]
+            elsif value.is_a?(Array)
+              value.include?(condition_name) ? value : value + [condition_name]
+            else
+              value.to_s.match?(/(^|\s)#{Regexp.escape(condition_name)}(\s|$)/) ? value.to_s : ([value.to_s, condition_name].join(' ').strip)
+            end
+          end
+
+          target.build_configurations.each do |config|
+            config.build_settings['OTHER_SWIFT_FLAGS'] =
+              ensure_swift_define.call(config.build_settings['OTHER_SWIFT_FLAGS'], 'RNMBX_11')
+            config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] =
+              ensure_condition.call(config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'], 'RNMBX_11')
+          end
+
+          project.save
+          puts '[ios-ci] Enforced RNMBX_11 for rnmapbox-maps target build settings'
+          RUBY
+
       - name: Verify RNMapbox v11 compile flags
         run: |
           set -euo pipefail
