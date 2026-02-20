@@ -158,6 +158,7 @@ jobs:
         working-directory: .
 
       - name: Preflight Firebase App Distribution access
+        id: firebase_preflight
         env:
           GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
@@ -210,16 +211,16 @@ jobs:
           else
             echo "[firebase-ci] no Firebase Android app found for package '$EXPECTED_ANDROID_PACKAGE' in project '$FIREBASE_PROJECT_ID'."
           fi
-
+          RESOLVED_FIREBASE_APP_ID="${FIREBASE_APP_ID}"
           if [ -n "$EXPECTED_FIREBASE_APP_ID" ] && [ "$FIREBASE_APP_ID" != "$EXPECTED_FIREBASE_APP_ID" ]; then
-            echo "FIREBASE_APP_ID_ANDROID_DEV mismatch: expected '$EXPECTED_FIREBASE_APP_ID' for package '$EXPECTED_ANDROID_PACKAGE', got '$FIREBASE_APP_ID'." >&2
-            exit 1
+            echo "FIREBASE_APP_ID_ANDROID_DEV mismatch: expected '$EXPECTED_FIREBASE_APP_ID' for package '$EXPECTED_ANDROID_PACKAGE', got '$FIREBASE_APP_ID'. Overriding with expected app id for this workflow run." >&2
+            RESOLVED_FIREBASE_APP_ID="$EXPECTED_FIREBASE_APP_ID"
           fi
 
-          if ! npm_config_loglevel=error npx --yes firebase-tools@latest apps:sdkconfig ANDROID "$FIREBASE_APP_ID" \
+          if ! npm_config_loglevel=error npx --yes firebase-tools@latest apps:sdkconfig ANDROID "$RESOLVED_FIREBASE_APP_ID" \
             --project "$FIREBASE_PROJECT_ID" \
             --out /tmp/fad-sdkconfig.json >/tmp/fad-sdkconfig.out 2>/tmp/fad-sdkconfig.err; then
-            echo "Firebase app-id validation failed for FIREBASE_APP_ID_ANDROID_DEV='$FIREBASE_APP_ID'." >&2
+            echo "Firebase app-id validation failed for FIREBASE_APP_ID_ANDROID_DEV='$RESOLVED_FIREBASE_APP_ID'." >&2
             cat /tmp/fad-sdkconfig.err >&2 || true
             echo "Get FIREBASE_APP_ID_ANDROID_DEV from Firebase Console > Project settings > Your apps > Android (com.edufelip.mapfriends.dev) > App ID." >&2
             if [ -n "${EXPECTED_FIREBASE_APP_ID:-}" ]; then
@@ -230,12 +231,12 @@ jobs:
 
           APP_PACKAGE="$(jq -r '.client[0].client_info.android_client_info.package_name // empty' /tmp/fad-sdkconfig.json 2>/dev/null || true)"
           if [ -z "$APP_PACKAGE" ]; then
-            echo "Unable to read Android package from sdkconfig for app id '$FIREBASE_APP_ID'." >&2
+            echo "Unable to read Android package from sdkconfig for app id '$RESOLVED_FIREBASE_APP_ID'." >&2
             exit 1
           fi
 
           if [ "$APP_PACKAGE" != "$EXPECTED_ANDROID_PACKAGE" ]; then
-            echo "Firebase app id '$FIREBASE_APP_ID' points to package '$APP_PACKAGE', expected '$EXPECTED_ANDROID_PACKAGE'." >&2
+            echo "Firebase app id '$RESOLVED_FIREBASE_APP_ID' points to package '$APP_PACKAGE', expected '$EXPECTED_ANDROID_PACKAGE'." >&2
             echo "Update FIREBASE_APP_ID_ANDROID_DEV to the app id for package '$EXPECTED_ANDROID_PACKAGE'." >&2
             if [ -n "${EXPECTED_FIREBASE_APP_ID:-}" ]; then
               echo "Set FIREBASE_APP_ID_ANDROID_DEV to '$EXPECTED_FIREBASE_APP_ID'." >&2
@@ -243,7 +244,8 @@ jobs:
             exit 1
           fi
 
-          echo "Firebase App Distribution preflight passed: auth ok, app id ok, package=$APP_PACKAGE"
+          echo "firebase_app_id=$RESOLVED_FIREBASE_APP_ID" >> "$GITHUB_OUTPUT"
+          echo "Firebase App Distribution preflight passed: auth ok, app id=$RESOLVED_FIREBASE_APP_ID, package=$APP_PACKAGE"
         working-directory: .
 
       - name: Resolve APK path
@@ -260,7 +262,7 @@ jobs:
       - name: Upload to Firebase App Distribution
         uses: wzieba/Firebase-Distribution-Github-Action@v1
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
+          appId: ${{ steps.firebase_preflight.outputs.firebase_app_id }}
           serviceCredentialsFile: firebase-service-account.json
           groups: mapfriends
           file: ${{ steps.resolve_apk.outputs.apk_path }}
