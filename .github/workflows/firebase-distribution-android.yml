@@ -161,26 +161,65 @@ jobs:
         env:
           GOOGLE_APPLICATION_CREDENTIALS: firebase-service-account.json
           FIREBASE_APP_ID: ${{ secrets.FIREBASE_APP_ID_ANDROID_DEV }}
+          EXPECTED_ANDROID_PACKAGE: com.edufelip.mapfriends.dev
         run: |
           set -euo pipefail
-      
-          node - <<'NODE'
-          const fs = require('fs');
-          const key = JSON.parse(fs.readFileSync('firebase-service-account.json', 'utf8'));
-          console.log(`[firebase-ci] service_account_email=${key.client_email}`);
-          console.log(`[firebase-ci] service_account_project_id=${key.project_id}`);
-          NODE
-      
-          if ! npx --yes firebase-tools appdistribution:groups:list --json >/tmp/fad-groups.json 2>/tmp/fad-groups.err; then
-            echo "Firebase App Distribution authorization failed." >&2
-            cat /tmp/fad-groups.err >&2 || true
-            echo "Ensure FIREBASE_SERVICE_ACCOUNT_JSON belongs to the same Firebase project as FIREBASE_APP_ID_ANDROID_DEV and has roles/firebaseappdistro.admin (or roles/firebase.admin)." >&2
+
+          FIREBASE_PROJECT_ID="$(node -e "const fs=require('fs');const key=JSON.parse(fs.readFileSync('firebase-service-account.json','utf8'));process.stdout.write(key.project_id||'')")"
+          FIREBASE_SERVICE_ACCOUNT_EMAIL="$(node -e "const fs=require('fs');const key=JSON.parse(fs.readFileSync('firebase-service-account.json','utf8'));process.stdout.write(key.client_email||'')")"
+
+          if [ -z "$FIREBASE_PROJECT_ID" ]; then
+            echo "Unable to read project_id from FIREBASE_SERVICE_ACCOUNT_JSON." >&2
             exit 1
           fi
-      
-          echo "Firebase App Distribution access check passed."
+
+          if [ -z "${FIREBASE_APP_ID:-}" ]; then
+            echo "FIREBASE_APP_ID_ANDROID_DEV is empty." >&2
+            exit 1
+          fi
+
+          echo "[firebase-ci] service_account_email=$FIREBASE_SERVICE_ACCOUNT_EMAIL"
+          echo "[firebase-ci] service_account_project_id=$FIREBASE_PROJECT_ID"
+          echo "[firebase-ci] firebase_app_id_android_dev=$FIREBASE_APP_ID"
+
+          if [[ ! "$FIREBASE_APP_ID" =~ ^1:[0-9]+:android:[a-f0-9]+$ ]]; then
+            echo "FIREBASE_APP_ID_ANDROID_DEV does not look like an Android Firebase App ID (expected 1:<project-number>:android:<hash>)." >&2
+            exit 1
+          fi
+
+          if ! npm_config_loglevel=error npx --yes firebase-tools@latest appdistribution:groups:list \
+            --project "$FIREBASE_PROJECT_ID" \
+            --json >/tmp/fad-groups.json 2>/tmp/fad-groups.err; then
+            echo "Firebase App Distribution authorization failed for project $FIREBASE_PROJECT_ID." >&2
+            cat /tmp/fad-groups.err >&2 || true
+            echo "Grant roles/firebaseappdistro.admin (or roles/firebase.admin) to $FIREBASE_SERVICE_ACCOUNT_EMAIL on project $FIREBASE_PROJECT_ID." >&2
+            exit 1
+          fi
+
+          if ! npm_config_loglevel=error npx --yes firebase-tools@latest apps:sdkconfig ANDROID "$FIREBASE_APP_ID" \
+            --project "$FIREBASE_PROJECT_ID" \
+            --out /tmp/fad-sdkconfig.json >/tmp/fad-sdkconfig.out 2>/tmp/fad-sdkconfig.err; then
+            echo "Firebase app-id validation failed for FIREBASE_APP_ID_ANDROID_DEV='$FIREBASE_APP_ID'." >&2
+            cat /tmp/fad-sdkconfig.err >&2 || true
+            echo "Get FIREBASE_APP_ID_ANDROID_DEV from Firebase Console > Project settings > Your apps > Android (com.edufelip.mapfriends.dev) > App ID." >&2
+            exit 1
+          fi
+
+          APP_PACKAGE="$(jq -r '.client[0].client_info.android_client_info.package_name // empty' /tmp/fad-sdkconfig.json 2>/dev/null || true)"
+          if [ -z "$APP_PACKAGE" ]; then
+            echo "Unable to read Android package from sdkconfig for app id '$FIREBASE_APP_ID'." >&2
+            exit 1
+          fi
+
+          if [ "$APP_PACKAGE" != "$EXPECTED_ANDROID_PACKAGE" ]; then
+            echo "Firebase app id '$FIREBASE_APP_ID' points to package '$APP_PACKAGE', expected '$EXPECTED_ANDROID_PACKAGE'." >&2
+            echo "Update FIREBASE_APP_ID_ANDROID_DEV to the app id for package '$EXPECTED_ANDROID_PACKAGE'." >&2
+            exit 1
+          fi
+
+          echo "Firebase App Distribution preflight passed: auth ok, app id ok, package=$APP_PACKAGE"
         working-directory: .
-      
+
       - name: Resolve APK path
         id: resolve_apk
         run: |
