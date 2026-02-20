@@ -109,15 +109,8 @@ jobs:
           abort("Missing #{podfile_path}") unless File.exist?(podfile_path)
 
           content = File.read(podfile_path)
-
-          unless content.include?("use_modular_headers!")
-            marker = /^platform :ios,.*$/
-            if content.match?(marker)
-              content.sub!(marker) { |line| "#{line}\nuse_modular_headers!" }
-            else
-              content = "use_modular_headers!\n#{content}"
-            end
-          end
+          # Global modular headers break RNFirebase + FirebaseStorage Swift header resolution in CI.
+          content.gsub!(/^\s*use_modular_headers!\s*\n/, '')
 
           old_rnmbx_v11_block = <<~'OLD_RNMBX'
               if use_v11
