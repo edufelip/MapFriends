@@ -102,13 +102,14 @@ jobs:
           if [ ! -d ios ] || [ ! -f ios/Podfile ]; then
             npx expo prebuild --platform ios --non-interactive --no-install
           fi
-      - name: Patch Podfile for Firebase modular headers
+      - name: Patch Podfile for CI
         run: |
           ruby - <<'RUBY'
           podfile_path = "ios/Podfile"
           abort("Missing #{podfile_path}") unless File.exist?(podfile_path)
 
           content = File.read(podfile_path)
+
           unless content.include?("use_modular_headers!")
             marker = /^platform :ios,.*$/
             if content.match?(marker)
@@ -116,8 +117,107 @@ jobs:
             else
               content = "use_modular_headers!\n#{content}"
             end
-            File.write(podfile_path, content)
           end
+
+          old_rnmbx_v11_block = <<~'OLD_RNMBX'
+              if use_v11
+                installer.pods_project.build_configurations.each do |config|
+                  flags = config.build_settings['OTHER_SWIFT_FLAGS']
+                  if flags.nil?
+                    config.build_settings['OTHER_SWIFT_FLAGS'] = ['$(inherited)', '-D RNMBX_11']
+                  elsif flags.is_a?(Array)
+                    unless flags.include?('-D RNMBX_11')
+                      flags << '-D RNMBX_11'
+                    end
+                    config.build_settings['OTHER_SWIFT_FLAGS'] = flags
+                  elsif flags.is_a?(String)
+                    unless flags.include?('RNMBX_11')
+                      config.build_settings['OTHER_SWIFT_FLAGS'] = flags + ' -D RNMBX_11'
+                    end
+                  end
+                end
+              end
+          OLD_RNMBX
+
+          new_rnmbx_v11_block = <<~'NEW_RNMBX'
+              if use_v11
+                append_swift_value = lambda do |value, token|
+                  if value.nil?
+                    ['$(inherited)', token]
+                  elsif value.is_a?(Array)
+                    value.include?(token) ? value : value + [token]
+                  elsif value.is_a?(String)
+                    value.include?(token) ? value : value + ' ' + token
+                  else
+                    value
+                  end
+                end
+
+                installer.pods_project.build_configurations.each do |config|
+                  config.build_settings['OTHER_SWIFT_FLAGS'] =
+                    append_swift_value.call(config.build_settings['OTHER_SWIFT_FLAGS'], '-D RNMBX_11')
+                end
+
+                installer.pods_project.targets.each do |target|
+                  next unless target.name == 'rnmapbox-maps'
+
+                  target.build_configurations.each do |config|
+                    config.build_settings['OTHER_SWIFT_FLAGS'] =
+                      append_swift_value.call(config.build_settings['OTHER_SWIFT_FLAGS'], '-D RNMBX_11')
+                    config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] =
+                      append_swift_value.call(config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'], 'RNMBX_11')
+                  end
+                end
+              end
+          NEW_RNMBX
+
+          if content.include?(old_rnmbx_v11_block)
+            content.sub!(old_rnmbx_v11_block, new_rnmbx_v11_block)
+          elsif !content.include?("target.name == 'rnmapbox-maps'")
+            insertion_anchor = <<~'RNMBX_ANCHOR'
+                if defined?($RNMapboxMaps) && $RNMapboxMaps.respond_to?(:post_install)
+                  $RNMapboxMaps.post_install(installer)
+                end
+            RNMBX_ANCHOR
+
+            injected_rnmbx_block = <<~'RNMBX_INJECTED'
+                if defined?($RNMapboxMaps) && $RNMapboxMaps.respond_to?(:post_install)
+                  $RNMapboxMaps.post_install(installer)
+                end
+                rnmbx_mapbox_pod = installer.pod_targets.find { |p| p.name == 'MapboxMaps' }
+                rnmbx_use_v11 = rnmbx_mapbox_pod && rnmbx_mapbox_pod.version.split('.')[0].to_i >= 11
+                if rnmbx_use_v11
+                  append_swift_value = lambda do |value, token|
+                    if value.nil?
+                      ['$(inherited)', token]
+                    elsif value.is_a?(Array)
+                      value.include?(token) ? value : value + [token]
+                    elsif value.is_a?(String)
+                      value.include?(token) ? value : value + ' ' + token
+                    else
+                      value
+                    end
+                  end
+
+                  installer.pods_project.targets.each do |target|
+                    next unless target.name == 'rnmapbox-maps'
+
+                    target.build_configurations.each do |config|
+                      config.build_settings['OTHER_SWIFT_FLAGS'] =
+                        append_swift_value.call(config.build_settings['OTHER_SWIFT_FLAGS'], '-D RNMBX_11')
+                      config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'] =
+                        append_swift_value.call(config.build_settings['SWIFT_ACTIVE_COMPILATION_CONDITIONS'], 'RNMBX_11')
+                    end
+                  end
+                end
+            RNMBX_INJECTED
+
+            if content.include?(insertion_anchor)
+              content.sub!(insertion_anchor, injected_rnmbx_block)
+            end
+          end
+
+          File.write(podfile_path, content)
           RUBY
       - name: Bump iOS build number
         run: |
@@ -131,6 +231,38 @@ jobs:
           cd ios
           pod install --silent
 
+      - name: Verify RNMapbox v11 compile flags
+        run: |
+          set -euo pipefail
+
+          PODS_PROJECT="ios/Pods/Pods.xcodeproj"
+          if [ ! -d "$PODS_PROJECT" ]; then
+            echo "Missing $PODS_PROJECT after pod install" >&2
+            exit 1
+          fi
+
+          SETTINGS_FILE="$RUNNER_TEMP/rnmapbox-build-settings.txt"
+          xcodebuild \
+            -project "$PODS_PROJECT" \
+            -target rnmapbox-maps \
+            -configuration Debug \
+            -showBuildSettings > "$SETTINGS_FILE"
+
+          OTHER_SWIFT_FLAGS_LINE="$(grep -m1 '^[[:space:]]*OTHER_SWIFT_FLAGS[[:space:]]*=' "$SETTINGS_FILE" || true)"
+          SWIFT_CONDITIONS_LINE="$(grep -m1 '^[[:space:]]*SWIFT_ACTIVE_COMPILATION_CONDITIONS[[:space:]]*=' "$SETTINGS_FILE" || true)"
+
+          echo "[ios-ci] $OTHER_SWIFT_FLAGS_LINE"
+          echo "[ios-ci] $SWIFT_CONDITIONS_LINE"
+
+          if ! echo "$OTHER_SWIFT_FLAGS_LINE" | grep -q 'RNMBX_11'; then
+            echo "rnmapbox-maps missing RNMBX_11 in OTHER_SWIFT_FLAGS" >&2
+            exit 1
+          fi
+
+          if ! echo "$SWIFT_CONDITIONS_LINE" | grep -q 'RNMBX_11'; then
+            echo "rnmapbox-maps missing RNMBX_11 in SWIFT_ACTIVE_COMPILATION_CONDITIONS" >&2
+            exit 1
+          fi
 
       - name: Resolve iOS workspace and scheme
         run: |
