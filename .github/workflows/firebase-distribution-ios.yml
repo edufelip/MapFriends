@@ -269,8 +269,13 @@ jobs:
       
           mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
           cp "$PROFILE_PATH" "$PROFILE_DEST"
-      - name: Validate provisioning profile entitlements (push)
+      - name: Preflight provisioning profile (bundle id and capabilities)
+        env:
+          EXPECTED_BUNDLE_ID: com.edufelip.mapfriends.dev
+          EXPECTED_PROFILE_NAME: ${{ secrets.IOS_ADHOC_PROFILE_NAME }}
         run: |
+          set -euo pipefail
+
           PROFILE_PATH="$HOME/Library/MobileDevice/Provisioning Profiles/mapfriends-dev.mobileprovision"
           if [ ! -f "$PROFILE_PATH" ]; then
             echo "Provisioning profile not found at $PROFILE_PATH" >&2
@@ -278,14 +283,39 @@ jobs:
           fi
 
           security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c "Print :Name" "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          APP_IDENTIFIER=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:application-identifier" "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
           APS_ENV=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:aps-environment" "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+          APPLE_SIGN_IN=$(/usr/libexec/PlistBuddy -c "Print :Entitlements:com.apple.developer.applesignin" "$RUNNER_TEMP/profile.plist" 2>/dev/null || true)
+
+          if [ -z "$PROFILE_NAME" ]; then
+            echo "Unable to read provisioning profile name." >&2
+            exit 1
+          fi
+
+          if [ -n "${EXPECTED_PROFILE_NAME:-}" ] && [ "$PROFILE_NAME" != "$EXPECTED_PROFILE_NAME" ]; then
+            echo "Provisioning profile name mismatch. Expected '$EXPECTED_PROFILE_NAME', got '$PROFILE_NAME'." >&2
+            exit 1
+          fi
+
+          EXPECTED_SUFFIX=".$EXPECTED_BUNDLE_ID"
+          if [[ "$APP_IDENTIFIER" != *"$EXPECTED_SUFFIX" ]]; then
+            echo "Provisioning profile app identifier '$APP_IDENTIFIER' does not match expected bundle id '$EXPECTED_BUNDLE_ID'." >&2
+            exit 1
+          fi
 
           if [ -z "$APS_ENV" ]; then
             echo "Provisioning profile missing Push Notifications entitlement (aps-environment)." >&2
             exit 1
           fi
 
-          echo "Detected aps-environment: $APS_ENV"
+          if [ -z "$APPLE_SIGN_IN" ]; then
+            echo "Provisioning profile missing Sign in with Apple entitlement (com.apple.developer.applesignin)." >&2
+            exit 1
+          fi
+
+          echo "Preflight OK: profile='$PROFILE_NAME' app-id='$APP_IDENTIFIER' aps='$APS_ENV' sign-in-with-apple present"
 
       - name: Build archive (Debug)
         env:
