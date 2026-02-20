@@ -171,8 +171,8 @@ jobs:
           console.log(`[firebase-ci] service_account_project_id=${key.project_id}`);
           NODE
       
-          if ! npx --yes firebase-tools appdistribution:groups:list --app "$FIREBASE_APP_ID" --json >/tmp/fad-groups.json 2>/tmp/fad-groups.err; then
-            echo "Firebase App Distribution authorization failed for app $FIREBASE_APP_ID." >&2
+          if ! npx --yes firebase-tools appdistribution:groups:list --json >/tmp/fad-groups.json 2>/tmp/fad-groups.err; then
+            echo "Firebase App Distribution authorization failed." >&2
             cat /tmp/fad-groups.err >&2 || true
             echo "Ensure FIREBASE_SERVICE_ACCOUNT_JSON belongs to the same Firebase project as FIREBASE_APP_ID_ANDROID_DEV and has roles/firebaseappdistro.admin (or roles/firebase.admin)." >&2
             exit 1
