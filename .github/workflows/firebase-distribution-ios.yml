@@ -270,6 +270,17 @@ jobs:
           target_names = %w[RNFBApp RNFBStorage]
           found = []
 
+          append_flag = lambda do |value, flag|
+            if value.nil?
+              ['$(inherited)', flag]
+            elsif value.is_a?(Array)
+              value.include?(flag) ? value : value + [flag]
+            else
+              str = value.to_s
+              str.include?(flag) ? str : "#{str} #{flag}".strip
+            end
+          end
+
           project.targets.each do |target|
             next unless target_names.include?(target.name)
             found << target.name
@@ -278,6 +289,15 @@ jobs:
               config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
               config.build_settings['CLANG_WARN_NON_MODULAR_INCLUDE_IN_FRAMEWORK_MODULES'] = 'NO'
               config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+
+              config.build_settings['OTHER_CFLAGS'] =
+                append_flag.call(config.build_settings['OTHER_CFLAGS'], '-Wno-error=non-modular-include-in-framework-module')
+              config.build_settings['OTHER_CFLAGS'] =
+                append_flag.call(config.build_settings['OTHER_CFLAGS'], '-Wno-non-modular-include-in-framework-module')
+              config.build_settings['OTHER_CPLUSPLUSFLAGS'] =
+                append_flag.call(config.build_settings['OTHER_CPLUSPLUSFLAGS'], '-Wno-error=non-modular-include-in-framework-module')
+              config.build_settings['OTHER_CPLUSPLUSFLAGS'] =
+                append_flag.call(config.build_settings['OTHER_CPLUSPLUSFLAGS'], '-Wno-non-modular-include-in-framework-module')
             end
           end
 
