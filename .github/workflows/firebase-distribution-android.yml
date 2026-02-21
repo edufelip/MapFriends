@@ -141,7 +141,7 @@ jobs:
           build-root-directory: android
           arguments: |
             clean
-            assembleDebug
+            assembleDevDebug
             -PCI_VERSION_CODE=${{ env.CI_VERSION_CODE }}
 
       - name: Release notes
@@ -256,11 +256,25 @@ jobs:
       - name: Resolve APK path
         id: resolve_apk
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk -type f -name "*debug*.apk" | sort | head -n 1)
+          APK_PATH=$(find android/app/build/outputs/apk/dev/debug -type f -name "*.apk" | sort | head -n 1)
           if [ -z "$APK_PATH" ]; then
-            echo "No debug APK found under android/app/build/outputs/apk" >&2
+            echo "No dev debug APK found under android/app/build/outputs/apk/dev/debug" >&2
             exit 1
           fi
+          AAPT_BIN="$(command -v aapt || true)"
+          if [ -z "$AAPT_BIN" ]; then
+            AAPT_BIN="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -type f -name aapt 2>/dev/null | sort -V | tail -n 1)"
+          fi
+          if [ -z "$AAPT_BIN" ]; then
+            echo "Unable to locate aapt binary to validate APK package name" >&2
+            exit 1
+          fi
+          APK_PACKAGE="$("$AAPT_BIN" dump badging "$APK_PATH" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+          if [ "$APK_PACKAGE" != "com.edufelip.mapfriends.dev" ]; then
+            echo "Resolved APK has package '$APK_PACKAGE', expected 'com.edufelip.mapfriends.dev'." >&2
+            exit 1
+          fi
+          echo "Using APK: $APK_PATH (package=$APK_PACKAGE)"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
         working-directory: .
 
