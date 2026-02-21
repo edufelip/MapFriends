@@ -108,6 +108,21 @@ jobs:
         run: npm ci
         working-directory: .
 
+      - name: Force dev Android package in Expo config
+        run: |
+          set -euo pipefail
+          node - <<'NODE'
+          const fs = require('fs');
+          const path = 'app.json';
+          const config = JSON.parse(fs.readFileSync(path, 'utf8'));
+          config.expo = config.expo || {};
+          config.expo.android = config.expo.android || {};
+          config.expo.android.package = 'com.edufelip.mapfriends.dev';
+          fs.writeFileSync(path, `${JSON.stringify(config, null, 2)}\n`);
+          console.log('[firebase-ci] app.json expo.android.package=com.edufelip.mapfriends.dev');
+          NODE
+        working-directory: .
+
       - name: Ensure Android native project exists
         run: |
           if [ ! -d android ] || [ ! -f android/gradlew ]; then
@@ -141,7 +156,7 @@ jobs:
           build-root-directory: android
           arguments: |
             clean
-            assembleDevDebug
+            assembleDebug
             -PCI_VERSION_CODE=${{ env.CI_VERSION_CODE }}
 
       - name: Release notes
@@ -256,11 +271,15 @@ jobs:
       - name: Resolve APK path
         id: resolve_apk
         run: |
-          APK_PATH=$(find android/app/build/outputs/apk/dev/debug -type f -name "*.apk" | sort | head -n 1)
-          if [ -z "$APK_PATH" ]; then
-            echo "No dev debug APK found under android/app/build/outputs/apk/dev/debug" >&2
+          set -euo pipefail
+          EXPECTED_PACKAGE="com.edufelip.mapfriends.dev"
+
+          mapfile -t APK_CANDIDATES < <(find android/app/build/outputs/apk -type f -name "*debug*.apk" | sort)
+          if [ "${#APK_CANDIDATES[@]}" -eq 0 ]; then
+            echo "No debug APK found under android/app/build/outputs/apk" >&2
             exit 1
           fi
+
           AAPT_BIN="$(command -v aapt || true)"
           if [ -z "$AAPT_BIN" ]; then
             AAPT_BIN="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -type f -name aapt 2>/dev/null | sort -V | tail -n 1)"
@@ -269,12 +288,23 @@ jobs:
             echo "Unable to locate aapt binary to validate APK package name" >&2
             exit 1
           fi
-          APK_PACKAGE="$("$AAPT_BIN" dump badging "$APK_PATH" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
-          if [ "$APK_PACKAGE" != "com.edufelip.mapfriends.dev" ]; then
-            echo "Resolved APK has package '$APK_PACKAGE', expected 'com.edufelip.mapfriends.dev'." >&2
+
+          APK_PATH=""
+          for candidate in "${APK_CANDIDATES[@]}"; do
+            pkg="$("$AAPT_BIN" dump badging "$candidate" | sed -n "s/^package: name='\\([^']*\\)'.*/\\1/p" | head -n 1)"
+            echo "[firebase-ci] candidate_apk=$candidate package=$pkg"
+            if [ "$pkg" = "$EXPECTED_PACKAGE" ]; then
+              APK_PATH="$candidate"
+              break
+            fi
+          done
+
+          if [ -z "$APK_PATH" ]; then
+            echo "No debug APK matched expected package '$EXPECTED_PACKAGE'." >&2
             exit 1
           fi
-          echo "Using APK: $APK_PATH (package=$APK_PACKAGE)"
+
+          echo "Using APK: $APK_PATH"
           echo "apk_path=$APK_PATH" >> "$GITHUB_OUTPUT"
         working-directory: .
 
