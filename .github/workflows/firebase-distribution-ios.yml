@@ -257,6 +257,37 @@ jobs:
           cd ios
           pod install --silent
 
+      - name: Patch RNFirebase non-modular header flags
+        run: |
+          set -euo pipefail
+          ruby - <<'RUBY'
+          require 'xcodeproj'
+
+          project_path = 'ios/Pods/Pods.xcodeproj'
+          abort("Missing #{project_path}") unless Dir.exist?(project_path)
+
+          project = Xcodeproj::Project.open(project_path)
+          target_names = %w[RNFBApp RNFBStorage]
+          found = []
+
+          project.targets.each do |target|
+            next unless target_names.include?(target.name)
+            found << target.name
+
+            target.build_configurations.each do |config|
+              config.build_settings['CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES'] = 'YES'
+              config.build_settings['CLANG_WARN_NON_MODULAR_INCLUDE_IN_FRAMEWORK_MODULES'] = 'NO'
+              config.build_settings['GCC_TREAT_WARNINGS_AS_ERRORS'] = 'NO'
+            end
+          end
+
+          missing = target_names - found
+          abort("Missing RNFirebase targets in Pods project: #{missing.join(', ')}") unless missing.empty?
+
+          project.save
+          puts "[ios-ci] patched RNFirebase targets for non-modular header warnings: #{found.join(', ')}"
+          RUBY
+
       - name: Enforce RNMapbox v11 flags in Pods project
         run: |
           set -euo pipefail
