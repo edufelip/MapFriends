@@ -93,4 +93,4 @@ Release workflows support both automatic branch-triggered execution and manual `
 - Android release workflow forces `-Pandroid.enableMinifyInReleaseBuilds=true` so `mapping.txt` is generated for Play Console deobfuscation uploads.
 
 - iOS workflows resolve workspace and app scheme dynamically from the generated iOS project to avoid case-sensitive scheme mismatches in CI (e.g., `mapfriends` vs `MapFriends`).
-- iOS Firebase distribution workflow disables `CLANG_ENABLE_EXPLICIT_MODULES` (while keeping `CLANG_ENABLE_MODULES=YES`) for `RNFBApp` and `RNFBStorage` in `Pods.xcodeproj` to avoid Xcode 16 archive parser failures where `RCT_EXPORT_*` macros are treated as plain identifiers.
+- iOS Firebase distribution workflow disables `CLANG_ENABLE_MODULES` and `CLANG_ENABLE_EXPLICIT_MODULES` for `RNFBApp` and `RNFBStorage` in `Pods.xcodeproj` to avoid Xcode 16 archive parser failures where `RCT_EXPORT_*` macros are treated as plain identifiers.
