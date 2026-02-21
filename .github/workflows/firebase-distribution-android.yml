@@ -228,10 +228,15 @@ jobs:
             fi
             exit 1
           fi
-
-          APP_PACKAGE="$(jq -r '.client[0].client_info.android_client_info.package_name // empty' /tmp/fad-sdkconfig.json 2>/dev/null || true)"
+          APP_PACKAGE="$(jq -r --arg appid "$RESOLVED_FIREBASE_APP_ID" '
+            .client[]?
+            | select((.client_info.mobilesdk_app_id // "") == $appid)
+            | (.client_info.android_client_info.package_name // empty)
+          ' /tmp/fad-sdkconfig.json | head -n 1)"
           if [ -z "$APP_PACKAGE" ]; then
             echo "Unable to read Android package from sdkconfig for app id '$RESOLVED_FIREBASE_APP_ID'." >&2
+            echo "sdkconfig clients (appId -> package):" >&2
+            jq -r '.client[]? | "\(.client_info.mobilesdk_app_id // "n/a") -> \(.client_info.android_client_info.package_name // "n/a")"' /tmp/fad-sdkconfig.json >&2 || true
             exit 1
           fi
 
