@@ -26,7 +26,7 @@ Release workflows support both automatic branch-triggered execution and manual `
   - Builds debug APK and uploads to Firebase App Distribution group `mapfriends`
 - `.github/workflows/firebase-distribution-ios.yml`
   - Trigger: push to `develop`, PRs to `develop/release/hotfix`, manual dispatch
-  - Builds signed dev IPA and uploads to Firebase App Distribution group `mapfriends`
+  - Builds signed dev IPA from a Release archive (embedded JS bundle, no Metro dependency) and uploads to Firebase App Distribution group `mapfriends`
 
 ### Store releases
 - `.github/workflows/android-release.yml`

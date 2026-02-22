@@ -424,7 +424,7 @@ jobs:
           echo "[ios-ci] workspace=$WORKSPACE_NAME"
           echo "[ios-ci] scheme=$SCHEME_NAME"
 
-      - name: Align app provisioning profile (Debug)
+      - name: Align app provisioning profile (Debug/Release)
         env:
           IOS_PROFILE_NAME: ${{ secrets.IOS_ADHOC_PROFILE_NAME }}
         run: |
@@ -446,14 +446,21 @@ jobs:
                    project.targets.find { |t| !t.name.start_with?('Pods-') }
           abort("Unable to resolve app target in #{project_path}") unless target
 
-          debug_cfg = target.build_configurations.find { |cfg| cfg.name == 'Debug' }
-          abort("Debug build configuration not found for target #{target.name}") unless debug_cfg
+          config_names = %w[Debug Release]
+          patched = []
 
-          debug_cfg.build_settings['CODE_SIGN_STYLE'] = 'Manual'
-          debug_cfg.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = profile_name
+          target.build_configurations.each do |cfg|
+            next unless config_names.include?(cfg.name)
+
+            cfg.build_settings['CODE_SIGN_STYLE'] = 'Manual'
+            cfg.build_settings['PROVISIONING_PROFILE_SPECIFIER'] = profile_name
+            patched << cfg.name
+          end
+
+          abort("None of #{config_names.join(', ')} build configurations found for target #{target.name}") if patched.empty?
 
           project.save
-          puts "[ios-ci] target=#{target.name} Debug PROVISIONING_PROFILE_SPECIFIER=#{profile_name}"
+          puts "[ios-ci] target=#{target.name} patched configs=#{patched.join(', ')} PROVISIONING_PROFILE_SPECIFIER=#{profile_name}"
           RUBY
 
       - name: Write GoogleService-Info-Dev.plist
@@ -625,7 +632,7 @@ jobs:
 
           echo "Preflight OK: profile='$PROFILE_NAME' app-id='$APP_IDENTIFIER' aps='$APS_ENV' sign-in-with-apple present"
 
-      - name: Build archive (Debug)
+      - name: Build archive (Release)
         env:
           KEYCHAIN_PATH: ${{ runner.temp }}/app-signing.keychain-db
         run: |
@@ -633,7 +640,7 @@ jobs:
           xcodebuild \
             -workspace "$IOS_WORKSPACE_NAME" \
             -scheme "$IOS_SCHEME_NAME" \
-            -configuration Debug \
+            -configuration Release \
             -destination "generic/platform=iOS" \
             -archivePath "$PWD/build/mapfriends-dev.xcarchive" \
             archive \
